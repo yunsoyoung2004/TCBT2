@@ -19,7 +19,7 @@ writeFileSync(
   path.join(distServerDir, "index.js"),
   [
     "/* Auto-generated for Sites packaging checks. */",
-    "module.exports = {};",
+    "export {};",
     "",
   ].join("\n"),
 );
