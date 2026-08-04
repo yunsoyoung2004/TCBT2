@@ -1,0 +1,635 @@
+TBCT SOURCE-FIDELITY AUDIT
+===========================
+
+Audit scope: Sessions 01-08 only
+Audit mode: source-fidelity audit only
+Application-data changes: none
+Clinical-content changes: none
+Runtime, routing, release, provider, migration, and reseed changes: none
+
+This report compares the latest marker-bounded source supplied in this chat with
+the current static implementation. It does not treat a working UI, a familiar
+title, a node count, a source label, or a runtime route as evidence of clinical
+fidelity.
+
+The audit did not read, reset, or mutate a browser's existing localStorage or
+IndexedDB records. Findings about catalog and Dexie content therefore describe
+the checked-in default/seed paths and their behavior; a browser may additionally
+contain user-edited persisted records for Sessions 01, 02, and 04-08.
+
+
+1. SOURCE INGESTION CONFIRMATION
+--------------------------------
+
+BEGIN marker found: yes
+END marker found: yes
+Sessions 01-08 found exactly once: yes
+Boundary completeness: confirmed
+Exact source character count: 200099 Unicode code points (including original
+line-ending characters)
+UTF-8 byte count: 202536
+Physical source line count: 1651
+Whole-source SHA-256:
+ce4a6cdd4a2a83870782dd979b5e78c8125c71ee6e91a016b9da7f26e0e215a3
+
+The verbatim marker-bounded text is retained at:
+  artifacts/tbct-source-text.txt
+
+The machine-readable ingestion manifest is retained at:
+  artifacts/tbct-source-ingestion.json
+
+The extractor is an audit-only helper at:
+  artifacts/extract-tbct-source.mjs
+
+No source text was normalized, corrected, translated, or clinically repaired
+before hashing. Sessions 06 and 07 contain visible encoding/transcription
+corruption in the supplied source (for example, sequences such as "‚Äî" and
+"Portugu√™s"). This is preserved exactly in the audit artifacts. It is a
+source-quality limitation: semantic certainty cannot exceed the exact readable
+text supplied for those passages.
+
+
+2. SOURCE MANIFEST
+------------------
+
+sourceSession | sourceSection            | sourceLineStart | sourceLineEnd | sourceTextHash
+Session 01    | Complete session source  | 18              | 222           | 44c5389a6ad419119c6b2fa0dc61273d5a8ef501bb53e17f13e09b711b3b7a39
+Session 02    | Complete session source  | 223             | 429           | 9703a52d23c715b044b7d7ab198d6eca39d0d8968a4520e7286afcd00f8e3e0b
+Session 03    | Complete session source  | 430             | 745           | 2a3686ef5660f60d28fa1a59783e03a3d29763faaf223ad9e0a08e50d5644745
+Session 04    | Complete session source  | 746             | 803           | 0f9d9ba505f420b1bc7bdd78d5491dd07267ed6fa41cea56b0253c511037f573
+Session 05    | Complete session source  | 804             | 931           | 313fe5df2c2e15f42053cd95e6194cd834eeaf4273e4849c16de89afda96d236
+Session 06    | Complete session source  | 932             | 1275          | 20aa58141718d98412740adf7d13432203785df845b9c7f6d609a5f7a54e38ac
+Session 07    | Complete session source  | 1276            | 1536          | acba4ae74192dc898936ec6a7fb3d927577e5f7eefddb564a116aef967fb3e2b
+Session 08    | Complete session source  | 1537            | 1651          | b53082bbf7fac347ef2b04002a661a82af815f1307c531236d4b6f610305634e
+
+Selected source anchors used below:
+  S01: mandatory opening and Steps 1-6, lines 49-170.
+  S02: CCPH/CCGH Steps 1-9 and closing, lines 263-429.
+  S03: safety, Q1-Q14, closing, structural rules, lines 455-724.
+  S04: Inter-TR sequence, feedback loop, locus of control, pathways, action
+       plan, lines 746-803.
+  S05: PG Steps 1-10, register distinction, language rules, lines 804-931.
+  S06: language lock, color rules, seven steps, failure modes, lines 935-1275.
+  S07: language lock, Step 0 and Steps 1-7, form and safeguards, lines 1279-1536.
+  S08: role principles and 21-step Trial One protocol, lines 1539-1651.
+
+
+3. AUDIT TAXONOMY
+-----------------
+
+Only these statuses are used for clinical-source classification:
+
+  EXACT_SOURCE
+    The relevant stored text matches the source text for the cited task.
+
+  FAITHFUL_STRUCTURED
+    A data structure preserves the required source action without material
+    semantic loss, although it is not a verbatim prompt.
+
+  ACCEPTABLE_EDITABLE_VARIANT
+    A source-anchored shorter or editable wording retains the required action,
+    but still needs clinician confirmation before being treated as final.
+
+  PARAPHRASED_REVIEW_REQUIRED
+    A source idea is restated, but wording or omitted conditions make clinical
+    review necessary.
+
+  SYNTHETIC_PLACEHOLDER
+    The stored content is generated/demo wording rather than source content.
+
+  MISSING
+    A source-required prompt, rule, field, branch, output, or provenance is
+    not represented in the examined implementation.
+
+  MISPLACED
+    A source-relevant action appears at the wrong session, stage, role, or
+    order.
+
+  CONTRADICTS_SOURCE
+    The current behavior or wording conflicts with an explicit source rule.
+
+The status on a session row is the highest-risk finding for that session. It
+does not erase lower-risk EXACT_SOURCE items listed later.
+
+
+4. IMPLEMENTATION-SOURCE INVENTORY
+----------------------------------
+
+Implementation source / store                         | Current role in fidelity assessment
+src/lib/session-catalog.ts                             | Static catalog definitions, stage nodes, PromptItems, plan, localStorage merge
+localStorage key tbct.session-catalog.v2               | Per-browser persisted catalog overrides for S01, S02, S04-S08
+src/lib/protocol/session-03-real.ts                    | Separate 32-node / 34-edge S03 graph seed
+src/lib/protocol/session-03-importer.ts                | Imports that graph only under lower-case/long S03 identifiers
+src/lib/db/tbct-local-db.ts                            | Dexie schema and legacy seeded demo release REL-DEMO-1
+src/lib/api/protocol-api.ts                            | Graph/release APIs hard-coded primarily to SESSION-03
+src/lib/api/runtime-session-api.ts                     | Creates runtime sessions from immutable release snapshots
+src/lib/api/runtime-execution-api.ts                   | Chooses runtime release nodes and advances edges
+src/lib/runtime/runtime-node-executor.ts               | Gets catalog PromptItems by runtime session/node ID
+src/lib/runtime/providers/deterministic-language-provider.ts | Uses node content when no catalog PromptItem matches
+src/components/pages/protocol-page.tsx                 | Builder canvas, catalog prompt inspector, and common-rules display
+src/components/pages/patient-session-page.tsx          | Shows catalog PromptItems for the current release node
+src/components/pages/patient-new-session-page.tsx      | Uses the first distinct session ID in a published release snapshot
+src/components/pages/extraction-page.tsx               | Renders definition title as primary Session Flow title
+src/lib/session-catalog.test.ts                        | Tests labels only; does not test source fidelity
+
+Important store limitation:
+  The static audit cannot certify a browser's pre-existing localStorage or
+  IndexedDB contents. In particular, readStore() preserves persisted nodes and
+  PromptItems for S01, S02, and S04-S08. No local data was reset to obtain a
+  convenient seed-state result.
+
+
+5. DATA-PLACEMENT AND EXECUTION DISTINCTION
+--------------------------------------------
+
+Catalog / Builder path
+  sessionOutlines + promptBlueprints in session-catalog.ts
+    -> createSessionSeeds()
+    -> localStorage-backed catalog
+    -> getSessionNodes() / getSessionPrompts()
+    -> ProtocolPage Session Explorer, canvas, and Node Inspector
+
+Protocol graph / release path
+  protocolGraphNodes and protocolGraphEdges in Dexie
+    -> getProtocolGraph()
+    -> immutable release snapshot
+    -> runtime session entry/completion and edge traversal
+
+Runtime message path
+  release snapshot current node
+    -> getSessionPrompts(sessionDefinitionId, node.id)
+    -> provider request if a catalog PromptItem matches
+    -> otherwise node runtimeAction payload text or node content
+
+These are separate sources. A catalog PromptItem visible in the Builder is not
+automatically a release-graph node, and a release-graph node is not guaranteed
+to have a matching catalog PromptItem. Accordingly, a UI display, a graph
+shape, or a runnable node is not proof that the delivered content is sourced.
+
+Specific current paths:
+
+1. The Builder canvas is rendered from sessionFlowNodes, which is built from
+   getSessionNodes(selectedSessionMeta.id), not graphQuery.data.nodes. The
+   right-side prompt list uses getSessionPrompts(selectedSessionMeta.id,
+   selectedSessionNode.id). The graph query is a separate data source.
+
+2. The built-in release generator in protocol-api.ts reads only
+   getProtocolGraph(protocolId, "SESSION-03"). It does not create an S01-S08
+   release from the catalog.
+
+3. The built-in Dexie v3 seed creates REL-DEMO-1 with eight generic nodes named
+   RT-NODE-* under protocol ID TBCT-BR-001 and session ID SESSION-03. Its
+   content includes a generic check-in, activity, homework, and safety branch;
+   it is not any source Session 03 Intra-TR sequence.
+
+4. The special real-S03 importer uses protocol ID tbct-br-001 and session ID
+   tbct-br-001-session-03. getProtocolGraphApi() invokes it only when both
+   lower-case/long identifiers are passed. The main Builder calls the graph API
+   with TBCT-BR-001 and catalog IDs such as tbct-session-03, so this special
+   import condition does not match that route.
+
+5. For a legacy REL-DEMO-1 node, getSessionPrompts("SESSION-03", "RT-NODE-*")
+   normalizes only the session ID to tbct-session-03. The catalog's S03 nodes
+   are named q1_situation, q2a_automatic_thought, etc., not RT-NODE-*. No
+   PromptItem therefore matches the release node ID. The deterministic provider
+   falls back to the legacy release node's generic content.
+
+6. The static S03 graph itself has a transition from mandatory_safety_check
+   conditioned on safetyClear == true, but its runtime action writes safetyCheck.
+   runtime-context.ts does not derive safetyClear. Static inspection therefore
+   finds no matching transition field for that edge. This is an execution-path
+   observation, not a claim that the S03 clinical source has been executed.
+
+
+6. GLOBAL FIDELITY TABLE
+------------------------
+
+Session | Source session title                                      | Primary implementation seed                                              | Overall status
+01      | Introduction to the TBCT Model                            | 7 catalog stages, 15 generated PromptItems                              | CONTRADICTS_SOURCE
+02      | Problems and Goals                                        | 8 catalog stages, 16 generated PromptItems                              | CONTRADICTS_SOURCE
+03      | Intrapersonal Thought Record (Intra-TR)                   | 32 special graph-derived catalog PromptItems; separate graph/release IDs| PARAPHRASED_REVIEW_REQUIRED
+04      | Interpersonal Thought Record (Inter-TR)                   | 9 catalog stages, 18 generated PromptItems                              | CONTRADICTS_SOURCE
+05      | Participation Grid (PG)                                   | 9 catalog stages, 17 generated PromptItems                              | MISPLACED
+06      | Color-Coded Symptoms Hierarchy (CCSH)                     | 10 catalog stages, 16 generated PromptItems; 4 fallbacks                | CONTRADICTS_SOURCE
+07      | Consensual Role-Play (CRP)                                | 11 catalog stages, 20 generated PromptItems; 2 fallbacks                | MISSING
+08      | Trial One                                                  | 12 catalog stages, 22 generated PromptItems; 2 fallbacks                | CONTRADICTS_SOURCE
+
+Prompt-count metadata is independently unreliable as fidelity evidence:
+
+Session | SessionDefinition.promptCount | Generated default PromptItems | Status
+01      | 14                            | 15                            | CONTRADICTS_SOURCE
+02      | 16                            | 16                            | FAITHFUL_STRUCTURED
+03      | 32                            | 32                            | FAITHFUL_STRUCTURED
+04      | 18                            | 18                            | FAITHFUL_STRUCTURED
+05      | 18                            | 17                            | CONTRADICTS_SOURCE
+06      | 20                            | 16                            | CONTRADICTS_SOURCE
+07      | 22                            | 20                            | CONTRADICTS_SOURCE
+08      | 24                            | 22                            | CONTRADICTS_SOURCE
+
+Counts show implementation mechanics only. They do not establish clinical
+completeness.
+
+
+7. SESSIONDEFINITION, SOURCE TRACE, AND PLAN FINDINGS
+------------------------------------------------------
+
+All eight SessionDefinition titles broadly identify the corresponding source
+session. This is ACCEPTABLE_EDITABLE_VARIANT rather than fidelity proof: S03
+and S04 omit their parenthetical acronyms, and most session purposes are short
+paraphrases.
+
+Current field / source                                 | Record IDs / current value                              | Source reference        | Status
+SessionDefinition.restrictions                          | Every catalog definition has []                          | All sessions have rules | MISSING
+SessionDefinition.languageRules                         | Same two generic strings for all sessions                | Session-specific rules  | MISSING
+ClinicalStageNode.restrictions                          | Every generated catalog node has []                      | All sessions            | MISSING
+PromptItem.sourceTrace                                 | Generic document name, Session NN, importedVersion v0.1  | Exact source manifest   | MISSING
+PromptItem.sourceHash                                  | Undefined for catalog PromptItems                        | Exact hashes above      | MISSING
+S03 PromptItem.sourceTrace                              | "Intrapersonal Thought Record", Session 03, v0.4.1      | S03 lines 430-745       | MISSING
+SessionPlan ordered entries                             | Session 01 through Session 08 in source order            | Source headings         | FAITHFUL_STRUCTURED
+Extraction Session Flow primary title                   | getSessionById(entry.sessionId).title                    | Source session headings | ACCEPTABLE_EDITABLE_VARIANT
+
+The plan title behavior is a label/display success only. It does not bind the
+plan to source text, source line ranges, a source hash, or a release snapshot.
+
+
+8. SESSION COMMON RULES ROOT-CAUSE ANALYSIS
+-------------------------------------------
+
+Root cause 1: defaultSessionCommonRules contains an entry only for
+tbct-session-03. No default SessionCommonRules record exists for S01, S02, or
+S04-S08.
+
+Root cause 2: getSessionCommonRules() returns null when that session has no
+default record. ProtocolPage renders empty controlled fields in that case, and
+all onChange handlers are guarded by `sessionCommonRules && ...`. The fields
+therefore appear as "Session Common Rules" but cannot acquire rules for those
+sessions through that view.
+
+Root cause 3: readStore() ignores persisted common-rule records that do not
+have a corresponding default record. This prevents a durable catalog rule set
+from being reconstructed for S01, S02, or S04-S08 through the current merge.
+
+Root cause 4: even the S03 common rules are UI/catalog metadata only. The
+runtime node executor sends editableText, aiInstruction, fields, validation,
+and node safety IDs to the provider. It does not load or inject
+SessionCommonRules. Session-wide restrictions therefore do not control runtime
+delivery.
+
+Current field / source                                 | Record / current value                                  | Source reference        | Status
+S01 CommonRules                                         | No default record                                       | S01 language/restrictions| MISSING
+S02 CommonRules                                         | No default record                                       | S02 guidelines           | MISSING
+S03 CommonRules                                         | Generic 12-field record, version 0.4.1                  | S03 lines 455-724        | PARAPHRASED_REVIEW_REQUIRED
+S04 CommonRules                                         | No default record                                       | S04 protocol/paths       | MISSING
+S05 CommonRules                                         | No default record                                       | S05 language/safety      | MISSING
+S06 CommonRules                                         | No default record                                       | S06 language/failure modes| MISSING
+S07 CommonRules                                         | No default record                                       | S07 language/guardrails  | MISSING
+S08 CommonRules                                         | No default record                                       | S08 key principles       | MISSING
+
+
+9. PROMPTITEM-LEVEL FINDINGS
+----------------------------
+
+Record IDs below are deterministic seed IDs of the form
+{sessionId}-{nodeId}-p{order}. A slash separates records with the same finding.
+The value is a short identifier for the current verbatimText or behavior; the
+source range is the controlling source section.
+
+SESSION 01 - INTRODUCTION TO THE TBCT MODEL
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-01-s01-opening-p1                         | "How would you describe... telegraphically?"                                 | Step 1, lines 66-72          | EXACT_SOURCE
+tbct-session-01-s01-opening-p2                         | "Is that the situation, or could that be a thought?"                         | Step 1 example                | EXACT_SOURCE
+tbct-session-01-s01-situation-thought-p1/p2             | Requests and analyzes a personal example before the three-person exercise     | Step 1 redirect; Step 2 first | CONTRADICTS_SOURCE
+tbct-session-01-s01-three-person-p1/p2                  | Uses the two source conclusion questions but omits all three candidate cycles | Step 2, lines 75-129          | MISSING
+tbct-session-01-s01-cycle-p1/p2                         | Returning-arrow prompts                                                       | Step 3, lines 130-140         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-01-s01-cycle-p3                            | Generic behavior-to-situation wording                                         | Step 3 returning arrows       | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-01-s01-summary-p1                          | Short participant-summary question                                            | Step 4, lines 141-144         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-01-s01-distortions-p1                      | Cognitive-distortions-list availability check                                 | Step 5, lines 145-155         | EXACT_SOURCE
+tbct-session-01-s01-distortions-p2/p3                   | Distortion-fit and significance questions                                     | Step 5                         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-01-s01-closing-p1/p2                       | Daily observation and future Intra-TR bridge                                  | Step 6, lines 156-170         | PARAPHRASED_REVIEW_REQUIRED
+S01 stage ordering and restrictions                     | No seed enforces mandatory one/two-sentence opening, Step 2 completion, or
+                                                       | no personal-cycle exploration before Step 2                                   | Lines 49-170 and restrictions | MISSING
+
+Session 01 clinical finding: the catalog has several exact questions, but its
+personal-example stage contradicts the source's mandatory deferral to Step 3.
+The source-required full three-person teaching sequence and global restrictions
+are not represented as executable/catalog constraints.
+
+SESSION 02 - PROBLEMS AND GOALS
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-02-s02-opening-p1/p2                       | Problem elicitation and home/work/relationship follow-up                       | Step 1, lines 263-279         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-02-s02-problems-p1/p2                      | Influence/reframe prompt and list continuation                                 | Step 1                         | FAITHFUL_STRUCTURED
+tbct-session-02-s02-hidden-p1/p2                        | X/Y/Z option but abbreviated normalization/confidentiality handling            | Step 1b, lines 280-293        | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-02-s02-problem-rating-p1                   | Asks whether to explain the scale, rather than checking the rating card first  | Step 2                         | MISSING
+tbct-session-02-s02-problem-rating-p2                   | "0 is light blue; 5 is red" compresses six mandatory anchors                  | Step 2                         | CONTRADICTS_SOURCE
+tbct-session-02-s02-problem-summary-p1/p2               | Gives total but omits required yellow/red count and display rules              | Step 4, lines 319-329         | MISSING
+tbct-session-02-s02-goals-p1/p2                         | Goal/aspiration elicitation                                                     | Step 6, lines 334-350         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-02-s02-goal-rating-p1                      | Says "same 0 to 5 scale" without the goal-specific six anchors                | Step 7, lines 351-361         | CONTRADICTS_SOURCE
+tbct-session-02-s02-goal-rating-p2                      | Collects a score without its required color/anchor reflection                  | Step 8                         | MISSING
+tbct-session-02-s02-goal-summary-p1/p2                  | Gives a total but omits required yellow/red count and closing form             | Step 9/closing, lines 369-429 | MISSING
+
+Session 02 clinical finding: both problem and goal score scales are explicitly
+required to be presented exactly in the source. The catalog compresses them,
+does not represent their separate anchors, and omits required yellow/red counts.
+
+SESSION 03 - INTRAPERSONAL THOUGHT RECORD (INTRA-TR)
+
+This session uses buildSession03PromptItems(), which produces one catalog
+PromptItem per node in src/lib/protocol/session-03-real.ts. The graph contains
+32 nodes and 34 edges. It is structured, but it is not a verbatim import of the
+source system prompt.
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-03-session_start-p1                        | "Session initialized."                                                        | S03 session opening           | SYNTHETIC_PLACEHOLDER
+tbct-session-03-mandatory_safety_check-p1               | Safety check is shortened; crisis stop/escalation conditions are absent here   | Safety protocol, 455-469      | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-intra_tr_introduction-p1                | One-sentence introduction; omits purpose, 14 questions, and no-right-answer   | Introduction, 483-494         | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-03-q1_situation-p1                         | Core recent-distressing-situation question                                     | Q1, 503-509                   | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q2a_automatic_thought-p1                | Short automatic-thought question                                                | Q2a, 513-528                  | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-03-factual_at_check-p1                     | Binary fact/interpretation check                                               | Q2a factual-AT rule           | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-03-underlying_belief_confirmation-p1       | Explores distress meaning but omits source confirmation of the working AT      | Q2a factual-AT rule           | MISSING
+tbct-session-03-q2b_initial_at_belief-p1                | 0-100 initial working-thought belief                                           | Q2b, 529-535                  | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q3a_primary_emotion-p1                  | Primary-emotion prompt                                                         | Q3a, 539-544                  | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q3b_initial_emotion_intensity-p1        | 0-100 intensity prompt                                                         | Q3b, 545-549                  | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q4a_behavior-p1                         | Behavior prompt                                                                 | Q4a, 553-556                  | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q4b_body_sensations-p1                  | Body-sensation prompt                                                          | Q4b, 557-570                  | EXACT_SOURCE
+tbct-session-03-participant_summary_checkpoint-p1       | Summary omits body sensations and source-required post-summary cycle statement | Q4 checkpoint, 559-570       | MISSING
+tbct-session-03-q5_behavior_pros-p1                     | Asks protective/avoidance function, not explicit advantages including relief   | Q5, 575-580                   | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-03-q6_behavior_cons-p1                     | Costs/disadvantages question                                                    | Q6, 581-585                   | EXACT_SOURCE
+tbct-session-03-q7_cognitive_distortion-p1              | Asks for a label but lacks list availability/example rule                      | Q7, 589-595                   | MISSING
+tbct-session-03-q8_evidence_for-p1 / q8_additional_evidence-p1 | Allows at most two evidence entries; source aims for two or three     | Q8, 599-606                   | MISSING
+tbct-session-03-q9_evidence_against-p1 / q9_additional_evidence-p1 | Allows at most two entries and lacks source directions              | Q9, 607-615                   | MISSING
+tbct-session-03-q10a_balanced_conclusion-p1             | Balanced-conclusion prompt                                                      | Q10a, 619-624                 | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q10_therefore_extension-p1              | Therefore extension                                                            | Q10a                           | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q10b_full_conclusion_belief-p1          | Rates conclusion without first reading the complete conclusion back             | Q10b, 625-633                 | MISSING
+tbct-session-03-q11_positive_emotions-p1                | Positive emotion first                                                          | Q11a, 637-648                 | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q11_original_negative_emotion-p1        | Does not name the original Q3a emotion                                          | Q11a                           | CONTRADICTS_SOURCE
+tbct-session-03-q11_emotion_intensities-p1              | "Rate current emotions" allows non-source emotions/rating scope                | Q11b, 649-659                 | CONTRADICTS_SOURCE
+tbct-session-03-q12a_intended_action-p1                 | Intended-action question                                                        | Q12a, 661-666                 | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-q12b_new_body_sensations-p1             | New-body-sensation question                                                     | Q12b, 667-671                 | EXACT_SOURCE
+tbct-session-03-q13_revised_at_belief-p1                | Does not repeat the participant's exact AT/working AT                          | Q13, 675-678                  | MISSING
+tbct-session-03-q14_global_evaluation-p1                | Global comparison question                                                      | Q14, 679-685                  | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-03-closing-p1                              | Generic thank-you; omits review/share and action-plan bridge                   | Closing, 687-697              | MISSING
+tbct-session-03-session_complete-p1                     | "Session completed."                                                          | Completion                    | SYNTHETIC_PLACEHOLDER
+S03 structural rules / verbose management               | Not represented by PromptItems, node restrictions, or runtime common rules     | 699-724                       | MISSING
+
+Additional S03 routing findings:
+  - The factual-AT classification is hard-coded in runtime-context.ts to a
+    narrow English phrase heuristic. It is not a source-faithful evaluation of
+    the factual-AT examples or the user's meaning.
+  - The safety graph asks for safetyCheck but requires safetyClear to traverse.
+    This static field mismatch can stop the sequence after the safety prompt.
+  - SourceTrace is session-level only and lacks the source line/hash for every
+    graph-derived PromptItem.
+
+SESSION 04 - INTERPERSONAL THOUGHT RECORD (INTER-TR)
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-04-s04-safety-p1/p2                        | Source Q1/Q2a texts are placed in a safety_check node                          | Structure table, 746-756     | MISPLACED
+tbct-session-04-s04-thought-emotion-p1/p2               | Initial belief and emotion prompts                                              | Structure table               | EXACT_SOURCE
+tbct-session-04-s04-body-behavior-p1/p2                 | Behavior/body prompts                                                          | Structure table               | EXACT_SOURCE
+tbct-session-04-s04-other-perspective-p1/p2             | Other's thought and emotion, but no required other behavior question           | Steps 5-7                     | MISSING
+tbct-session-04-s04-feedback-loop-p1/p2                 | Two source guided-discovery questions but no complete reflected loop            | Feedback loop                 | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-04-s04-locus-p1/p2                         | Two locus questions                                                            | Locus of control              | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-04-s04-rerating-p1/p2                      | Re-rate and generic final feeling                                               | Step 8/final check-in         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-04-s04-action-p1/p2                        | Starts an action plan but omits all-actions-first, obstacles, solutions, timing| Action plan                    | MISSING
+tbct-session-04-s04-closing-p1/p2                       | Generic next-session closing not supplied by the source                         | End of protocol               | SYNTHETIC_PLACEHOLDER
+Social-anxiety / feared-evaluation path                 | No catalog branch, prompts, fields, or action-plan test framing                 | Pathway determination         | MISSING
+
+Session 04 clinical finding: Q1 is mislabeled and safety-routed as a safety
+stage, while the source requires a conditional crisis suspension rather than a
+new initial safety step. Required Q7, both pathways, and the complete action
+plan are absent.
+
+SESSION 05 - PARTICIPATION GRID (PG)
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-05-s05-guilt-shame-p1/p2                   | Baseline guilt belief and shame intensity questions                             | Step 1, 828-831               | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-05-s05-language-p1/p2                      | Participation-language explanation and consent                                 | Step 2, 832-834               | FAITHFUL_STRUCTURED
+tbct-session-05-s05-contributor-p1                      | Generic contributor question; does not require complete list/self-last          | Step 3, 835-838               | MISSING
+tbct-session-05-s05-contributor-p2                      | "How I'm coping" reframe belongs to Session 02, not PG                         | S02 Step 1; S05 Step 3        | MISPLACED
+tbct-session-05-s05-ratings-p1/p2                       | No sum-to-100 requirement or remaining-share computation                        | Step 4, 839-843               | MISSING
+tbct-session-05-s05-socratic-p1/p2                      | Transition and a source-question-bank item                                      | Step 5, 844-847               | FAITHFUL_STRUCTURED
+tbct-session-05-s05-rerating-p1/p2                      | Guilt/shame re-rating questions                                                 | Step 7, 852-859               | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-05-s05-final-emotion-p1/p2                 | Values prompts stored under "Final Guilt and Shame" node                        | Steps 7-8                     | MISPLACED
+tbct-session-05-s05-values-p1/p2                        | Duplicates values closing; does not handle residual shame or a table             | Steps 8-10                    | MISSING
+tbct-session-05-s05-closing-p1                          | Fallback text "Prompt 1 for s05-closing."                                     | Step 10                        | SYNTHETIC_PLACEHOLDER
+Residual-shame downward arrow / take-away table          | No PromptItem, field model, or output format                                    | Steps 9-10, 863-879           | MISSING
+
+Session 05 clinical finding: the source's guilt-belief versus shame-intensity
+register distinction begins correctly, but the 100-percent grid mechanics,
+new-contributor handling, conditional residual-shame work, and required summary
+table are not represented. One prompt is borrowed from Session 02.
+
+SESSION 06 - COLOR-CODED SYMPTOMS HIERARCHY (CCSH)
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-06-s06-id-p1/p2                            | Generic symptom/safety prompts; omits required opening, language lock, items   | Opening, Step 1               | MISSING
+tbct-session-06-s06-item-expansion-p1                   | Fallback text "Prompt 1 for s06-item-expansion."                              | Step 1, 1062-1104             | SYNTHETIC_PLACEHOLDER
+tbct-session-06-s06-color-scale-p1                      | Compresses six required scale anchors to 0 and 5                                | Step 2, 1105-1123             | CONTRADICTS_SOURCE
+tbct-session-06-s06-color-scale-p2                      | Collects a score without source-required calibration/full mapping                | Step 2                         | MISSING
+tbct-session-06-s06-item-rating-p1                      | Fallback text "Prompt 1 for s06-item-rating."                                 | Step 2                         | SYNTHETIC_PLACEHOLDER
+tbct-session-06-s06-green-homework-p1/p2                | A single small task plus accountability; no required 2-3 green selection/contract| Step 4, 1139-1151            | MISSING
+tbct-session-06-s06-exposure-p1/p2                      | Green/yellow/red rules omit source CRP and full handling details                 | Clinical rationale / Step 5   | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-06-s06-relief-p1                           | Fallback text "Prompt 1 for s06-relief."                                      | Step 6, 1172-1183             | SYNTHETIC_PLACEHOLDER
+tbct-session-06-s06-safety-behavior-p1/p2               | UA/diagram prompts omit Circuit 2 rendering and formal term introduction        | Step 7, 1184-1205             | MISSING
+tbct-session-06-s06-assumption-p1/p2                    | Uses an example conditional-assumption prompt                                   | Step 7                         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-06-s06-closing-p1                          | Fallback text "Prompt 1 for s06-closing."                                     | End worksheet                 | SYNTHETIC_PLACEHOLDER
+Language lock / human presence / failure modes           | No SessionCommonRules or prompt representation                                  | 961-1014; 1207-1275           | MISSING
+
+Session 06 clinical finding: source explicitly prohibits compressing the scale;
+the catalog does so. Four visible default PromptItems are literal fallbacks, and
+the source-required language, interaction, worksheet, and Circuit 2 controls
+are not implemented in the catalog.
+
+SESSION 07 - CONSENSUAL ROLE-PLAY (CRP)
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-07-s07-consent-p1/p2                       | Proposes CRP and asks consent; lacks no-pressure/learning orientation            | Opening and Step 0            | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-07-s07-pros-cons-p1/p2                     | Disadvantages before advantages                                                 | Step 1, 1378-1385             | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-07-s07-weights-p1/p2                       | Emotion disadvantage and Reason advantage weights                               | Step 2, 1386-1396             | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-07-s07-chair-setup-p1/p2                   | Role-shift prompts but no physical arrangement/direct-dialogue rule              | Step 3 setup                  | MISSING
+tbct-session-07-s07-emotion-chair-p1/p2                 | Emotion directed to Reason plus continuation                                    | Step 3                         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-07-s07-reason-chair-p1/p2                  | Reason responses                                                                | Step 3                         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-07-s07-dialogue-loop-p1                    | Fallback text "Prompt 1 for s07-dialogue-loop."                               | Step 3                         | SYNTHETIC_PLACEHOLDER
+tbct-session-07-s07-consensus-p1/p2                     | Learning prompts but no Consensus-chair transition                              | Step 4, 1416-1422             | MISSING
+tbct-session-07-s07-readiness-p1/p2                     | Readiness/not-ready questions                                                   | Step 6, 1428-1434             | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-07-s07-action-p1/p2                        | Actions, support, and fallback but omits obstacles, solutions, timing, follow-up| Step 7/form, 1435-1474       | MISSING
+tbct-session-07-s07-closing-p1                          | Fallback text "Prompt 1 for s07-closing."                                     | Closing safeguards            | SYNTHETIC_PLACEHOLDER
+Language lock / both-parts / Step 0 / dialogue restraint | No SessionCommonRules or complete prompt/flow representation                    | 1289-1377; 1397-1536          | MISSING
+
+Session 07 clinical finding: the seed preserves some recognizably related
+questions, but omits Step 0, the full chair-dialogue control model, and most of
+the six-field action plan. It cannot be regarded as a full CRP implementation.
+
+SESSION 08 - TRIAL ONE
+
+Record ID(s)                                           | Current value / comparison                                                     | Source reference             | Status
+tbct-session-08-s08-trigger-p1/p2                       | Short trigger/downward-arrow prompts omit source situation, AT, and ratings     | Steps 1-2, 1578-1579          | MISSING
+tbct-session-08-s08-courtroom-p1/p2                     | Prosecutor imagery/role happens before defendant stage and role orientation     | Steps 3-6, 1580-1585          | CONTRADICTS_SOURCE
+tbct-session-08-s08-defendant-p1/p2                     | Defendant re-rating is placed after prosecutor transition                        | Step 4                         | MISPLACED
+tbct-session-08-s08-prosecutor-p1                       | Prosecutor evidence prompt                                                      | Step 6                         | ACCEPTABLE_EDITABLE_VARIANT
+tbct-session-08-s08-prosecutor-p2                       | "BUT... what else?" is a rebuttal construct, not Step 6 evidence collection    | Step 6 vs Step 10             | MISPLACED
+tbct-session-08-s08-defense-p1/p2                       | Defense evidence/concrete example but no imagery, neutral identity, role rules  | Steps 7-8                      | MISSING
+tbct-session-08-s08-rebuttal-p1/p2                      | Combines Step 10 prosecutor rebuttal with Step 12 defense "Therefore"          | Steps 10-12                   | CONTRADICTS_SOURCE
+tbct-session-08-s08-jury-p1/p2                          | Evidence review precedes source-required juror orientation; omits four blocks   | Step 14                        | CONTRADICTS_SOURCE
+tbct-session-08-s08-verdict-p1/p2                       | Adds readiness and omits court-officer/judge sequence                           | Steps 14-16                    | MISSING
+tbct-session-08-s08-ratings-p1/p2                       | Generic final rating/emotion lacks defendant/judge role and scale safeguards    | Step 16                        | PARAPHRASED_REVIEW_REQUIRED
+tbct-session-08-s08-debrief-p1/p2                       | Two of the debrief/positive-belief themes; most required Step 17 questions absent| Steps 17-18                   | MISSING
+tbct-session-08-s08-positive-belief-p1                  | Fallback text "Prompt 1 for s08-positive-belief."                              | Steps 18-20                   | SYNTHETIC_PLACEHOLDER
+tbct-session-08-s08-closing-p1                          | Fallback text "Prompt 1 for s08-closing."                                      | Step 21                        | SYNTHETIC_PLACEHOLDER
+Role reversals / pronouns / evidence rules / appeal prep | No catalog rule/field/flow representation                                       | Key principles; Steps 3-21    | MISSING
+
+Session 08 clinical finding: the catalog reverses major source order (courtroom
+prosecutor before defendant), misplaces "BUT", combines distinct roles, and
+leaves required courtroom, jury, appeal-preparation, and role-transition rules
+unrepresented.
+
+
+10. SOURCE-TRACE AND GROUPING FINDINGS
+---------------------------------------
+
+1. Every catalog PromptItem carries only a broad session-level source trace.
+   It has no source line range, exact-source hash, source block ID, or source
+   excerpt. The presence of `verbatimText` therefore does not establish that the
+   text was imported verbatim.
+
+2. sessionOutlines controls stage grouping for seven sessions. Its stage titles
+   and clinicalPurpose strings are author-created summaries, not source sections
+   with a one-to-one trace. `requiredFields`, `completionRule`, `branchRules`,
+   and `restrictions` do not encode most source conditions.
+
+3. The legacy tbct-session-03 outline and promptBlueprints entries remain in
+   session-catalog.ts, but createSessionSeeds() bypasses them and instead maps
+   REAL_SESSION_03_NODES. This stale parallel S03 content is not trustworthy as
+   current clinical source content.
+
+4. PromptItems are editable and persistable. For S01, S02, and S04-S08,
+   readStore() accepts persisted node and PromptItem values after the first
+   catalog initialization. This makes current browser content potentially differ
+   from the static seed without source provenance.
+
+5. Session Definition status values such as draft, reviewed, or ready are
+   implementation metadata. They do not demonstrate clinician approval of any
+   source section.
+
+
+11. CONTRADICTIONS AND MISSING CONTENT - PRIORITY FINDINGS
+-----------------------------------------------------------
+
+Priority 0 - source/order conflicts
+  1. S01 requests personal-cycle detail before the mandatory three-person
+     example is complete.
+  2. S02 compresses scales that the source explicitly says must be presented
+     with all six anchors exactly.
+  3. S04 labels initial Inter-TR content as a safety node and omits the other
+     person's behavior / full action-plan sequence.
+  4. S06 compresses a scale that the source explicitly says must not be
+     compressed.
+  5. S08 reverses source role/order and misplaces prosecutor/defense constructs.
+
+Priority 0 - content delivery path
+  6. The built-in published Dexie release is a legacy generic SESSION-03 demo,
+     not the catalog's S03 graph and not Sessions 01-08 source content.
+  7. The runtime resolves prompts by release node ID. Legacy RT-NODE-* records
+     have no matching catalog PromptItems, so generic release node content is
+     delivered by the deterministic provider.
+  8. The special S03 importer, catalog, Builder, and release paths use three
+     incompatible identifiers: tbct-session-03,
+     tbct-br-001-session-03, and SESSION-03.
+
+Priority 1 - missing clinical constraints
+  9. Source-wide rules are absent from SessionDefinition restrictions, node
+     restrictions, and runtime input for all sessions.
+ 10. S03 omits source-required full-conclusion readback, original-emotion
+     anchoring, exact-AT re-read, and verbose-patient management.
+ 11. S05 omits 100-percent grid mechanics, residual-shame branch, and summary
+     table.
+ 12. S06 omits the language lock, human-presence controls, failure modes,
+     worksheet, and most of Circuit 2.
+ 13. S07 omits Step 0, direct-chair dialogue constraints, and most of the action
+     plan form.
+ 14. S08 omits role/third-person enforcement, full evidence review, court
+     officer/judge sequence, Appeal Preparation, and final re-assessment.
+
+Priority 2 - auditability and UI metadata
+ 15. Session Common Rules exists by default only for S03 and is not runtime
+     executable.
+ 16. SourceTrace data lacks source line ranges and source hashes.
+ 17. Prompt-count metadata is wrong for S01 and S05-S08.
+ 18. The existing test asserts canonical labels, not clinical content,
+     ordering, constraint preservation, or source traceability.
+
+
+12. CLINICIAN / RESEARCH REVIEW FLAGS
+--------------------------------------
+
+Clinical review required:
+  - Every session requires clinician review before it can be called faithful.
+  - S01, S02, S04, S05, S06, and S08 contain explicit source conflicts or
+    misplaced material.
+  - S03 is not a complete verbatim import despite its special graph and status.
+  - S06 and S07 need an additional source-quality review because the supplied
+    text contains visible mojibake/transcription corruption.
+
+Research / reproducibility review required:
+  - Bind every future clinical field to a sourceSession, sourceSection,
+    sourceLineStart, sourceLineEnd, sourceTextHash, and stable source record ID.
+  - Resolve the catalog/graph/release identifier split before attributing a
+    runtime transcript to a particular TBCT source session.
+  - Capture actual published release hashes and actual browser store states
+    separately from checked-in seed evidence.
+  - Do not use a SessionDefinition validationStatus, a release publication flag,
+    or a UI title as a clinical-validation result.
+
+
+13. FUTURE CORRECTION PLAN - NOT IMPLEMENTED IN THIS AUDIT
+-----------------------------------------------------------
+
+1. Establish a reviewed source map from the manifest above before any prompt
+   edit. Preserve Sessions 06 and 07 exactly as received until a qualified
+   source owner provides an authoritative clean transcription.
+
+2. Design one canonical identity contract for protocol ID, SessionDefinition
+   ID, graph session ID, release snapshot ID, and runtime session ID. Migrate
+   only after review and explicit authorization.
+
+3. Replace synthetic catalog outlines with source-mapped structured records.
+   Every required source rule should be represented as a field, constraint,
+   branch, completion condition, or clinician-review requirement, not only as a
+   prose title.
+
+4. Repair the highest-risk source conflicts first: S01 Step 2 gate; S02 and S06
+   scoring anchors; S04 interpersonal sequence/pathways; and S08 role/order.
+
+5. Rebuild S03 against Q1-Q14 and all updated source rules, including safety
+   field/edge consistency, full conclusion readback, emotion scope, exact AT
+   repeat, source-gated evidence quantity, and verbose-patient behavior.
+
+6. Add per-session CommonRules defaults from the source and explicitly decide
+   which constraints must be injected into runtime provider requests versus
+   enforced mechanically. Do not rely on a display-only common-rules panel.
+
+7. Create a reviewed release from the same source-mapped graph and validate it
+   against the runtime prompt lookup before exposing it to a participant flow.
+
+8. Add source-fidelity tests that assert sequence, required fields, source hash
+   provenance, prohibited ordering, score-anchor text, and release/runtime node
+   alignment. Label-only tests are insufficient.
+
+No item in this correction plan was implemented as part of this audit.
+
+
+14. AUDIT LIMITATIONS
+---------------------
+
+  - This is a static code and source audit. It did not execute a patient session,
+    inspect personal browser state, alter Dexie, or publish a release.
+  - Existing localStorage/Dexie data may differ from the default static seeds.
+    That possibility is a reason not to overclaim fidelity, not a reason to
+    presume a missing implementation is present.
+  - The exact supplied source is authoritative for this report. No generic CBT
+    knowledge, prior outlines, titles, or historical chat text was used as a
+    substitute for missing source requirements.
+  - The report makes no clinical approval decision. It identifies implementation
+    evidence, omissions, and contradictions for clinician/research review.

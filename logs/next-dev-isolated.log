@@ -1,0 +1,45 @@
+
+> tbct-protocol-studio@0.1.0 dev
+> next dev --port 3002
+
+   ▲ Next.js 15.5.22
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.219.103:3002
+
+ ✓ Starting...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- include was updated to add '.next-dev/types/**/*.ts'
+
+ ✓ Ready in 20.9s
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 42.5s (2723 modules)
+ GET / 200 in 71825ms
+ GET /runtime/pilot 200 in 71872ms
+ GET / 200 in 2558ms
+ GET /runtime/pilot 200 in 2585ms
+ GET /runtime/pilot/exports 200 in 2588ms
+ GET /runtime/pilot/participants 200 in 1513ms
+ GET /runtime/pilot/participants/SP-KR-001 200 in 2297ms
+ GET /runtime/pilot/reports 200 in 2591ms
+ GET /runtime/pilot/reports/PRT-DEMO-1 200 in 2656ms
+ GET /runtime/safety 200 in 1232ms
+ GET /runtime/safety/events 200 in 2081ms
+ GET /runtime/safety/my-queue 200 in 1751ms
+ GET /runtime/safety/follow-ups 200 in 3154ms
+ GET /runtime/pilot/exports 200 in 3261ms
+ ⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+   ▲ Next.js 15.5.22
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.219.103:3002
+
+ ✓ Starting...
+ ✓ Ready in 20.5s
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 10.3s (2696 modules)
+ GET /runtime/pilot/exports 200 in 14412ms
+ GET /runtime/safety/follow-ups 200 in 14396ms
+ GET /runtime/pilot/participants/SP-KR-001 200 in 14515ms
+[?25h

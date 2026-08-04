@@ -1,0 +1,105 @@
+
+> tbct-protocol-studio@0.1.0 dev
+> next dev --port 3002
+
+   ▲ Next.js 15.5.22
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.219.103:3002
+
+ ✓ Starting...
+ ✓ Ready in 26.6s
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 33.4s (2690 modules)
+ GET /runtime/pilot 200 in 53742ms
+ GET /runtime/pilot 200 in 418ms
+ GET /runtime/pilot/configuration 200 in 239ms
+ GET /runtime/pilot/sites 200 in 278ms
+ GET /runtime/pilot/participants 200 in 304ms
+ GET /runtime/pilot/screening 200 in 252ms
+ GET /runtime/pilot/enrollment 200 in 298ms
+ GET /runtime/pilot/allocation 200 in 198ms
+ GET /runtime/pilot/sessions 200 in 251ms
+ GET /runtime/pilot/deviations 200 in 585ms
+ GET /runtime/pilot/outcomes 200 in 273ms
+ GET /runtime/pilot/data-quality 200 in 228ms
+ GET /runtime/pilot/exports 200 in 294ms
+ GET /runtime/pilot/reports 200 in 466ms
+ GET /runtime/pilot/participants/SP-KR-001 200 in 264ms
+ GET /runtime/participants/PARTICIPANT-DEMO-01 200 in 259ms
+ GET /runtime/safety/events/SE-DEMO-PLACEHOLDER 200 in 235ms
+ ✓ Compiled in 30s (1247 modules)
+ ⨯ [Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+ ⨯ [Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+ ⨯ [Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+ ⨯ [Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[Error: UNKNOWN: unknown error, open 'C:\Users\82108\Desktop\TCBT\.next\static\chunks\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'] {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'C:\\Users\\82108\\Desktop\\TCBT\\.next\\static\\chunks\\_app-pages-browser_src_components_pages_dashboard-page_tsx.js'
+}
+[?25h
+
+C:\Users\82108\Desktop\TCBT>

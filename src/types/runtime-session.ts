@@ -1,0 +1,279 @@
+import type { RuntimeAction, ProtocolReleaseVersion } from "@/types/protocol-runtime";
+import type { RuntimeParticipant, MemoryRetrievalResult, MemoryUsageLog } from "@/types/longitudinal-memory";
+import type { ClinicalStageNode, PromptItem, SourceFidelityEdge } from "@/lib/protocol/source-fidelity-types";
+
+export type RuntimeSessionStatus =
+  | "created"
+  | "preparing"
+  | "active"
+  | "waiting_for_input"
+  | "processing"
+  | "paused"
+  | "safety_paused"
+  | "escalated"
+  | "completed"
+  | "terminated"
+  | "failed";
+
+export type RuntimeMessageRole = "patient" | "assistant" | "system" | "clinician";
+
+export type RuntimeMessageStatus =
+  | "pending"
+  | "processing"
+  | "validated"
+  | "delivered"
+  | "failed"
+  | "replaced_by_fallback";
+
+export interface RuntimeContext {
+  fields: Record<string, unknown>;
+  responseCategory?: string;
+  emotionalState?: string;
+  activityCompletion?: "not_started" | "partial" | "completed";
+  homeworkStatus?: "not_assigned" | "pending" | "completed";
+  riskLevel?: "low" | "medium" | "high";
+  riskSignals: string[];
+  iterationCounts: Record<string, number>;
+  lastPatientMessage?: string;
+  lastAssistantMessage?: string;
+  longitudinalMemory?: {
+    treatmentGoals: string[];
+    patientPreferences: string[];
+    activeHomework: string[];
+    relevantBarriers: string[];
+    copingStrategies: string[];
+  };
+}
+
+export interface RuntimeSession {
+  id: string;
+  projectId: string;
+  protocolId: string;
+  protocolVersion: string;
+  releaseId: string;
+  sessionDefinitionId: string;
+  participantId: string;
+  status: RuntimeSessionStatus;
+  currentSessionId?: string;
+  currentNodeId?: string;
+  previousNodeId?: string;
+  currentPromptItemId?: string;
+  completedPromptItemIds?: string[];
+  skippedPromptItemIds?: string[];
+  promptProgressionReason?: "session_started" | "prompt_delivered" | "prompt_completed" | "prompt_skipped" | "node_completed" | "safety_paused";
+  sourceVersion?: string;
+  sourceTextHash?: string;
+  startedAt?: string;
+  pausedAt?: string;
+  resumedAt?: string;
+  completedAt?: string;
+  terminatedAt?: string;
+  patientAlias: string;
+  locale: string;
+  runtimeContext: RuntimeContext;
+  messageIds: string[];
+  executionLogIds: string[];
+  escalationIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuntimeMessage {
+  id: string;
+  runtimeSessionId: string;
+  role: RuntimeMessageRole;
+  content: string;
+  status: RuntimeMessageStatus;
+  nodeId?: string;
+  promptItemId?: string;
+  actionType?: RuntimeAction["actionType"];
+  sourceEvidenceIds?: string[];
+  createdAt: string;
+  deliveredAt?: string;
+  replacedMessageId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SessionExecutionLog {
+  id: string;
+  runtimeSessionId: string;
+  timestamp: string;
+  stage:
+    | "session"
+    | "input"
+    | "state_extraction"
+    | "node_resolution"
+    | "condition_evaluation"
+    | "safety_check"
+    | "language_generation"
+    | "output_validation"
+    | "response_delivery"
+    | "escalation"
+    | "completion"
+    | "error";
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  nodeId?: string;
+  edgeId?: string;
+  summary: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface ClinicianEscalationEvent {
+  id: string;
+  runtimeSessionId: string;
+  protocolId: string;
+  protocolVersion: string;
+  sessionDefinitionId: string;
+  nodeId: string;
+  safetyRuleId?: string;
+  linkedSafetyEventId?: string;
+  executionSequence?: number;
+  severity: "medium" | "high";
+  triggerSummary: string;
+  status: "created" | "acknowledged" | "in_review" | "resolved" | "closed";
+  createdAt: string;
+  acknowledgedAt?: string;
+  resolvedAt?: string;
+  resolutionNote?: string;
+}
+
+export interface RuntimeCheckpoint {
+  id: string;
+  runtimeSessionId: string;
+  sequence: number;
+  currentNodeId?: string;
+  currentPromptItemId?: string;
+  completedPromptItemIds?: string[];
+  skippedPromptItemIds?: string[];
+  sourceVersion?: string;
+  sourceTextHash?: string;
+  sessionStatus: RuntimeSessionStatus;
+  runtimeContext: RuntimeContext;
+  messageIds: string[];
+  executionLogIds: string[];
+  createdAt: string;
+}
+
+export interface RuntimeProviderEvent {
+  id: string;
+  runtimeSessionId: string;
+  provider: string;
+  model: string;
+  nodeId?: string;
+  promptItemId?: string;
+  latencyMs?: number;
+  inputSummary: string;
+  outputText?: string;
+  createdAt: string;
+  error?: string;
+}
+
+export interface RuntimeValidationEvent {
+  id: string;
+  runtimeSessionId: string;
+  nodeId?: string;
+  promptItemId?: string;
+  accepted: boolean;
+  corrected: boolean;
+  rejected: boolean;
+  issues: string[];
+  finalText?: string;
+  fallbackRequired: boolean;
+  createdAt: string;
+}
+
+export interface PatientInput {
+  kind: "text" | "single_choice" | "multi_choice" | "rating" | "boolean" | "activity_completion" | "homework_status";
+  value: string | string[] | number | boolean;
+}
+
+export interface StateExtractionResult {
+  fields: Record<string, unknown>;
+  responseCategory?: string;
+  emotionalState?: string;
+  activityCompletion?: "not_started" | "partial" | "completed";
+  homeworkStatus?: "not_assigned" | "pending" | "completed";
+  riskLevel: "low" | "medium" | "high";
+  riskSignals: string[];
+  confidence?: number;
+  missingFields: string[];
+}
+
+export interface SafetyOrchestrationResult {
+  triggered: boolean;
+  severity?: "low" | "medium" | "high";
+  ruleIds: string[];
+  action: "continue" | "show_fixed_response" | "pause_session" | "escalate_clinician" | "terminate_session";
+  fixedResponse?: string;
+  escalationRequired: boolean;
+  reason?: string;
+}
+
+export interface LanguageGenerationInput {
+  locale: string;
+  protocolNode: ClinicalStageNode;
+  promptItem: PromptItem;
+  runtimeContext: RuntimeContext;
+  lastPatientMessage?: string;
+  safetyResult: SafetyOrchestrationResult;
+}
+
+export interface LanguageGenerationResult {
+  text?: string;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  metadata?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface OutputValidationResult {
+  accepted: boolean;
+  corrected: boolean;
+  rejected: boolean;
+  issues: string[];
+  finalText?: string;
+  fallbackRequired: boolean;
+}
+
+export interface RuntimeCycleResult {
+  sessionId: string;
+  previousNodeId?: string;
+  currentNodeId: string;
+  currentPromptItemId?: string;
+  nextPromptItemId?: string;
+  selectedEdgeId?: string;
+  nextNodeId?: string;
+  stateExtraction?: StateExtractionResult;
+  safetyResult: SafetyOrchestrationResult;
+  safetyTriggerSuppressed?: boolean;
+  suppressionId?: string;
+  suppressionReason?: string;
+  reusedSafetyEventId?: string;
+  generatedMessage?: RuntimeMessage;
+  outputValidation?: OutputValidationResult;
+  fallbackUsed: boolean;
+  sessionStatus: RuntimeSessionStatus;
+  logIds: string[];
+}
+
+export interface RuntimeSessionView {
+  session: RuntimeSession;
+  release: ProtocolReleaseVersion;
+  participant?: RuntimeParticipant;
+  nodes: ClinicalStageNode[];
+  edges: SourceFidelityEdge[];
+  promptItems: PromptItem[];
+  currentPromptItem?: PromptItem;
+  messages: RuntimeMessage[];
+  logs: SessionExecutionLog[];
+  checkpoints: RuntimeCheckpoint[];
+  escalations: ClinicianEscalationEvent[];
+  providerEvents: RuntimeProviderEvent[];
+  validationEvents: RuntimeValidationEvent[];
+  memoryRetrievalRuns?: MemoryRetrievalResult[];
+  memoryUsageLogs?: MemoryUsageLog[];
+}

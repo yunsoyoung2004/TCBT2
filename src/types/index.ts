@@ -1,34 +1,40 @@
-export type Status = "draft" | "review" | "approved" | "error" | "published";
+export type ReviewStatus = "draft" | "review" | "approved" | "error" | "published";
 export type Severity = "critical" | "warning" | "info" | "passed";
 
 export interface ClinicalAsset {
   id: string;
   title: string;
-  type: string;
-  language: string;
-  country: string;
+  type: "Session Transcript" | "Therapist Manual" | "Prompt Library" | "Patient Worksheet" | "Safety Guidance";
+  language: "Korean" | "English";
+  country: "Korea" | "United States" | "Global";
   version: string;
   session: string;
-  extractionStatus: Status;
-  reviewStatus: Status;
+  extractionStatus: ReviewStatus;
+  reviewStatus: ReviewStatus;
   author: string;
   updatedAt: string;
   blocks: number;
+  linkedSteps: string[];
+  sourceKind: "pdf" | "docx" | "transcript";
+  summary: string;
 }
 
 export interface SourceReference {
+  id: string;
   document: string;
   page: number;
   paragraph: string;
   timestamp?: string;
+  quote: string;
 }
 
 export interface TranscriptSegment {
   id: string;
-  speaker: "치료자" | "환자";
+  speaker: "Therapist" | "Participant";
   timestamp: string;
   text: string;
   highlighted?: boolean;
+  sourceReferenceId?: string;
 }
 
 export interface ProtocolStep {
@@ -36,13 +42,21 @@ export interface ProtocolStep {
   type: string;
   title: string;
   required: boolean;
-  status: Status;
+  status: ReviewStatus;
   intent: string;
   prompt: string;
   guide: string;
-  branchCount: number;
+  expectedResponse: string;
+  branching: string;
+  homework: string;
+  completion: string;
+  safetyNotes: string;
+  confidence: number;
   sourceCount: number;
+  branchCount: number;
   position: { x: number; y: number };
+  aiGeneratedSections: string[];
+  clinicianEditedSections: string[];
 }
 
 export interface ProtocolEdge {
@@ -55,13 +69,22 @@ export interface ProtocolEdge {
 export interface SafetyRule {
   id: string;
   title: string;
-  trigger: string;
-  action: string;
-  escalation: "Low" | "Medium" | "High";
-  active: boolean;
-  status: Status;
+  riskType: string;
+  severity: "Low" | "Medium" | "High";
+  countries: string[];
   sessions: string[];
+  status: ReviewStatus;
+  latestVersion: string;
   updatedAt: string;
+  trigger: string;
+  evidence: string;
+  severityMapping: string;
+  systemAction: string;
+  fixedResponse: string;
+  escalation: string;
+  sessionSuspension: string;
+  resumeCondition: string;
+  active: boolean;
 }
 
 export interface ValidationIssue {
@@ -72,6 +95,11 @@ export interface ValidationIssue {
   title: string;
   description: string;
   stepId?: string;
+  session: string;
+  source: string;
+  status: "open" | "resolved" | "ignored";
+  assignee: string;
+  suggestedFix: string;
 }
 
 export interface ProtocolVersion {
@@ -79,17 +107,17 @@ export interface ProtocolVersion {
   version: string;
   status: "Draft" | "Clinical Review" | "Published" | "Archived";
   author: string;
+  approvedBy?: string;
   date: string;
   nodes: number;
-  changes: { added: number; modified: number; removed: number; edges: number };
-}
-
-export interface ReviewDecision {
-  id: string;
-  stepId: string;
-  reviewer: string;
-  decision: "approved" | "rejected" | "pending";
-  comment: string;
+  safetyRulesChanged: number;
+  runtimeCompatibility: "Ready" | "Review" | "Blocked";
+  changes: {
+    added: number;
+    modified: number;
+    removed: number;
+    edges: number;
+  };
 }
 
 export interface AuditEntry {
@@ -97,18 +125,12 @@ export interface AuditEntry {
   timestamp: string;
   user: string;
   initials: string;
+  role: string;
   action: string;
   resource: string;
   previousValue: string;
   newValue: string;
   reason: string;
+  result: "Success" | "Pending" | "Blocked";
   version: string;
-}
-
-export interface TeamMember {
-  id: string;
-  name: string;
-  role: string;
-  initials: string;
-  status: "online" | "offline";
 }

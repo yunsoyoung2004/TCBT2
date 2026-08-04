@@ -1,0 +1,74 @@
+{
+  "beginMarkerFound": true,
+  "endMarkerFound": true,
+  "sourceCharacterCount": 200099,
+  "sourceUtf8ByteCount": 202536,
+  "sourceLineCount": 1651,
+  "sourceTextHash": "ce4a6cdd4a2a83870782dd979b5e78c8125c71ee6e91a016b9da7f26e0e215a3",
+  "sessions": [
+    {
+      "sourceSession": "Session 01",
+      "sourceSection": "Complete session source",
+      "title": "Introduction to the TBCT Model",
+      "sourceLineStart": 18,
+      "sourceLineEnd": 222,
+      "sourceTextHash": "44c5389a6ad419119c6b2fa0dc61273d5a8ef501bb53e17f13e09b711b3b7a39"
+    },
+    {
+      "sourceSession": "Session 02",
+      "sourceSection": "Complete session source",
+      "title": "Problems and Goals",
+      "sourceLineStart": 223,
+      "sourceLineEnd": 429,
+      "sourceTextHash": "9703a52d23c715b044b7d7ab198d6eca39d0d8968a4520e7286afcd00f8e3e0b"
+    },
+    {
+      "sourceSession": "Session 03",
+      "sourceSection": "Complete session source",
+      "title": "Intrapersonal Thought Record (Intra-TR)",
+      "sourceLineStart": 430,
+      "sourceLineEnd": 745,
+      "sourceTextHash": "2a3686ef5660f60d28fa1a59783e03a3d29763faaf223ad9e0a08e50d5644745"
+    },
+    {
+      "sourceSession": "Session 04",
+      "sourceSection": "Complete session source",
+      "title": "Interpersonal Thought Record (Inter-TR)",
+      "sourceLineStart": 746,
+      "sourceLineEnd": 803,
+      "sourceTextHash": "0f9d9ba505f420b1bc7bdd78d5491dd07267ed6fa41cea56b0253c511037f573"
+    },
+    {
+      "sourceSession": "Session 05",
+      "sourceSection": "Complete session source",
+      "title": "Participation Grid (PG)",
+      "sourceLineStart": 804,
+      "sourceLineEnd": 931,
+      "sourceTextHash": "313fe5df2c2e15f42053cd95e6194cd834eeaf4273e4849c16de89afda96d236"
+    },
+    {
+      "sourceSession": "Session 06",
+      "sourceSection": "Complete session source",
+      "title": "Color-Coded Symptoms Hierarchy (CCSH)",
+      "sourceLineStart": 932,
+      "sourceLineEnd": 1275,
+      "sourceTextHash": "20aa58141718d98412740adf7d13432203785df845b9c7f6d609a5f7a54e38ac"
+    },
+    {
+      "sourceSession": "Session 07",
+      "sourceSection": "Complete session source",
+      "title": "Consensual Role-Play (CRP)",
+      "sourceLineStart": 1276,
+      "sourceLineEnd": 1536,
+      "sourceTextHash": "acba4ae74192dc898936ec6a7fb3d927577e5f7eefddb564a116aef967fb3e2b"
+    },
+    {
+      "sourceSession": "Session 08",
+      "sourceSection": "Complete session source",
+      "title": "Trial One",
+      "sourceLineStart": 1537,
+      "sourceLineEnd": 1651,
+      "sourceTextHash": "b53082bbf7fac347ef2b04002a661a82af815f1307c531236d4b6f610305634e"
+    }
+  ]
+}

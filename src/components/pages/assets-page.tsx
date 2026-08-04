@@ -1,122 +1,413 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CalendarClock, Check, ChevronDown, Download, FileAudio2, FileText, Filter,
-  Grid2X2, Languages, List, MoreHorizontal, Plus, Search, SlidersHorizontal,
-  UploadCloud
-} from "lucide-react";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Archive, ArrowLeftRight, CheckCircle2, Clock3, FilePlus2, FileText, GitBranchPlus, Grid2X2, List, Play, Search, UploadCloud } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { Badge, Button, Card, DetailDrawer, EmptyState, ErrorState, Field, FilterBar, Modal, PageHeader, PageSkeleton, SectionHeader, SourceReferenceChip, StatusBadge, inputClass, textareaClass } from "@/components/ui/primitives";
 import {
-  Badge, Button, Card, Drawer, EmptyState, ErrorState, Field, inputClass, Modal,
-  PageSkeleton, StatusBadge, textareaClass
-} from "@/components/ui/primitives";
-import { getAssets, uploadAsset } from "@/lib/api/mock-api";
-import { cn } from "@/lib/utils";
+  archiveClinicalAssetApi,
+  compareAssetVersions,
+  createAssetRelationship,
+  createAssetVersion,
+  createExtractionReviewDraft,
+  exportSourceManifestApi,
+  getClinicalAssetApi,
+  getClinicalAssetsApi,
+  getExtractionJobsApi,
+  extractAssetNow,
+  setCurrentAssetVersion,
+} from "@/lib/api/clinical-assets-api";
 import { useStudioStore } from "@/stores/studio-store";
-import type { ClinicalAsset } from "@/types";
-
-const formSchema = z.object({
-  title:z.string().min(2,"자료 제목을 입력해 주세요."),
-  type:z.string().min(1),
-  author:z.string().min(2),
-  country:z.string().min(1),
-  language:z.string().min(1),
-  session:z.string().min(1),
-  version:z.string().min(1),
-  note:z.string().optional()
-});
-type UploadForm = z.infer<typeof formSchema>;
+import type { AssetRelationshipType, AssetType, LocalClinicalAsset } from "@/types/clinical-assets";
 
 export function AssetsPage() {
+  const router = useRouter();
+  const params = useSearchParams();
   const queryClient = useQueryClient();
-  const {data,isLoading,isError,refetch} = useQuery({queryKey:["assets"],queryFn:getAssets});
-  const [query,setQuery]=useState("");
-  const [type,setType]=useState("전체 유형");
-  const [uploadOpen,setUploadOpen]=useState(false);
-  const [selected,setSelected]=useState<ClinicalAsset|null>(null);
-  const [fileName,setFileName]=useState("");
-  const [progress,setProgress]=useState(0);
-  const assetView=useStudioStore((s)=>s.assetView);
-  const setAssetView=useStudioStore((s)=>s.setAssetView);
+  const assetView = useStudioStore((state) => state.assetView);
+  const setAssetView = useStudioStore((state) => state.setAssetView);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"overview" | "versions" | "relationships" | "extracted">("overview");
+  const [versionModalOpen, setVersionModalOpen] = useState(false);
+  const [relationshipOpen, setRelationshipOpen] = useState(false);
+  const [versionCompareIds, setVersionCompareIds] = useState<{ left: string; right: string } | null>(null);
+  const [versionForm, setVersionForm] = useState({ version: "1.1.0", changeSummary: "", rerunExtraction: true });
+  const [versionFile, setVersionFile] = useState<File | null>(null);
+  const [relationshipForm, setRelationshipForm] = useState({ targetAssetId: "", relationType: "translation_of" as AssetRelationshipType, notes: "" });
 
-  const form=useForm<UploadForm>({resolver:zodResolver(formSchema),defaultValues:{title:"",type:"TBCT 세션 녹취",author:"김지윤",country:"대한민국",language:"한국어",session:"Session 03",version:"v1.0",note:""}});
-  const mutation=useMutation({
-    mutationFn:async(values:UploadForm)=>{
-      setProgress(12); const timer=setInterval(()=>setProgress(p=>Math.min(p+13,91)),100);
-      try { return await uploadAsset(values); } finally { clearInterval(timer);setProgress(100); }
-    },
-    onSuccess:(item)=>{
-      queryClient.setQueryData<ClinicalAsset[]>(["assets"],old=>[item,...(old??[])]);
-      toast.success("임상 자료가 등록되었습니다",{description:"구조화 초안을 생성할 준비가 되었습니다."});
-      setTimeout(()=>{setUploadOpen(false);setProgress(0);setFileName("");form.reset();},450);
-    },
-    onError:()=>toast.error("업로드에 실패했습니다")
+  const filters = useMemo(
+    () => ({
+      query: params.get("q") ?? "",
+      country: params.get("country") ?? "all",
+      locale: params.get("locale") ?? "all",
+      assetType: (params.get("type") as AssetType | "all" | null) ?? "all",
+      sessionId: params.get("session") ?? "all",
+      status: (params.get("status") as LocalClinicalAsset["status"] | "all" | null) ?? "all",
+      extractionStatus: (params.get("extraction") as LocalClinicalAsset["extractionStatus"] | "all" | null) ?? "all",
+    }),
+    [params],
+  );
+
+  const assetsQuery = useQuery({ queryKey: ["clinical-assets", filters], queryFn: () => getClinicalAssetsApi(filters) });
+  const jobsQuery = useQuery({ queryKey: ["extraction-jobs"], queryFn: getExtractionJobsApi });
+  const selectedQuery = useQuery({
+    queryKey: ["clinical-asset-detail", selectedId],
+    queryFn: () => getClinicalAssetApi(selectedId ?? ""),
+    enabled: !!selectedId,
   });
-  const filtered=useMemo(()=>data?.filter((item)=>(type==="전체 유형"||item.type===type)&&(item.title.toLowerCase().includes(query.toLowerCase())||item.id.toLowerCase().includes(query.toLowerCase())))??[],[data,query,type]);
+  const versionDiffQuery = useQuery({
+    queryKey: ["version-diff", versionCompareIds?.left, versionCompareIds?.right],
+    queryFn: () => compareAssetVersions(versionCompareIds!.left, versionCompareIds!.right),
+    enabled: !!versionCompareIds,
+  });
 
-  if(isLoading) return <AppShell title="Clinical Assets" eyebrow="Source Library"><PageSkeleton/></AppShell>;
+  const refreshAssetQueries = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["clinical-assets"] });
+    await queryClient.invalidateQueries({ queryKey: ["extraction-jobs"] });
+    if (selectedId) await queryClient.invalidateQueries({ queryKey: ["clinical-asset-detail", selectedId] });
+  };
+
+  const queueMutation = useMutation({
+    mutationFn: async (assetId: string) => extractAssetNow(assetId, { forceRestart: true }),
+    onSuccess: refreshAssetQueries,
+  });
+
+  const draftMutation = useMutation({
+    mutationFn: (assetId: string) => createExtractionReviewDraft(assetId),
+    onSuccess: (draft) => router.push(`/projects/demo/extraction?draft=${draft.id}`),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveClinicalAssetApi,
+    onSuccess: async () => {
+      await refreshAssetQueries();
+      setSelectedId(null);
+    },
+  });
+
+  const versionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedId || !versionFile) throw new Error("Version file is required");
+      return createAssetVersion(selectedId, { ...versionForm, file: versionFile, createdBy: "Demo User" });
+    },
+    onSuccess: async () => {
+      await refreshAssetQueries();
+      setVersionModalOpen(false);
+      setVersionFile(null);
+    },
+  });
+
+  const currentVersionMutation = useMutation({
+    mutationFn: ({ assetId, versionId }: { assetId: string; versionId: string }) => setCurrentAssetVersion(assetId, versionId),
+    onSuccess: refreshAssetQueries,
+  });
+
+  const relationshipMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedId) throw new Error("Asset not selected");
+      return createAssetRelationship({
+        projectId: "TBCT-BR-001",
+        sourceAssetId: selectedId,
+        targetAssetId: relationshipForm.targetAssetId,
+        relationType: relationshipForm.relationType,
+        notes: relationshipForm.notes,
+        createdBy: "Demo User",
+      });
+    },
+    onSuccess: async () => {
+      await refreshAssetQueries();
+      setRelationshipOpen(false);
+    },
+  });
+
+  const manifestMutation = useMutation({
+    mutationFn: exportSourceManifestApi,
+    onSuccess: (manifest) => {
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "tbct-source-manifest-2026-07-29.json";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+
+  if (assetsQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
+  if (assetsQuery.isError) return <AppShell><div className="p-4 lg:p-6"><Card className="p-4"><ErrorState retry={() => assetsQuery.refetch()} /><div className="mt-4 flex flex-wrap justify-center gap-2"><Button onClick={() => router.push("/projects/demo/clinical-assets/new")}>Open registration page</Button></div></Card></div></AppShell>;
+
+  const assets = assetsQuery.data ?? [];
+  const selectedAsset = selectedQuery.data?.asset;
+  const versions = selectedQuery.data?.versions ?? [];
+  const relationships = selectedQuery.data?.relationships ?? [];
+  const extractedDocument = selectedQuery.data?.document;
+  const jobs = Array.from(new Map((jobsQuery.data ?? []).map((job) => [job.id, job])).values());
+
+  const visibleJobState = (job: (typeof jobs)[number]) => {
+    if (job.status === "queued") return { status: "queued", label: "Queued", tone: "primary" as const, progress: 0 };
+    if (job.status === "extracting") return { status: "extracting", label: "Extracting...", tone: "primary" as const, progress: Math.min(99, job.progress || 10) };
+    if (job.status === "failed") return { status: "failed", label: "Retry Extraction", tone: "critical" as const, progress: job.progress || 0 };
+    if (job.status === "partial") return { status: "partial", label: "Re-extract", tone: "warning" as const, progress: 100 };
+    return { status: job.status, label: job.status, tone: job.status === "completed" ? "success" as const : "neutral" as const, progress: 100 };
+  };
+
+  const actionLabel = (status: LocalClinicalAsset["extractionStatus"]) => {
+    if (status === "not_started") return "Extract";
+    if (status === "queued" || status === "extracting") return "Extracting...";
+    if (status === "failed") return "Retry Extraction";
+    if (status === "partial" || status === "completed" || status === "ocr_required") return "Re-extract";
+    return "Extract";
+  };
+
   return (
-    <AppShell title="Clinical Assets" eyebrow="Source Library" actions={<><Button variant="secondary"><Download className="h-4 w-4"/>목록 내보내기</Button><Button onClick={()=>setUploadOpen(true)}><Plus className="h-4 w-4"/>임상 자료 등록</Button></>}>
+    <AppShell>
+      <PageHeader
+        eyebrow="Clinical Source Library"
+        title="Clinical Assets"
+        description="Manage local clinical assets, version history, relationship links, and extraction drafts in one place."
+        meta={<><Badge tone="primary">{assets.length} assets</Badge><Badge tone="warning">{jobs.filter((job) => job.status === "extracting").length ?? 0} running jobs</Badge></>}
+        actions={<><Button variant="secondary" onClick={() => manifestMutation.mutate()}>Manifest export</Button><Button onClick={() => router.push("/projects/demo/clinical-assets/new") }><UploadCloud className="h-4 w-4" />Register Asset</Button></>}
+      />
+
       <div className="space-y-4 p-4 lg:p-6">
-        <Card className="p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="relative min-w-56 flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} className={cn(inputClass,"pl-9")} placeholder="자료 제목, ID, 담당자 검색"/></div>
-            <FilterSelect value={type} onChange={setType} options={["전체 유형","TBCT 세션 녹취","세션별 치료 매뉴얼","기존 Claude 프롬프트","환자용 매뉴얼","AI 감독관 매뉴얼"]}/>
-            <FilterSelect value="전체 언어" options={["전체 언어","한국어","English"]}/>
-            <FilterSelect value="전체 세션" options={["전체 세션","Session 01","Session 02","Session 03","Homework"]}/>
-            <Button variant="secondary"><SlidersHorizontal className="h-4 w-4"/>고급 필터</Button>
-            <div className="flex rounded-md border border-line p-0.5"><Button aria-label="그리드 보기" variant={assetView==="grid"?"primary":"ghost"} size="icon" className="h-8 w-8" onClick={()=>setAssetView("grid")}><Grid2X2 className="h-4 w-4"/></Button><Button aria-label="테이블 보기" variant={assetView==="table"?"primary":"ghost"} size="icon" className="h-8 w-8" onClick={()=>setAssetView("table")}><List className="h-4 w-4"/></Button></div>
+        <FilterBar>
+          <div className="relative min-w-[280px] flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
+            <input
+              defaultValue={filters.query}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") router.push(`/projects/demo/assets?q=${encodeURIComponent((event.currentTarget as HTMLInputElement).value)}`);
+              }}
+              className={`${inputClass} pl-9`}
+              placeholder="Search title, filename, checksum, or session"
+            />
+          </div>
+          <div className="flex rounded-panel border border-border p-0.5">
+            <Button size="icon" variant={assetView === "grid" ? "primary" : "ghost"} className="h-8 w-8" onClick={() => setAssetView("grid")}><Grid2X2 className="h-4 w-4" /></Button>
+            <Button size="icon" variant={assetView === "table" ? "primary" : "ghost"} className="h-8 w-8" onClick={() => setAssetView("table")}><List className="h-4 w-4" /></Button>
+          </div>
+        </FilterBar>
+
+        <Card>
+          <SectionHeader title="Extraction Job Queue" description="Extraction jobs by status: queued, extracting, completed, partial, or failed" />
+          <div className="grid gap-3 p-4 xl:grid-cols-2">
+            {jobs.slice(0, 6).map((job) => {
+              const view = visibleJobState(job);
+              return (
+              <div key={job.id} className="rounded-panel border border-border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-text-primary">{job.assetId}</div>
+                  <Badge tone={view.tone}>{view.label}</Badge>
+                </div>
+                <div className="mt-2 text-xs text-text-secondary">{view.status === "queued" ? "queued" : view.status === "extracting" ? "extracting" : view.status === "failed" ? "failed" : job.stage} · {view.progress}%</div>
+                {job.errorMessage && <div className="mt-2 text-xs leading-5 text-critical">{job.errorMessage}</div>}
+              </div>
+              );
+            })}
+            {jobs.length === 0 && <EmptyState title="No extraction jobs yet" description="Jobs appear here after you register an asset and queue extraction." />}
           </div>
         </Card>
 
-        <div className="flex items-center justify-between text-xs text-muted"><span>전체 <strong className="text-ink">{filtered.length}</strong>개 자료</span><button className="flex items-center gap-1 font-medium">최근 수정순 <ChevronDown className="h-3.5 w-3.5"/></button></div>
-        {isError ? <Card><ErrorState retry={()=>refetch()}/></Card> : filtered.length===0 ? <Card><EmptyState title="조건에 맞는 자료가 없습니다"/></Card> : assetView==="grid" ?
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(item=><AssetCard key={item.id} item={item} onClick={()=>setSelected(item)}/>)}</div> :
-          <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-xs"><thead className="border-b border-line bg-slate-50 text-[10px] uppercase tracking-wider text-muted"><tr><th className="px-5 py-3">자료</th><th className="px-3 py-3">유형 / 세션</th><th className="px-3 py-3">언어 / 국가</th><th className="px-3 py-3">추출 상태</th><th className="px-3 py-3">검토 상태</th><th className="px-3 py-3">담당자</th><th className="px-5 py-3">수정일</th></tr></thead><tbody className="divide-y divide-line">{filtered.map(item=><tr key={item.id} className="cursor-pointer hover:bg-slate-50" onClick={()=>setSelected(item)}><td className="px-5 py-4"><p className="font-semibold">{item.title}</p><p className="mono mt-1 text-[10px] text-muted">{item.id} · {item.version}</p></td><td className="px-3 py-4"><p>{item.type}</p><p className="mt-1 text-muted">{item.session}</p></td><td className="px-3 py-4">{item.language} · {item.country}</td><td className="px-3 py-4"><StatusBadge status={item.extractionStatus}/></td><td className="px-3 py-4"><StatusBadge status={item.reviewStatus}/></td><td className="px-3 py-4">{item.author}</td><td className="px-5 py-4 text-muted">{item.updatedAt}</td></tr>)}</tbody></table></div></Card>
-        }
+        {assets.length === 0 ? (
+          <Card><EmptyState title="No assets registered" description="PDF, DOCX, TXT, MD, JSON, MP3, WAV, MP4, and MOV files are stored in local browser storage." /><div className="flex justify-center pb-5"><Button onClick={() => router.push("/projects/demo/clinical-assets/new")}>Register the first asset</Button></div></Card>
+        ) : assetView === "grid" ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {assets.map((asset) => (
+              <Card key={asset.id} className="p-4">
+                <button className="w-full text-left" onClick={() => setSelectedId(asset.id)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-panel border border-border bg-surface-subtle text-clinical-blue"><FileText className="h-5 w-5" /></span>
+                    <StatusBadge status={asset.status === "failed" ? "error" : asset.status === "ready" ? "approved" : asset.status === "needs_review" ? "review" : "draft"} />
+                  </div>
+                  <div className="mt-4 text-sm font-semibold text-text-primary">{asset.title}</div>
+                  <div className="mono mt-1 text-[11px] text-text-muted">{asset.originalFileName}</div>
+                  <div className="mt-3 flex flex-wrap gap-2"><Badge tone="neutral">{asset.assetType}</Badge><Badge tone="primary">{asset.sessionIds.join(", ") || "Unlinked"}</Badge></div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+                    <div><div className="text-text-muted">Version</div><div className="mt-1 font-medium text-text-primary">{asset.version}</div></div>
+                    <div><div className="text-text-muted">Extraction</div><div className="mt-1 font-medium text-text-primary">{asset.extractionStatus}</div></div>
+                  </div>
+                </button>
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={() => queueMutation.mutate(asset.id)}><Play className="h-4 w-4" />{actionLabel(asset.extractionStatus)}</Button>
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={() => setSelectedId(asset.id)}>Details</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="overflow-hidden">
+            <SectionHeader title="Asset Table" description="List based on local assets and extraction status" />
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1200px] text-left">
+                <thead className="border-b border-border bg-surface-subtle text-[11px] uppercase tracking-[0.08em] text-text-muted">
+                  <tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Locale</th><th className="px-4 py-3">Session</th><th className="px-4 py-3">Version</th><th className="px-4 py-3">Size</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Extraction</th><th className="px-4 py-3">Actions</th></tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {assets.map((asset) => (
+                    <tr key={asset.id} className="hover:bg-surface-subtle">
+                      <td className="px-4 py-3"><button className="text-left" onClick={() => setSelectedId(asset.id)}><div className="text-sm font-semibold text-text-primary">{asset.title}</div><div className="mono mt-1 text-[11px] text-text-muted">{asset.originalFileName}</div></button></td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{asset.assetType}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{asset.country} · {asset.sourceLocale}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{asset.sessionIds.join(", ")}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{asset.version}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{formatBytes(asset.sizeBytes)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={asset.status === "failed" ? "error" : asset.status === "ready" ? "approved" : asset.status === "needs_review" ? "review" : "draft"} /></td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{asset.extractionStatus}</td>
+                      <td className="px-4 py-3"><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => queueMutation.mutate(asset.id)}>{actionLabel(asset.extractionStatus)}</Button><Button size="sm" variant="secondary" onClick={() => draftMutation.mutate(asset.id)} disabled={asset.extractionStatus === "not_started" || asset.extractionStatus === "queued" || asset.extractionStatus === "extracting"}>Review draft</Button></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
 
-      <Modal open={uploadOpen} onClose={()=>!mutation.isPending&&setUploadOpen(false)} title="임상 자료 등록" description="원문 자료와 임상 메타데이터를 함께 등록합니다." width="max-w-3xl">
-        <form onSubmit={form.handleSubmit(v=>mutation.mutate(v))}>
-          <div className="space-y-5 p-5">
-            <div onClick={()=>setFileName("tbct_session03_transcript.pdf")} className={cn("flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center transition",fileName?"border-success bg-emerald-50/50":"border-slate-300 hover:border-clinical hover:bg-blue-50/40")}>
-              {fileName?<><span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-success"><Check className="h-5 w-5"/></span><p className="text-sm font-semibold">{fileName}</p><p className="mt-1 text-xs text-muted">2.4 MB · PDF · 파일 준비됨</p></>:<><UploadCloud className="mb-3 h-8 w-8 text-clinical"/><p className="text-sm font-semibold">파일을 끌어 놓거나 클릭하여 선택</p><p className="mt-1 text-xs text-muted">PDF, DOCX, TXT, MP3 · 최대 50MB</p></>}
+      <DetailDrawer open={!!selectedId} onClose={() => setSelectedId(null)} title={selectedAsset?.title ?? "Asset detail"} subtitle={selectedAsset?.id} width="w-[860px]">
+        {selectedAsset && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {["overview", "versions", "relationships", "extracted"].map((tab) => (
+                <Button key={tab} variant={detailTab === tab ? "primary" : "secondary"} onClick={() => setDetailTab(tab as typeof detailTab)}>{tab}</Button>
+              ))}
             </div>
-            {mutation.isPending&&<div><div className="mb-1 flex justify-between text-xs"><span>보안 업로드 및 메타데이터 처리 중</span><strong>{progress}%</strong></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-clinical transition-all" style={{width:`${progress}%`}}/></div></div>}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="자료 제목"><input {...form.register("title")} className={inputClass} placeholder="예: TBCT 세션 03 치료자 대화록"/>{form.formState.errors.title&&<span className="mt-1 block text-[11px] text-critical">{form.formState.errors.title.message}</span>}</Field>
-              <Field label="자료 유형"><select {...form.register("type")} className={inputClass}><option>TBCT 세션 녹취</option><option>세션별 치료 매뉴얼</option><option>기존 Claude 프롬프트</option><option>환자용 매뉴얼</option><option>AI 감독관 매뉴얼</option></select></Field>
-              <Field label="저작자"><input {...form.register("author")} className={inputClass}/></Field>
-              <Field label="연결 세션"><select {...form.register("session")} className={inputClass}><option>Session 01</option><option>Session 02</option><option>Session 03</option><option>Homework</option><option>Global Safety</option></select></Field>
-              <Field label="국가"><select {...form.register("country")} className={inputClass}><option>대한민국</option><option>United States</option><option>Global</option></select></Field>
-              <Field label="원문 언어"><select {...form.register("language")} className={inputClass}><option>한국어</option><option>English</option></select></Field>
-              <Field label="버전"><input {...form.register("version")} className={inputClass}/></Field>
-              <Field label="내용 권한"><select className={inputClass}><option>프로젝트 멤버</option><option>임상의만</option><option>관리자만</option></select></Field>
-            </div>
-            <Field label="비고"><textarea {...form.register("note")} className={textareaClass} placeholder="자료의 사용 범위나 원본·번역 관계를 기록하세요."/></Field>
+
+            {detailTab === "overview" && (
+              <Card>
+                <SectionHeader title="Overview" description="Current asset metadata and action shortcuts" />
+                <div className="grid gap-3 p-4 sm:grid-cols-2">
+                  {[
+                    ["Current version", selectedAsset.version],
+                    ["Checksum", selectedAsset.checksumSha256],
+                    ["Locale", `${selectedAsset.country} · ${selectedAsset.sourceLocale}`],
+                    ["Sessions", selectedAsset.sessionIds.join(", ")],
+                    ["Extraction", selectedAsset.extractionStatus],
+                    ["Size", formatBytes(selectedAsset.sizeBytes)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{label}</div><div className="mt-1 break-all text-sm font-medium text-text-primary">{value}</div></div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 p-4 pt-0">
+                  <Button variant="secondary" onClick={() => queueMutation.mutate(selectedAsset.id)}><Clock3 className="h-4 w-4" />{actionLabel(selectedAsset.extractionStatus)}</Button>
+                  <Button variant="secondary" onClick={() => draftMutation.mutate(selectedAsset.id)}><CheckCircle2 className="h-4 w-4" />Create review draft</Button>
+                  <Button variant="secondary" onClick={() => setVersionModalOpen(true)}><FilePlus2 className="h-4 w-4" />Add new version</Button>
+                  <Button variant="secondary" onClick={() => setRelationshipOpen(true)}><GitBranchPlus className="h-4 w-4" />Add relationship</Button>
+                  <Button variant="secondary" onClick={() => archiveMutation.mutate(selectedAsset.id)}><Archive className="h-4 w-4" />Archive</Button>
+                </div>
+              </Card>
+            )}
+
+            {detailTab === "versions" && (
+              <Card>
+                <SectionHeader title="Versions" description="Switch the current version, add new versions, and compare quickly" action={<Button size="sm" variant="secondary" onClick={() => setVersionModalOpen(true)}>New version</Button>} />
+                <div className="space-y-3 p-4">
+                  {versions.map((version) => (
+                    <div key={version.id} className="rounded-panel border border-border p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone={version.isCurrent ? "primary" : "neutral"}>{version.version}</Badge>
+                            <Badge tone={version.extractionStatus === "completed" ? "success" : version.extractionStatus === "failed" ? "critical" : "warning"}>{version.extractionStatus}</Badge>
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-text-primary">{version.fileName}</div>
+                          <div className="mono mt-1 text-[11px] text-text-muted">{version.checksumSha256}</div>
+                          <div className="mt-1 text-xs text-text-secondary">{version.changeSummary}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {!version.isCurrent && <Button size="sm" variant="secondary" onClick={() => currentVersionMutation.mutate({ assetId: selectedAsset.id, versionId: version.id })}>Set as current</Button>}
+                          <Button size="sm" variant="secondary" onClick={() => setVersionCompareIds((current) => current?.left ? { left: current.left, right: version.id } : { left: version.id, right: version.id })}><ArrowLeftRight className="h-4 w-4" />Select for compare</Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {versionDiffQuery.data && (
+                    <Card className="border-dashed">
+                      <SectionHeader title="Version diff" description={`${versionDiffQuery.data.left.version} ↔ ${versionDiffQuery.data.right.version}`} />
+                      <div className="grid gap-4 p-4 lg:grid-cols-2">
+                        <div><div className="mb-2 text-xs font-semibold text-text-primary">Added blocks</div><div className="space-y-2">{versionDiffQuery.data.addedBlocks.slice(0, 4).map((item) => <div key={item} className="rounded-panel border border-border bg-surface-subtle p-2 text-xs text-text-secondary">{item.slice(0, 180)}</div>)}</div></div>
+                        <div><div className="mb-2 text-xs font-semibold text-text-primary">Removed blocks</div><div className="space-y-2">{versionDiffQuery.data.removedBlocks.slice(0, 4).map((item) => <div key={item} className="rounded-panel border border-border bg-surface-subtle p-2 text-xs text-text-secondary">{item.slice(0, 180)}</div>)}</div></div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {detailTab === "relationships" && (
+              <Card>
+                <SectionHeader title="Relationships" description="translation_of, transcript_of, revision_of, and supports links" action={<Button size="sm" variant="secondary" onClick={() => setRelationshipOpen(true)}>Add relationship</Button>} />
+                <div className="grid gap-4 p-4 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold text-text-secondary">Outgoing</div>
+                    {relationships.filter((item) => item.sourceAssetId === selectedAsset.id).map((item) => (
+                      <div key={item.id} className="rounded-panel border border-border p-3">
+                        <div className="text-sm font-semibold text-text-primary">{item.relationType}</div>
+                        <div className="mt-1 text-xs text-text-secondary">{assets.find((asset) => asset.id === item.targetAssetId)?.title ?? item.targetAssetId}</div>
+                        {item.notes && <div className="mt-2 text-xs text-text-secondary">{item.notes}</div>}
+                      </div>
+                    ))}
+                    {!relationships.some((item) => item.sourceAssetId === selectedAsset.id) && <EmptyState title="No outgoing relationships" description="This asset currently has no references to other assets." />}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold text-text-secondary">Incoming</div>
+                    {relationships.filter((item) => item.targetAssetId === selectedAsset.id).map((item) => (
+                      <div key={item.id} className="rounded-panel border border-border p-3">
+                        <div className="text-sm font-semibold text-text-primary">{item.relationType}</div>
+                        <div className="mt-1 text-xs text-text-secondary">{assets.find((asset) => asset.id === item.sourceAssetId)?.title ?? item.sourceAssetId}</div>
+                        {item.notes && <div className="mt-2 text-xs text-text-secondary">{item.notes}</div>}
+                      </div>
+                    ))}
+                    {!relationships.some((item) => item.targetAssetId === selectedAsset.id) && <EmptyState title="No incoming relationships" description="No other assets currently reference this asset." />}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {detailTab === "extracted" && (
+              <Card>
+                <SectionHeader title="Extracted Content" description="Preview extracted blocks from the current version" />
+                <div className="space-y-3 p-4">
+                  {extractedDocument?.blocks.slice(0, 10).map((block) => (
+                    <div key={block.id} className="rounded-panel border border-border p-3">
+                      <div className="flex flex-wrap gap-2"><SourceReferenceChip label={block.sourceLocator} />{block.pageNumber ? <SourceReferenceChip label={`page ${block.pageNumber}`} /> : null}</div>
+                      <div className="mt-2 text-sm text-text-primary">{block.text.slice(0, 280)}</div>
+                    </div>
+                  ))}
+                  {!extractedDocument && <EmptyState title="No extracted content yet" description="Queue extraction for the current version to see block-based output." />}
+                </div>
+              </Card>
+            )}
           </div>
-          <div className="flex justify-end gap-2 border-t border-line bg-slate-50 px-5 py-4"><Button type="button" variant="secondary" onClick={()=>setUploadOpen(false)}>취소</Button><Button type="submit" loading={mutation.isPending} disabled={!fileName}>자료 등록</Button></div>
-        </form>
+        )}
+      </DetailDrawer>
+
+      <Modal open={versionModalOpen} onClose={() => setVersionModalOpen(false)} title="Register New Asset Version" description="Add a new version without overwriting existing files." width="max-w-2xl">
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <Field label="Version"><input value={versionForm.version} onChange={(event) => setVersionForm((current) => ({ ...current, version: event.target.value }))} className={inputClass} /></Field>
+          <Field label="Version file"><input type="file" onChange={(event) => setVersionFile(event.target.files?.[0] ?? null)} className={inputClass} /></Field>
+          <div className="sm:col-span-2"><Field label="Change summary"><textarea value={versionForm.changeSummary} onChange={(event) => setVersionForm((current) => ({ ...current, changeSummary: event.target.value }))} className={textareaClass} /></Field></div>
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-text-secondary"><input type="checkbox" checked={versionForm.rerunExtraction} onChange={(event) => setVersionForm((current) => ({ ...current, rerunExtraction: event.target.checked }))} />Re-run extraction after saving</label>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-4"><Button variant="secondary" onClick={() => setVersionModalOpen(false)}>Cancel</Button><Button loading={versionMutation.isPending} onClick={() => versionMutation.mutate()}>Save version</Button></div>
       </Modal>
 
-      <Drawer open={!!selected} onClose={()=>setSelected(null)} title="자료 상세" width="w-[500px]">{selected&&<AssetDetail item={selected}/>}</Drawer>
+      <Modal open={relationshipOpen} onClose={() => setRelationshipOpen(false)} title="Create Asset Relationship" description="Connect translation, transcript, revision, and support relationships between assets." width="max-w-2xl">
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <Field label="Relation type"><select value={relationshipForm.relationType} onChange={(event) => setRelationshipForm((current) => ({ ...current, relationType: event.target.value as AssetRelationshipType }))} className={inputClass}>{["translation_of", "transcript_of", "revision_of", "supports"].map((item) => <option key={item}>{item}</option>)}</select></Field>
+          <Field label="Target asset"><select value={relationshipForm.targetAssetId} onChange={(event) => setRelationshipForm((current) => ({ ...current, targetAssetId: event.target.value }))} className={inputClass}><option value="">Select asset</option>{assets.filter((asset) => asset.id !== selectedId).map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}</select></Field>
+          <div className="sm:col-span-2"><Field label="Notes"><textarea value={relationshipForm.notes} onChange={(event) => setRelationshipForm((current) => ({ ...current, notes: event.target.value }))} className={textareaClass} /></Field></div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-4"><Button variant="secondary" onClick={() => setRelationshipOpen(false)}>Cancel</Button><Button loading={relationshipMutation.isPending} onClick={() => relationshipMutation.mutate()}>Create relationship</Button></div>
+      </Modal>
     </AppShell>
   );
 }
 
-function FilterSelect({value,options,onChange}:{value:string;options:string[];onChange?:(value:string)=>void}) {
-  return <select value={value} onChange={e=>onChange?.(e.target.value)} className={cn(inputClass,"w-auto min-w-32")}><option>{value}</option>{options.filter(o=>o!==value).map(o=><option key={o}>{o}</option>)}</select>;
-}
-function AssetCard({item,onClick}:{item:ClinicalAsset;onClick:()=>void}) {
-  const audio=item.type.includes("녹취");
-  return <Card className="group cursor-pointer overflow-hidden transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md" ><button onClick={onClick} className="w-full p-5 text-left"><div className="flex items-start justify-between"><span className={cn("flex h-10 w-10 items-center justify-center rounded-lg",audio?"bg-violet-50 text-violet":"bg-blue-50 text-clinical")}>{audio?<FileAudio2 className="h-5 w-5"/>:<FileText className="h-5 w-5"/>}</span><MoreHorizontal className="h-4 w-4 text-slate-400"/></div><p className="mt-4 truncate text-sm font-semibold">{item.title}</p><p className="mono mt-1 text-[10px] text-muted">{item.id} · {item.version}</p><div className="mt-4 flex flex-wrap gap-1.5"><Badge>{item.type}</Badge><Badge tone="blue">{item.session}</Badge></div><div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4"><div><p className="text-[10px] text-muted">추출 상태</p><div className="mt-1.5"><StatusBadge status={item.extractionStatus}/></div></div><div><p className="text-[10px] text-muted">검토 상태</p><div className="mt-1.5"><StatusBadge status={item.reviewStatus}/></div></div></div><div className="mt-4 flex items-center justify-between text-[10px] text-muted"><span>{item.author}</span><span>{item.updatedAt}</span></div></button></Card>;
-}
-function AssetDetail({item}:{item:ClinicalAsset}) {
-  return <div className="space-y-6"><div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-clinical"><FileText className="h-5 w-5"/></span><div><h3 className="text-sm font-semibold">{item.title}</h3><p className="mono mt-1 text-[10px] text-muted">{item.id} · {item.version}</p></div></div><div className="grid grid-cols-2 gap-4 rounded-lg border border-line bg-slate-50 p-4 text-xs">{[["유형",item.type],["연결 세션",item.session],["언어 / 국가",`${item.language} / ${item.country}`],["저작자",item.author],["추출 블록",`${item.blocks}개`],["최근 수정",item.updatedAt]].map(([k,v])=><div key={k}><p className="text-[10px] text-muted">{k}</p><p className="mt-1 font-medium">{v}</p></div>)}</div><section><h4 className="text-xs font-semibold">연결된 프로토콜 단계</h4><div className="mt-2 space-y-2">{["STEP-03 과제 수행 검토","STEP-06 장애요인 탐색","STEP-07 위험 신호 확인"].map(x=><div key={x} className="flex items-center gap-2 rounded border border-line p-3 text-xs"><span className="h-2 w-2 rounded-full bg-clinical"/>{x}</div>)}</div></section><section><h4 className="text-xs font-semibold">변경 이력</h4><div className="mt-2 space-y-3 border-l border-line pl-4 text-xs text-muted"><p><strong className="text-ink">김지윤</strong> 님이 검토 상태를 변경 · 12분 전</p><p><strong className="text-ink">AI Extractor</strong>가 24개 블록 추출 · 어제</p><p><strong className="text-ink">김지윤</strong> 님이 자료 등록 · 어제</p></div></section><Button className="w-full" variant="secondary"><FileText className="h-4 w-4"/>원본 보기</Button></div>;
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }

@@ -1,12 +1,20 @@
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
+const nextDir = path.join(root, process.env.NEXT_OUTPUT_DIR || ".next");
 const distDir = path.join(root, "dist");
 const sourceHosting = path.join(root, ".openai", "hosting.json");
 const distHostingDir = path.join(distDir, ".openai");
 const distMetaDir = path.join(distDir, "_appgen_meta");
 const distServerDir = path.join(distDir, "server");
+
+if (!existsSync(nextDir)) {
+  throw new Error("Next build output not found at .next");
+}
+
+rmSync(distDir, { recursive: true, force: true });
+cpSync(nextDir, distDir, { recursive: true });
 
 mkdirSync(distHostingDir, { recursive: true });
 mkdirSync(distMetaDir, { recursive: true });

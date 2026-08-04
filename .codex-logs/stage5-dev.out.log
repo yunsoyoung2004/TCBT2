@@ -1,0 +1,43 @@
+
+> tbct-protocol-studio@0.1.0 dev
+> next dev --port 3002
+
+   ▲ Next.js 15.5.22
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.219.103:3002
+
+ ✓ Starting...
+ ✓ Ready in 35.9s
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 33.5s (2696 modules)
+ GET /runtime/pilot 200 in 9574ms
+ GET /runtime/safety/follow-ups 200 in 9674ms
+ GET /runtime/pilot 200 in 879ms
+ GET /runtime/safety/follow-ups 200 in 768ms
+ ✓ Compiled in 76.8s (1249 modules)
+ ✓ Compiled in 44.6s (1249 modules)
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 762.1s (2696 modules)
+ ✓ Compiled in 25.3s (1249 modules)
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 6.2s (1447 modules)
+ GET /runtime/pilot 200 in 10900ms
+ ✓ Compiled in 14.5s (1249 modules)
+ GET /runtime/pilot/participants/SP-KR-001 200 in 2667ms
+ GET /runtime/pilot/reports/PRT-DEMO-1 200 in 2169ms
+ GET /runtime/pilot/exports 200 in 2484ms
+ ✓ Compiled in 32.5s (1249 modules)
+ ✓ Compiled in 11s (1249 modules)
+ ○ Compiling /[[...slug]] ...
+ ✓ Compiled /[[...slug]] in 7.6s (1447 modules)
+ GET /runtime/pilot/participants 200 in 17569ms
+ GET /runtime/safety/follow-ups 200 in 18446ms
+ GET /runtime/pilot/reports/PRT-DEMO-1 200 in 4682ms
+ GET /runtime/pilot/exports 200 in 3285ms
+ GET /runtime/pilot/participants/SP-KR-001 200 in 3643ms
+ ✓ Compiled in 22.5s (1249 modules)
+ ✓ Compiled in 4.4s (1249 modules)
+ ✓ Compiled in 4.2s (1249 modules)
+ ✓ Compiled in 8.1s (1249 modules)
+ ✓ Compiled in 14.9s (1249 modules)
+[?25h
