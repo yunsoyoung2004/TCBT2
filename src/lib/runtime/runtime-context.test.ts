@@ -26,6 +26,34 @@ function makeNode(field: string, kind: string = "text"): ClinicalStageNode {
   };
 }
 
+function makePrompt(field: string, validation?: Record<string, unknown>): PromptItem {
+  return {
+    id: `prompt-${field}`,
+    protocolId: "tbct-br-001",
+    sessionId: "tbct-s01",
+    nodeId: `node-${field}`,
+    order: 1,
+    type: "question",
+    verbatimText: "How would you describe what is happening right now, quite telegraphically?",
+    editableText: "Ask for a simple, neutral description of what is happening. A situation is different from an interpretation or opinion.",
+    aiInstruction: "Ask for a simple, neutral situation description.",
+    activationCondition: null,
+    outputFields: [field],
+    validation: validation ?? null,
+    completionEffect: null,
+    restrictions: [],
+    safetyRuleIds: [],
+    sourceTrace: { sourceDocument: "TBCT pasted source text", sourceSession: "Session 01", sourceSection: field, sourceLineStart: 66, sourceLineEnd: 74, sourceTextHash: "test", importedVersion: "test" },
+    sourceFidelityStatus: "structured_from_source",
+    origin: "source_imported",
+    sourceHash: "test",
+    status: "active",
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: "2025-01-01T00:00:00.000Z",
+    updatedBy: "test",
+  };
+}
+
 describe("runtime context extraction", () => {
   it("accepts numeric inputs in range and rejects invalid values", async () => {
     const valid = await extractRuntimeState({ patientInput: { kind: "rating", value: "80%" }, currentNode: makeNode("initialATBeliefPercent", "rating"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
@@ -58,6 +86,13 @@ describe("runtime context extraction", () => {
     expect(bareConfirmation.missingFields).toContain("situationThoughtDistinction");
     expect(substantive.missingFields).toHaveLength(0);
     expect(substantive.fields.situationThoughtDistinction).toContain("avoid speaking");
+  });
+
+  it("does not accept gibberish for the source-backed situation distinction", async () => {
+    const promptItem = makePrompt("situationThoughtDistinction", { kind: "participant_articulated_distinction" });
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value: "fuiissiidojfosid" }, currentNode: makeNode("situationThoughtDistinction"), currentPromptItem: promptItem, currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+
+    expect(result.missingFields).toContain("situationThoughtDistinction");
   });
 
   it("does not infer a factual automatic thought from its wording", async () => {

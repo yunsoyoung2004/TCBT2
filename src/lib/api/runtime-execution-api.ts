@@ -500,7 +500,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   };
   await saveRuntimeMessage(patientMessage);
   await saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient input received", { nodeId: currentNode.id, input: { kind: patientInput.kind } }));
-  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: session.runtimeContext });
+  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: session.runtimeContext, locale: session.locale });
   await saveRuntimeLog(makeLog(sessionId, "state_extraction", "completed", "State extracted", { nodeId: currentNode.id, output: extracted as unknown as Record<string, unknown> }));
   if (extracted.missingFields.length) {
     await updateRuntimeSessionRecord(sessionId, { status: "waiting_for_input", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });

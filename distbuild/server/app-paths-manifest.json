@@ -1,5 +1,6 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
   "/api/clinical-language/respond/route": "app/api/clinical-language/respond/route.js",
+  "/api/clinical-language/assess-input/route": "app/api/clinical-language/assess-input/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/[[...slug]]/page": "app/[[...slug]]/page.js"
 }

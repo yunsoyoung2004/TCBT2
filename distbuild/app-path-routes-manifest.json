@@ -1,5 +1,6 @@
 {
-  "/_not-found/page": "/_not-found",
   "/api/clinical-language/respond/route": "/api/clinical-language/respond",
+  "/api/clinical-language/assess-input/route": "/api/clinical-language/assess-input",
+  "/_not-found/page": "/_not-found",
   "/[[...slug]]/page": "/[[...slug]]"
 }

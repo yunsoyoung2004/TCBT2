@@ -6,13 +6,15 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card } from "@/components/ui/primitives";
-import { createCanonicalTestRuntimeSession, createRuntimeSession, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
+import { createCanonicalTestRuntimeSession, createRuntimeSession, listCanonicalTestSessions, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
 import { startRuntimeSession } from "@/lib/api/runtime-execution-api";
 
 export function PatientNewSessionPage() {
   const router = useRouter();
   const releasesQuery = useQuery({ queryKey: ["patient-runtime-releases", "tbct-br-001"], queryFn: () => listPatientAvailableRuntimeReleases("tbct-br-001") });
+  const testSessionsQuery = useQuery({ queryKey: ["canonical-test-runtime-sessions"], queryFn: listCanonicalTestSessions });
   const releases = releasesQuery.data ?? [];
+  const testSessions = testSessionsQuery.data ?? [];
   const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [isStartingTestSession, setIsStartingTestSession] = useState(false);
   const selectedRelease = releases.find((release) => release.id === selectedReleaseId) ?? releases[0];
@@ -42,10 +44,10 @@ export function PatientNewSessionPage() {
     }
   };
 
-  const handleStartTestSession = async () => {
+  const handleStartTestSession = async (sessionDefinitionId: string) => {
     setIsStartingTestSession(true);
     try {
-      const session = await createCanonicalTestRuntimeSession();
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId });
       await startRuntimeSession(session.id);
       router.push(`/projects/demo/patient/sessions/${session.id}`);
     } catch (error) {
@@ -67,9 +69,6 @@ export function PatientNewSessionPage() {
             </select>
           </label>
           {selectedRelease && <div className="text-xs text-text-secondary">{selectedRelease.changeSummary}</div>}
-          <Button variant="secondary" onClick={() => void handleStartTestSession()} disabled={isStartingTestSession}>
-            {isStartingTestSession ? "Starting test..." : "Start test session"}
-          </Button>
         </div>
         {releasesQuery.isLoading ? (
           <Card className="p-4 text-sm text-text-secondary">Loading published releases...</Card>
@@ -90,6 +89,29 @@ export function PatientNewSessionPage() {
             ))}
           </div>
         )}
+        <section className="space-y-3 border-t border-border pt-4">
+          <div>
+            <div className="text-sm font-semibold text-text-primary">Test Sessions</div>
+            <div className="mt-1 text-xs text-text-secondary">Use the canonical source runtime without publishing a release.</div>
+          </div>
+          {testSessionsQuery.isLoading ? (
+            <Card className="p-4 text-sm text-text-secondary">Loading test sessions...</Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {testSessions.map((session) => (
+                <Card key={session.id} className="flex min-h-40 flex-col gap-4 p-4">
+                  <div>
+                    <div className="font-semibold text-text-primary">{session.title}</div>
+                    <div className="mt-1 text-xs text-text-secondary">{`Session ${session.number} · ${session.techniqueName}`}</div>
+                  </div>
+                  <Button className="mt-auto" onClick={() => void handleStartTestSession(session.id)} disabled={isStartingTestSession}>
+                    {isStartingTestSession ? "Starting test..." : "Start test"}
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </PatientShell>
   );

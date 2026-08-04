@@ -56,6 +56,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/clinical-language/assess-input/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/clinical-language/assess-input">> = Specific
+  const handler = {} as typeof import("../../src/app/api/clinical-language/assess-input/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/clinical-language/respond/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/clinical-language/respond">> = Specific

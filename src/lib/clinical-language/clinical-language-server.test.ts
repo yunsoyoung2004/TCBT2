@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { respondClinicalLanguage } from "@/lib/clinical-language/clinical-language-server";
+import { assessClinicalInput, respondClinicalLanguage } from "@/lib/clinical-language/clinical-language-server";
 
 const originalProvider = process.env.AI_PROVIDER;
 const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -47,5 +47,28 @@ describe("respondClinicalLanguage", () => {
     expect(result.actionType).toBe("ask");
     expect(result.proposedFields).toEqual(result.extractedFields);
     expect(result.recommendedTransition).toBe(result.nextActionRecommendation);
+  });
+
+  it("uses the active prompt to reject gibberish and accept a relevant response", async () => {
+    process.env.AI_PROVIDER = "mock";
+    const common = {
+      idempotencyKey: "input-assessment-1",
+      locale: "en-US",
+      prompt: {
+        type: "question",
+        validationKind: "participant_articulated_distinction",
+        guidance: "Ask for a simple, neutral description of what is happening rather than an interpretation.",
+        requiredFields: ["situationThoughtDistinction"],
+      },
+    };
+
+    const gibberish = await assessClinicalInput({ ...common, requestId: "assessment-gibberish", patientMessage: "fuiissiidojfosid" });
+    const meaningful = await assessClinicalInput({ ...common, requestId: "assessment-meaningful", patientMessage: "I am talking with the therapist during my appointment." });
+
+    expect("error" in gibberish).toBe(false);
+    expect("error" in meaningful).toBe(false);
+    if ("error" in gibberish || "error" in meaningful) return;
+    expect(gibberish.accepted).toBe(false);
+    expect(meaningful.accepted).toBe(true);
   });
 });

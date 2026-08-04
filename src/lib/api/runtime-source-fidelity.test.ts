@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRuntimeSession, getRuntimeSession, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
+import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRuntimeSession, getRuntimeSession, listCanonicalTestSessions, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
 import { startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
 import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
@@ -32,7 +32,16 @@ describe("canonical source-fidelity runtime", () => {
     }
   }, 15_000);
 
-  it("keeps the active PromptItem when a patient sends only a greeting", async () => {
+  it("makes every canonical session available to the publish-free test flow", async () => {
+    const sessions = await listCanonicalTestSessions();
+    const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s08" });
+
+    expect(sessions.map((item) => item.id)).toEqual(["tbct-s01", "tbct-s02", "tbct-s03", "tbct-s04", "tbct-s05", "tbct-s06", "tbct-s07", "tbct-s08"]);
+    expect(session.releaseId).toBe("demo-release");
+    expect(session.sessionDefinitionId).toBe("tbct-s08");
+  });
+
+  it("keeps the active PromptItem when a patient sends a greeting or gibberish", async () => {
     const previousProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = "mock";
     try {
@@ -42,13 +51,14 @@ describe("canonical source-fidelity runtime", () => {
       const activePromptItemId = before?.session.currentPromptItemId;
 
       await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      await submitPatientInput(session.id, { kind: "text", value: "fuiissiidojfosid" });
       const after = await getRuntimeSession(session.id);
 
       expect(activePromptItemId).toBeDefined();
       expect(after?.session.status).toBe("waiting_for_input");
       expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
       expect(after?.session.completedPromptItemIds).not.toContain(activePromptItemId);
-      expect(after?.messages.at(-1)?.content).toBe("hi");
+      expect(after?.messages.at(-1)?.content).toBe("fuiissiidojfosid");
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;

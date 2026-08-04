@@ -1,5 +1,6 @@
 import type { PatientInput, RuntimeContext, StateExtractionResult } from "@/types/runtime-session";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
+import { assessRuntimePatientInput, requiresSemanticInputAssessment } from "@/lib/runtime/runtime-input-assessment";
 
 function normalizeText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -67,6 +68,7 @@ export async function extractRuntimeState(input: {
   currentNode: ClinicalStageNode;
   currentPromptItem?: PromptItem;
   currentContext: RuntimeContext;
+  locale?: string;
 }): Promise<StateExtractionResult> {
   const nextFields = { ...input.currentContext.fields };
   const rawText = Array.isArray(input.patientInput.value) ? input.patientInput.value.join(" ") : String(input.patientInput.value);
@@ -99,6 +101,19 @@ export async function extractRuntimeState(input: {
       confidence: 0.2,
       missingFields: [field],
     };
+  }
+  if (!riskSignals.length && input.currentPromptItem && requiresSemanticInputAssessment({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
+    const assessment = await assessRuntimePatientInput({ patientInput: input.patientInput, promptItem: input.currentPromptItem, locale: input.locale });
+    if (!assessment.accepted) {
+      return {
+        fields: input.currentContext.fields,
+        responseCategory: "text",
+        riskLevel,
+        riskSignals,
+        confidence: "confidence" in assessment ? assessment.confidence : 0,
+        missingFields: [field],
+      };
+    }
   }
 
   if (field === "initialATBeliefPercent" || field === "conclusionBeliefPercent" || field === "revisedATBeliefPercent" || field === "initialEmotionIntensityPercent" || field === "newEmotionIntensities") {

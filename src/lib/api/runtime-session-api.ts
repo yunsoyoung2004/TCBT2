@@ -166,6 +166,18 @@ export async function createCanonicalTestRuntimeSession(input: {
   });
 }
 
+export async function listCanonicalTestSessions() {
+  return CANONICAL_SESSION_DEFINITIONS
+    .slice()
+    .sort((left, right) => left.number - right.number)
+    .map((session) => ({
+      id: session.id,
+      number: session.number,
+      title: session.title,
+      techniqueName: session.techniqueName,
+    }));
+}
+
 export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessionView | null> {
   const session = await getRuntimeSessionRecord(sessionId);
   if (!session) return null;

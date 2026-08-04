@@ -49,6 +49,32 @@ export const clinicalProviderResponseSchema = z.object({
   }),
 });
 
+export const clinicalInputAssessmentRequestSchema = z.object({
+  requestId: z.string(),
+  idempotencyKey: z.string(),
+  locale: z.string().min(1),
+  patientMessage: z.string(),
+  prompt: z.object({
+    type: z.string().min(1),
+    validationKind: z.string().optional(),
+    guidance: z.string().min(1),
+    requiredFields: z.array(z.string()),
+  }),
+});
+
+export const clinicalInputAssessmentResponseSchema = z.object({
+  requestId: z.string(),
+  accepted: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  reason: z.enum(["meaningful_response", "needs_clarification"]),
+  providerMetadata: z.object({
+    provider: z.enum(clinicalProviderNames),
+    model: z.string().optional(),
+    providerRequestId: z.string().optional(),
+    latencyMs: z.number().optional(),
+  }),
+});
+
 export const clinicalProviderRequestSchema = z.object({
   requestId: z.string(),
   idempotencyKey: z.string(),
@@ -81,3 +107,5 @@ export const clinicalProviderRequestSchema = z.object({
 
 export type ClinicalProviderRequest = z.infer<typeof clinicalProviderRequestSchema>;
 export type ClinicalProviderResponse = z.infer<typeof clinicalProviderResponseSchema>;
+export type ClinicalInputAssessmentRequest = z.infer<typeof clinicalInputAssessmentRequestSchema>;
+export type ClinicalInputAssessmentResponse = z.infer<typeof clinicalInputAssessmentResponseSchema>;
