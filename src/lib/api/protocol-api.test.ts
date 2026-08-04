@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
 import type { ProtocolCondition } from "@/types/protocol-runtime";
-import { createDraftFromRelease, createProtocolNode, evaluateProtocolCondition, getProtocolGraphApi, publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
+import { createDraftFromRelease, createProtocolNode, downloadProtocolReleasePackage, evaluateProtocolCondition, getProtocolGraphApi, publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
+
+function readBlobAsArrayBuffer(blob: Blob) {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.readAsArrayBuffer(blob);
+  });
+}
 
 describe("evaluateProtocolCondition", () => {
   const context = {
@@ -61,6 +71,24 @@ describe("evaluateProtocolCondition", () => {
     expect(published.release.immutableSnapshot.nodes.some((node) => node.id.startsWith("RT-NODE-"))).toBe(false);
     expect(published.release.immutableSnapshot.nodes.every((node) => node.data.promptItemIds?.length)).toBe(true);
     expect(published.files["source-fidelity.json"]).toBeTruthy();
+    expect(published.release.immutableSnapshot.runtimeRelease?.id).toBe(published.release.id);
+    expect(published.release.immutableSnapshot.runtimeRelease?.contentHash).toBeTruthy();
+    expect(published.files["runtime-release.json"]).toBeTruthy();
+  });
+
+  it("downloads the exact immutable runtime release artifact", async () => {
+    await runProtocolValidation("tbct-br-001", "tbct-s01");
+    const published = await publishProtocolRelease("TBCT-BR-001", {
+      version: `runtime-download-${Date.now()}`,
+      targetEnvironment: "development",
+      changeSummary: "Immutable runtime download test release",
+    });
+
+    const archive = await JSZip.loadAsync(await readBlobAsArrayBuffer(await downloadProtocolReleasePackage(published.release.id)));
+    const runtimeReleasePath = Object.keys(archive.files).find((path) => path.endsWith("/runtime-release.json"));
+    const downloadedRuntimeRelease = await archive.file(runtimeReleasePath!)?.async("string");
+
+    expect(downloadedRuntimeRelease).toBe(published.files["runtime-release.json"]);
   });
 
   it("rejects legacy graph mutations and Session 03 draft creation for the canonical protocol", async () => {

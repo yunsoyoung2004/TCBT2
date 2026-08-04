@@ -5,6 +5,8 @@ import { Button, inputClass } from "@/components/ui/primitives";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
 
+type PatientPromptInput = Pick<PromptItem, "type" | "validation">;
+
 export function PatientInputControls({
   payload,
   promptItem,
@@ -12,7 +14,7 @@ export function PatientInputControls({
   onSubmit,
 }: {
   payload?: Record<string, unknown>;
-  promptItem?: PromptItem;
+  promptItem?: PatientPromptInput;
   disabled?: boolean;
   onSubmit: (input: PatientInput) => void;
 }) {

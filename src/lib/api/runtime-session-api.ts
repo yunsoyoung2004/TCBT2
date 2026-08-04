@@ -12,7 +12,7 @@ import {
 } from "@/lib/protocol/source-fidelity-catalog";
 import { TBCT_SOURCE_TEXT_HASH } from "@/lib/protocol/tbct-source-text.generated";
 import { isCanonicalProtocolId } from "@/lib/protocol/source-fidelity-protocol-adapter";
-import { resolveCurrentReleasePrompt } from "@/lib/runtime/source-fidelity-prompt-progression";
+import { getRuntimeReleaseSourceSnapshot, loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
 import {
   createRuntimeSessionRecord,
   getLatestRuntimeCheckpoint,
@@ -31,7 +31,7 @@ import { attachSessionToParticipant, getOrCreateDemoParticipant, getRuntimeParti
 import { listMemoryRetrievalRuns, listMemoryUsageLogs } from "@/lib/repositories/longitudinal-memory-repository";
 import { getPilotParticipantByRuntimeParticipantId, getPilotStudyArm, listProtocolAssignments } from "@/lib/repositories/pilot-repository";
 import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
-import type { RuntimeCheckpoint, RuntimeContext, RuntimeSession, RuntimeSessionView } from "@/types/runtime-session";
+import type { PatientRuntimeReleaseOption, PatientRuntimeSessionView, RuntimeCheckpoint, RuntimeContext, RuntimeSession, RuntimeSessionView } from "@/types/runtime-session";
 import type { ProtocolGraphEdge, ProtocolGraphNode, ProtocolReleaseVersion } from "@/types/protocol-runtime";
 
 function makeId(prefix: string) {
@@ -77,10 +77,9 @@ function createCanonicalDemoRelease(): ProtocolReleaseVersion {
   };
 }
 
-function hasCanonicalRuntimeSnapshot(release?: ProtocolReleaseVersion | null) {
+function hasRuntimeSourceSnapshot(release?: ProtocolReleaseVersion | null) {
   const snapshot = release?.immutableSnapshot.sourceFidelity;
-  return snapshot?.canonicalProtocolId === CANONICAL_PROTOCOL_ID
-    && Array.isArray(snapshot.clinicalStageNodes)
+  return Array.isArray(snapshot?.clinicalStageNodes)
     && Array.isArray(snapshot.promptItems)
     && Array.isArray(snapshot.sourceFidelityEdges);
 }
@@ -96,29 +95,43 @@ export async function createRuntimeSession(input: {
 }): Promise<RuntimeSession> {
   const now = new Date().toISOString();
   const sessionId = makeId("RTS");
-  const definition = CANONICAL_SESSION_DEFINITIONS.find((item) => item.id === input.sessionDefinitionId) ?? CANONICAL_SESSION_DEFINITIONS[0];
-  const entryNode = CANONICAL_STAGE_NODES.find((node) => node.id === definition?.startNodeId)
-    ?? CANONICAL_STAGE_NODES.find((node) => node.sessionId === definition?.id && node.type === "session_start")
-    ?? CANONICAL_STAGE_NODES.find((node) => node.sessionId === definition?.id);
-  const firstPrompt = CANONICAL_PROMPT_ITEMS.find((promptItem) => promptItem.nodeId === entryNode?.id);
+  const activeProtocolId = isCanonicalProtocolId(input.protocolId) ? CANONICAL_PROTOCOL_ID : input.protocolId;
+  const storedRelease = await getProtocolRelease(input.releaseId);
+  const release = storedRelease ?? (input.releaseId === "demo-release" && activeProtocolId === CANONICAL_PROTOCOL_ID ? createCanonicalDemoRelease() : null);
+  if (!release) throw new Error(`Selected release ${input.releaseId} was not found.`);
+  if (release.protocolId !== activeProtocolId) throw new Error("Selected release does not belong to this protocol.");
 
-  const session: RuntimeSession = {
+  const sourceFidelity = getRuntimeReleaseSourceSnapshot(release);
+  const runtimeRelease = loadRuntimeRelease(release);
+  const canonicalSessionId = activeProtocolId === CANONICAL_PROTOCOL_ID
+    ? resolveCanonicalSessionId(input.sessionDefinitionId) ?? input.sessionDefinitionId
+    : input.sessionDefinitionId;
+  const definition = sourceFidelity.sessionDefinitions.find((item) => item.id === canonicalSessionId);
+  if (!definition) throw new Error(`Session definition ${input.sessionDefinitionId} is not available in release ${release.id}.`);
+  const entryNode = sourceFidelity.clinicalStageNodes.find((node) => node.id === definition.startNodeId)
+    ?? sourceFidelity.clinicalStageNodes.find((node) => node.sessionId === definition.id && node.type === "session_start")
+    ?? sourceFidelity.clinicalStageNodes.find((node) => node.sessionId === definition.id);
+  if (!entryNode) throw new Error(`Session definition ${definition.id} has no entry node in release ${release.id}.`);
+  const runtimeNode = runtimeRelease.nodes.find((node) => node.id === entryNode.id);
+  const firstPromptItemId = runtimeNode?.promptSequence[0];
+
+  const sessionWithoutRuntimeState: RuntimeSession = {
     id: sessionId,
     projectId: input.projectId,
-    protocolId: CANONICAL_PROTOCOL_ID,
-    protocolVersion: CANONICAL_SOURCE_VERSION,
-    releaseId: "demo-release",
-    sessionDefinitionId: definition?.id ?? "tbct-s01",
+    protocolId: release.protocolId,
+    protocolVersion: release.version,
+    releaseId: release.id,
+    sessionDefinitionId: definition.id,
     participantId: input.participantId ?? "demo-participant",
     status: "created",
-    currentSessionId: definition?.id ?? "tbct-s01",
-    currentNodeId: entryNode?.id,
-    currentPromptItemId: firstPrompt?.id,
+    currentSessionId: definition.id,
+    currentNodeId: entryNode.id,
+    currentPromptItemId: firstPromptItemId,
     completedPromptItemIds: [],
     skippedPromptItemIds: [],
     promptProgressionReason: "session_started",
-    sourceVersion: CANONICAL_SOURCE_VERSION,
-    sourceTextHash: TBCT_SOURCE_TEXT_HASH,
+    sourceVersion: sourceFidelity.sourceVersion,
+    sourceTextHash: sourceFidelity.sourceTextHash,
     patientAlias: input.patientAlias,
     locale: input.locale,
     runtimeContext: emptyContext(),
@@ -128,24 +141,44 @@ export async function createRuntimeSession(input: {
     createdAt: now,
     updatedAt: now,
   };
-  
-  // Store in memory/DB without validation
-  try {
-    await createRuntimeSessionRecord(session);
-  } catch (e) {
-    console.warn("Failed to store session, continuing anyway", e);
-  }
-  
+
+  const session: RuntimeSession = {
+    ...sessionWithoutRuntimeState,
+    runtimeState: normalizeRuntimeSessionState(sessionWithoutRuntimeState, runtimeRelease),
+  };
+  await createRuntimeSessionRecord(session);
   return session;
+}
+
+export async function createCanonicalTestRuntimeSession(input: {
+  sessionDefinitionId?: string;
+  patientAlias?: string;
+  locale?: string;
+} = {}) {
+  return createRuntimeSession({
+    projectId: "TBCT-BR-001",
+    protocolId: CANONICAL_PROTOCOL_ID,
+    releaseId: "demo-release",
+    sessionDefinitionId: input.sessionDefinitionId ?? "tbct-s01",
+    participantId: "demo-participant",
+    patientAlias: input.patientAlias ?? "Test Patient",
+    locale: input.locale ?? "ko-KR",
+  });
 }
 
 export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessionView | null> {
   const session = await getRuntimeSessionRecord(sessionId);
   if (!session) return null;
   const storedRelease = await getProtocolRelease(session.releaseId);
-  const release: ProtocolReleaseVersion = hasCanonicalRuntimeSnapshot(storedRelease) && storedRelease
-    ? storedRelease
-    : createCanonicalDemoRelease();
+  const release: ProtocolReleaseVersion | null = storedRelease
+    ?? (session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId) ? createCanonicalDemoRelease() : null);
+  if (!release || !hasRuntimeSourceSnapshot(release)) {
+    throw new Error(`Runtime session ${session.id} references an unavailable immutable release.`);
+  }
+  const runtimeRelease = loadRuntimeRelease(release);
+  const hydratedSession = session.runtimeState?.releaseId === release.id
+    ? session
+    : { ...session, runtimeState: normalizeRuntimeSessionState(session, runtimeRelease) };
   
   const [messages, logs, checkpoints, escalations, providerEvents, validationEvents, participant, memoryRetrievalRuns, memoryUsageLogs] = await Promise.all([
     listRuntimeMessages(sessionId),
@@ -158,16 +191,16 @@ export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessi
     listMemoryRetrievalRuns(sessionId).catch(() => []),
     listMemoryUsageLogs(sessionId).catch(() => []),
   ]);
-  const sourceFidelity = release.immutableSnapshot.sourceFidelity!;
+  const sourceFidelity = getRuntimeReleaseSourceSnapshot(release);
   
   return {
-    session,
+    session: hydratedSession,
     release,
     participant: participant ?? undefined,
     nodes: sourceFidelity.clinicalStageNodes,
     edges: sourceFidelity.sourceFidelityEdges,
     promptItems: sourceFidelity.promptItems,
-    currentPromptItem: sourceFidelity.promptItems.find((promptItem) => promptItem.id === session.currentPromptItemId),
+    currentPromptItem: sourceFidelity.promptItems.find((promptItem) => promptItem.id === hydratedSession.currentPromptItemId),
     messages,
     logs,
     checkpoints,
@@ -177,6 +210,52 @@ export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessi
     memoryRetrievalRuns,
     memoryUsageLogs,
   } satisfies RuntimeSessionView;
+}
+
+export async function getPatientRuntimeSession(sessionId: string): Promise<PatientRuntimeSessionView | null> {
+  const session = await getRuntimeSessionRecord(sessionId);
+  if (!session) return null;
+  const storedRelease = await getProtocolRelease(session.releaseId);
+  const release: ProtocolReleaseVersion | null = storedRelease
+    ?? (session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId) ? createCanonicalDemoRelease() : null);
+  if (!release || !hasRuntimeSourceSnapshot(release)) {
+    throw new Error(`Runtime session ${session.id} references an unavailable immutable release.`);
+  }
+  const runtimeRelease = loadRuntimeRelease(release);
+  const hydratedSession = session.runtimeState?.releaseId === release.id
+    ? session
+    : { ...session, runtimeState: normalizeRuntimeSessionState(session, runtimeRelease) };
+  const sourceFidelity = getRuntimeReleaseSourceSnapshot(release);
+  const currentNode = sourceFidelity.clinicalStageNodes.find((node) => node.id === hydratedSession.currentNodeId);
+  const currentPromptItem = sourceFidelity.promptItems.find((promptItem) => promptItem.id === hydratedSession.currentPromptItemId);
+  const messages = (await listRuntimeMessages(sessionId))
+    .filter((message) => message.role === "patient"
+      || (message.role === "assistant" && ["validated", "delivered", "replaced_by_fallback"].includes(message.status))
+      || (message.role === "system" && message.metadata?.patientVisible === true))
+    .map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      status: message.status,
+      createdAt: message.createdAt,
+      deliveredAt: message.deliveredAt,
+    }));
+  return {
+    session: {
+      id: hydratedSession.id,
+      patientAlias: hydratedSession.patientAlias,
+      sessionDefinitionId: hydratedSession.sessionDefinitionId,
+      status: hydratedSession.status,
+      currentNodeId: hydratedSession.currentNodeId,
+      currentPromptItemId: hydratedSession.currentPromptItemId,
+      updatedAt: hydratedSession.updatedAt,
+      runtimeContext: { riskLevel: hydratedSession.runtimeContext.riskLevel },
+    },
+    currentNode: currentNode ? { id: currentNode.id, title: currentNode.title } : undefined,
+    currentPromptInput: currentPromptItem ? { type: currentPromptItem.type, validation: currentPromptItem.validation } : undefined,
+    messages,
+    hasSafetyReview: hydratedSession.status === "safety_paused" || hydratedSession.status === "escalated",
+  } satisfies PatientRuntimeSessionView;
 }
 
 export async function listRuntimeSessions() {
@@ -235,6 +314,25 @@ export async function restoreRuntimeSession(sessionId: string) {
 
 export async function getDefaultPublishedRelease(protocolId = "TBCT-BR-001") {
   const activeProtocolId = isCanonicalProtocolId(protocolId) ? CANONICAL_PROTOCOL_ID : protocolId;
-  const releases = await getProtocolReleases(activeProtocolId);
+  const releases = await listAvailableRuntimeReleases(activeProtocolId);
   return releases.find((release) => release.immutableSnapshot.sourceFidelity?.canonicalProtocolId === CANONICAL_PROTOCOL_ID) ?? null;
+}
+
+export async function listAvailableRuntimeReleases(protocolId = "TBCT-BR-001") {
+  const activeProtocolId = isCanonicalProtocolId(protocolId) ? CANONICAL_PROTOCOL_ID : protocolId;
+  const releases = await getProtocolReleases(activeProtocolId);
+  return releases
+    .filter((release) => hasRuntimeSourceSnapshot(release))
+    .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt));
+}
+
+export async function listPatientAvailableRuntimeReleases(protocolId = "TBCT-BR-001"): Promise<PatientRuntimeReleaseOption[]> {
+  const releases = await listAvailableRuntimeReleases(protocolId);
+  return releases.map((release) => ({
+    id: release.id,
+    version: release.version,
+    publishedAt: release.publishedAt,
+    changeSummary: release.changeSummary,
+    sessions: release.immutableSnapshot.sourceFidelity?.sessionDefinitions.map(({ id, number, title }) => ({ id, number, title })) ?? [],
+  }));
 }

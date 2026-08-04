@@ -5,6 +5,7 @@ import type {
   RuntimeMessage,
   RuntimeProviderEvent,
   RuntimeSession,
+  RuntimeExecutionTrace,
   RuntimeValidationEvent,
   SessionExecutionLog,
 } from "@/types/runtime-session";
@@ -122,4 +123,64 @@ export async function saveRuntimeValidationEvent(event: RuntimeValidationEvent) 
 
 export async function listRuntimeValidationEvents(runtimeSessionId: string) {
   return getLocalDb().runtimeValidationEvents.where("runtimeSessionId").equals(runtimeSessionId).sortBy("createdAt");
+}
+
+export async function saveRuntimeExecutionTrace(trace: RuntimeExecutionTrace) {
+  await getLocalDb().runtimeExecutionTraces.put(trace);
+  return trace;
+}
+
+export async function listRuntimeExecutionTraces(runtimeSessionId: string) {
+  return getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(runtimeSessionId).sortBy("timestamp");
+}
+
+export type CommitRuntimeAssistantTurnInput = {
+  sessionId: string;
+  assistantMessage: RuntimeMessage;
+  providerEvent: RuntimeProviderEvent;
+  validationEvent: RuntimeValidationEvent;
+  trace: RuntimeExecutionTrace;
+  sessionPatch: Partial<RuntimeSession>;
+};
+
+export async function commitRuntimeAssistantTurn(input: CommitRuntimeAssistantTurnInput) {
+  const db = getLocalDb();
+  return db.transaction(
+    "rw",
+    db.runtimeSessions,
+    db.runtimeMessages,
+    db.runtimeProviderEvents,
+    db.runtimeValidationEvents,
+    db.runtimeExecutionTraces,
+    async () => {
+      const current = await db.runtimeSessions.get(input.sessionId);
+      if (!current) throw new Error("Runtime session not found");
+      const duplicate = await db.runtimeMessages
+        .where("runtimeSessionId")
+        .equals(input.sessionId)
+        .filter((message) => message.role === "assistant"
+          && message.nodeId === input.assistantMessage.nodeId
+          && message.promptItemId === input.assistantMessage.promptItemId)
+        .first();
+      if (duplicate) return { session: current, assistantMessage: duplicate, duplicate: true };
+
+      await db.runtimeMessages.put(input.assistantMessage);
+      await db.runtimeProviderEvents.put(input.providerEvent);
+      await db.runtimeValidationEvents.put(input.validationEvent);
+      await db.runtimeExecutionTraces.put(input.trace);
+      const nextSession: RuntimeSession = {
+        ...current,
+        ...input.sessionPatch,
+        messageIds: [...new Set([...current.messageIds, ...(input.sessionPatch.messageIds ?? []), input.assistantMessage.id])],
+        runtimeContext: {
+          ...current.runtimeContext,
+          ...input.sessionPatch.runtimeContext,
+          lastAssistantMessage: input.assistantMessage.content,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      await db.runtimeSessions.put(nextSession);
+      return { session: nextSession, assistantMessage: input.assistantMessage, duplicate: false };
+    },
+  );
 }

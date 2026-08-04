@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getRuntimeSession, createRuntimeSession } from "@/lib/api/runtime-session-api";
-import { startRuntimeSession } from "@/lib/api/runtime-execution-api";
+import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRuntimeSession, getRuntimeSession, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
+import { startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
 import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
 import { promptRequiresPatientInput } from "@/lib/runtime/source-fidelity-prompt-progression";
 
 describe("canonical source-fidelity runtime", () => {
@@ -12,6 +13,47 @@ describe("canonical source-fidelity runtime", () => {
       await Promise.all(db.tables.map((table) => table.clear()));
     });
   });
+
+  it("starts an explicit canonical test session without a published release", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      const active = await getRuntimeSession(session.id);
+
+      expect(session.releaseId).toBe("demo-release");
+      expect(active?.session.status).toBe("waiting_for_input");
+      expect(active?.session.runtimeState?.releaseId).toBe("demo-release");
+      expect(active?.currentPromptItem).toBeDefined();
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("keeps the active PromptItem when a patient sends only a greeting", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const activePromptItemId = before?.session.currentPromptItemId;
+
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      const after = await getRuntimeSession(session.id);
+
+      expect(activePromptItemId).toBeDefined();
+      expect(after?.session.status).toBe("waiting_for_input");
+      expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
+      expect(after?.session.completedPromptItemIds).not.toContain(activePromptItemId);
+      expect(after?.messages.at(-1)?.content).toBe("hi");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
 
   it("starts from a canonical release and waits on exactly one immutable PromptItem", async () => {
     const previousProvider = process.env.AI_PROVIDER;
@@ -23,6 +65,8 @@ describe("canonical source-fidelity runtime", () => {
       targetEnvironment: "development",
       changeSummary: "Runtime source-fidelity test release",
     });
+    const patientReleases = await listPatientAvailableRuntimeReleases("TBCT-BR-001");
+    const patientRelease = patientReleases.find((release) => release.id === published.release.id);
     const session = await createRuntimeSession({
       projectId: "TBCT-BR-001",
       protocolId: "TBCT-BR-001",
@@ -34,25 +78,94 @@ describe("canonical source-fidelity runtime", () => {
 
     const initial = await getRuntimeSession(session.id);
     expect(initial?.session.protocolId).toBe("tbct-br-001");
+    expect(initial?.session.releaseId).toBe(published.release.id);
+    expect(initial?.session.runtimeState?.releaseId).toBe(published.release.id);
     expect(initial?.session.sessionDefinitionId).toBe("tbct-s01");
     expect(initial?.session.sourceTextHash).toBe(published.release.immutableSnapshot.sourceFidelity?.sourceTextHash);
     expect(initial?.currentPromptItem?.id).toBe(initial?.session.currentPromptItemId);
 
     await startRuntimeSession(session.id);
+    await saveRuntimeMessage({
+      id: "internal-system-message",
+      runtimeSessionId: session.id,
+      role: "system",
+      content: "Internal runtime detail",
+      status: "delivered",
+      createdAt: new Date().toISOString(),
+    });
+    await saveRuntimeMessage({
+      id: "approved-system-message",
+      runtimeSessionId: session.id,
+      role: "system",
+      content: "A safety review is in progress.",
+      status: "delivered",
+      createdAt: new Date().toISOString(),
+      metadata: { patientVisible: true },
+    });
     const active = await getRuntimeSession(session.id);
+    const patientView = await getPatientRuntimeSession(session.id);
     const promptItem = active?.currentPromptItem;
 
     expect(active?.session.status).toBe("waiting_for_input");
     expect(promptItem).toBeDefined();
     expect(promptItem && promptRequiresPatientInput(promptItem)).toBe(true);
+    expect(active?.session.runtimeState?.activeNodeId).toBe(active?.session.currentNodeId);
+    expect(active?.session.runtimeState?.activePromptItemId).toBe(active?.session.currentPromptItemId);
     expect(active?.messages.filter((message) => message.role === "assistant").every((message) => message.promptItemId !== undefined)).toBe(true);
-    expect(active?.messages.at(-1)?.promptItemId).toBe(promptItem?.id);
+    expect([...active?.messages ?? []].reverse().find((message) => message.role === "assistant")?.promptItemId).toBe(promptItem?.id);
     expect(active?.promptItems.some((item) => item.id === promptItem?.id)).toBe(true);
     expect(active?.release.immutableSnapshot.nodes.some((node) => node.id.startsWith("RT-NODE-"))).toBe(false);
     expect(active?.providerEvents.every((event) => event.provider === "deterministic")).toBe(true);
+    expect("release" in (patientView ?? {})).toBe(false);
+    expect(patientView?.currentPromptInput && "aiInstruction" in patientView.currentPromptInput).toBe(false);
+    expect(patientView?.messages.some((message) => message.id === "internal-system-message")).toBe(false);
+    expect(patientView?.messages.some((message) => message.id === "approved-system-message")).toBe(true);
+    expect("immutableSnapshot" in (patientRelease ?? {})).toBe(false);
+    expect(patientRelease?.sessions.length).toBeGreaterThan(0);
+    expect(patientRelease?.sessions[0] && "sessionObjective" in patientRelease.sessions[0]).toBe(false);
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;
     }
-  });
+  }, 15_000);
+
+  it("keeps release-pinned runtime state aligned after a validated patient answer", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      await runProtocolValidation("TBCT-BR-001", "tbct-s01");
+      const published = await publishProtocolRelease("TBCT-BR-001", {
+        version: `runtime-progress-${Date.now()}`,
+        targetEnvironment: "development",
+        changeSummary: "Runtime progression test release",
+      });
+      const session = await createRuntimeSession({
+        projectId: "TBCT-BR-001",
+        protocolId: "TBCT-BR-001",
+        releaseId: published.release.id,
+        sessionDefinitionId: "tbct-session-01",
+        patientAlias: "TBCT-DEMO-002",
+        locale: "en-US",
+      });
+
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const answeredPromptId = before?.session.currentPromptItemId;
+      expect(answeredPromptId).toBeDefined();
+
+      await submitPatientInput(session.id, { kind: "text", value: "This is a current situation, not only an interpretation." });
+      const after = await getRuntimeSession(session.id);
+      const traces = await getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray();
+
+      expect(after?.session.releaseId).toBe(published.release.id);
+      expect(after?.session.completedPromptItemIds).toContain(answeredPromptId);
+      expect(after?.session.runtimeState?.activeNodeId).toBe(after?.session.currentNodeId);
+      expect(after?.session.runtimeState?.activePromptItemId).toBe(after?.session.currentPromptItemId);
+      expect(traces.length).toBeGreaterThan(0);
+      expect(traces.every((trace) => trace.releaseId === published.release.id && Boolean(trace.contractHash))).toBe(true);
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
 });

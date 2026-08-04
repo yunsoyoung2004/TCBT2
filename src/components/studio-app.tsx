@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
+import type { ComponentType } from "react";
 
 const DashboardPage = dynamic(() => import("@/components/pages/dashboard-page").then((mod) => mod.DashboardPage), { ssr: false });
 const AssetsPage = dynamic(() => import("@/components/pages/assets-page").then((mod) => mod.AssetsPage), { ssr: false });
 const ClinicalAssetRegistrationPage = dynamic(() => import("@/components/pages/clinical-asset-registration-page").then((mod) => mod.ClinicalAssetRegistrationPage), { ssr: false });
 const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page").then((mod) => mod.ExtractionPage), { ssr: false });
-import { ProtocolPage } from "@/components/pages/protocol-page";
+const ProtocolPage = dynamic(() => import("@/components/pages/protocol-page").then((mod) => mod.ProtocolPage), { ssr: false });
 const SafetyPage = dynamic(() => import("@/components/pages/safety-page").then((mod) => mod.SafetyPage), { ssr: false });
 const ValidationPage = dynamic(() => import("@/components/pages/validation-page").then((mod) => mod.ValidationPage), { ssr: false });
 const VersionsPage = dynamic(() => import("@/components/pages/versions-page").then((mod) => mod.VersionsPage), { ssr: false });
@@ -48,50 +49,61 @@ const RuntimePilotExportsPage = dynamic(() => import("@/components/pages/runtime
 const RuntimePilotReportsPage = dynamic(() => import("@/components/pages/runtime-pilot-reports-page").then((mod) => mod.RuntimePilotReportsPage), { ssr: false });
 const RuntimePilotReportDetailPage = dynamic(() => import("@/components/pages/runtime-pilot-report-detail-page").then((mod) => mod.RuntimePilotReportDetailPage), { ssr: false });
 
+type StudioRoute = {
+  matches: (pathname: string) => boolean;
+  Page: ComponentType;
+};
+
+const studioRoutes: StudioRoute[] = [
+  { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage },
+  { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage },
+  { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage },
+  { matches: (pathname) => pathname.includes("/patient/sessions/") && pathname.endsWith("/complete"), Page: PatientSessionCompletePage },
+  { matches: (pathname) => pathname.includes("/patient/sessions/"), Page: PatientSessionPage },
+  { matches: (pathname) => pathname.includes("/patient"), Page: PatientListPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/participants/"), Page: RuntimePilotParticipantDetailPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/reports/"), Page: RuntimePilotReportDetailPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/configuration"), Page: RuntimePilotConfigurationPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/sites"), Page: RuntimePilotSitesPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/participants"), Page: RuntimePilotParticipantsPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/screening"), Page: RuntimePilotScreeningPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/enrollment"), Page: RuntimePilotEnrollmentPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/allocation"), Page: RuntimePilotAllocationPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/sessions"), Page: RuntimePilotSessionsPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/deviations"), Page: RuntimePilotDeviationsPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/outcomes"), Page: RuntimePilotOutcomesPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/data-quality"), Page: RuntimePilotDataQualityPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/exports"), Page: RuntimePilotExportsPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot/reports"), Page: RuntimePilotReportsPage },
+  { matches: (pathname) => pathname.includes("/runtime/pilot"), Page: RuntimePilotDashboardPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/events/"), Page: RuntimeSafetyEventDetailPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/reports/"), Page: RuntimeSafetyReportDetailPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/events"), Page: RuntimeSafetyEventsPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/my-queue"), Page: RuntimeSafetyMyQueuePage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/follow-ups"), Page: RuntimeSafetyFollowUpsPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/notifications"), Page: RuntimeSafetyNotificationsPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety/analytics"), Page: RuntimeSafetyAnalyticsPage },
+  { matches: (pathname) => pathname.includes("/runtime/safety"), Page: RuntimeSafetyDashboardPage },
+  { matches: (pathname) => pathname.includes("/runtime/memory-review"), Page: RuntimeMemoryReviewPage },
+  { matches: (pathname) => pathname.includes("/runtime/participants/"), Page: RuntimeParticipantPage },
+  { matches: (pathname) => pathname.includes("/runtime/sessions/") && pathname.endsWith("/summary"), Page: RuntimeSessionSummaryPage },
+  { matches: (pathname) => pathname.includes("/runtime/escalations"), Page: RuntimeEscalationsPage },
+  { matches: (pathname) => pathname.includes("/runtime/sessions/"), Page: RuntimeInspectorPage },
+  { matches: (pathname) => pathname.includes("/clinical-assets/new"), Page: ClinicalAssetRegistrationPage },
+  { matches: (pathname) => pathname.includes("/assets"), Page: AssetsPage },
+  { matches: (pathname) => pathname.includes("/extraction"), Page: ExtractionPage },
+  { matches: (pathname) => pathname.includes("/canvas"), Page: ProtocolPage },
+  { matches: (pathname) => pathname.includes("/safety"), Page: SafetyPage },
+  { matches: (pathname) => pathname.includes("/validation"), Page: ValidationPage },
+  { matches: (pathname) => pathname.includes("/versions") || pathname.includes("/release"), Page: VersionsPage },
+  { matches: (pathname) => pathname.startsWith("/audit"), Page: AuditPage },
+  { matches: (pathname) => pathname.startsWith("/settings"), Page: SettingsPage },
+];
+
 export function StudioApp() {
-  const path = usePathname();
-  if (path.includes("/patient/profile")) return <PatientProfilePage />;
-  if (path.includes("/patient/memory")) return <PatientMemoryPage />;
-  if (path.includes("/patient/sessions/new")) return <PatientNewSessionPage />;
-  if (path.includes("/patient/sessions/") && path.endsWith("/complete")) return <PatientSessionCompletePage />;
-  if (path.includes("/patient/sessions/")) return <PatientSessionPage />;
-  if (path.includes("/patient")) return <PatientListPage />;
-  if (path.includes("/runtime/pilot/participants/")) return <RuntimePilotParticipantDetailPage />;
-  if (path.includes("/runtime/pilot/reports/")) return <RuntimePilotReportDetailPage />;
-  if (path.includes("/runtime/pilot/configuration")) return <RuntimePilotConfigurationPage />;
-  if (path.includes("/runtime/pilot/sites")) return <RuntimePilotSitesPage />;
-  if (path.includes("/runtime/pilot/participants")) return <RuntimePilotParticipantsPage />;
-  if (path.includes("/runtime/pilot/screening")) return <RuntimePilotScreeningPage />;
-  if (path.includes("/runtime/pilot/enrollment")) return <RuntimePilotEnrollmentPage />;
-  if (path.includes("/runtime/pilot/allocation")) return <RuntimePilotAllocationPage />;
-  if (path.includes("/runtime/pilot/sessions")) return <RuntimePilotSessionsPage />;
-  if (path.includes("/runtime/pilot/deviations")) return <RuntimePilotDeviationsPage />;
-  if (path.includes("/runtime/pilot/outcomes")) return <RuntimePilotOutcomesPage />;
-  if (path.includes("/runtime/pilot/data-quality")) return <RuntimePilotDataQualityPage />;
-  if (path.includes("/runtime/pilot/exports")) return <RuntimePilotExportsPage />;
-  if (path.includes("/runtime/pilot/reports")) return <RuntimePilotReportsPage />;
-  if (path.includes("/runtime/pilot")) return <RuntimePilotDashboardPage />;
-  if (path.includes("/runtime/safety/events/")) return <RuntimeSafetyEventDetailPage />;
-  if (path.includes("/runtime/safety/reports/")) return <RuntimeSafetyReportDetailPage />;
-  if (path.includes("/runtime/safety/events")) return <RuntimeSafetyEventsPage />;
-  if (path.includes("/runtime/safety/my-queue")) return <RuntimeSafetyMyQueuePage />;
-  if (path.includes("/runtime/safety/follow-ups")) return <RuntimeSafetyFollowUpsPage />;
-  if (path.includes("/runtime/safety/notifications")) return <RuntimeSafetyNotificationsPage />;
-  if (path.includes("/runtime/safety/analytics")) return <RuntimeSafetyAnalyticsPage />;
-  if (path.includes("/runtime/safety")) return <RuntimeSafetyDashboardPage />;
-  if (path.includes("/runtime/memory-review")) return <RuntimeMemoryReviewPage />;
-  if (path.includes("/runtime/participants/")) return <RuntimeParticipantPage />;
-  if (path.includes("/runtime/sessions/") && path.endsWith("/summary")) return <RuntimeSessionSummaryPage />;
-  if (path.includes("/runtime/escalations")) return <RuntimeEscalationsPage />;
-  if (path.includes("/runtime/sessions/")) return <RuntimeInspectorPage />;
-  if (path.includes("/clinical-assets/new")) return <ClinicalAssetRegistrationPage />;
-  if (path.includes("/assets")) return <AssetsPage/>;
-  if (path.includes("/extraction")) return <ExtractionPage/>;
-  if (path.includes("/canvas")) return <ProtocolPage/>;
-  if (path.includes("/safety")) return <SafetyPage/>;
-  if (path.includes("/validation")) return <ValidationPage/>;
-  if (path.includes("/versions") || path.includes("/release")) return <VersionsPage/>;
-  if (path.startsWith("/audit")) return <AuditPage/>;
-  if (path.startsWith("/settings")) return <SettingsPage/>;
-  return <DashboardPage/>;
+  const pathname = usePathname();
+  const route = studioRoutes.find(({ matches }) => matches(pathname));
+  const Page = route?.Page ?? DashboardPage;
+
+  return <Page />;
 }

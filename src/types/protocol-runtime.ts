@@ -1,12 +1,16 @@
 import type {
   ClinicalStageNode,
+  ConditionExpression,
   PromptItem as SourceFidelityPromptItem,
+  PromptExecutionMode,
+  PromptScope,
   SessionCommonRules,
   SessionDefinition,
   SessionPlan,
   SourceFidelityEdge,
   SourceFidelityStatus,
   SourceTrace,
+  ValidationRule,
 } from "@/lib/protocol/source-fidelity-types";
 
 export type ProtocolNodeType =
@@ -24,6 +28,108 @@ export type ProtocolNodeType =
   | "session_complete";
 
 export type ProtocolNodeStatus = "draft" | "needs_review" | "approved" | "validation_error" | "published";
+
+export type RuntimeRoleKind = "speaker" | "controller" | "evaluator";
+
+export type RuntimeSpeakerRoleId = "tbct_guide" | "therapist" | "psychoeducation_guide" | "closing_guide";
+
+export type RuntimeControllerRoleId = "session_manager" | "transition_controller" | "memory_manager";
+
+export type RuntimeEvaluatorRoleId = "protocol_validator" | "safety_evaluator" | "style_evaluator";
+
+export type RuntimeRoleId = RuntimeSpeakerRoleId | RuntimeControllerRoleId | RuntimeEvaluatorRoleId;
+
+export interface RuntimeRoleDefinition {
+  id: RuntimeRoleId | string;
+  name: string;
+  kind: RuntimeRoleKind;
+  systemGuidance: string;
+  allowedActions: string[];
+  forbiddenActions: string[];
+}
+
+export interface RuntimeTransitionRule {
+  id: string;
+  targetNodeId: string;
+  condition?: ConditionExpression;
+  priority: number;
+  isFallback: boolean;
+}
+
+export interface RuntimePromptItem {
+  id: string;
+  nodeId: string;
+  roleId: RuntimeSpeakerRoleId | string;
+  scope: PromptScope;
+  sequenceIndex: number;
+  executionMode: PromptExecutionMode;
+  modelGuidance: string;
+  fallbackPatientText: string;
+  activationCondition?: ConditionExpression;
+  completionCondition: ConditionExpression;
+  allowedActions: string[];
+  forbiddenActions: string[];
+  requiredFields: string[];
+  validationRules: ValidationRule[];
+  maxAttempts: number;
+  maxIterations?: number;
+  requiresPatientInput: boolean;
+  outputSchemaVersion: string;
+  sourcePromptItemId?: string;
+}
+
+export interface RuntimeNode {
+  id: string;
+  sessionId: string;
+  title: string;
+  objective: string;
+  speakerRoleId: RuntimeSpeakerRoleId | string;
+  promptSequence: string[];
+  entryCondition: ConditionExpression;
+  completionCondition: ConditionExpression;
+  transitionRules: RuntimeTransitionRule[];
+  maxNodeIterations: number;
+  safetyRuleIds: string[];
+}
+
+export interface PolicyBundle {
+  globalSafetyRules: string[];
+  protocolRules: string[];
+  forbiddenPatientContent: string[];
+  maxPromptCharacters: number;
+}
+
+export interface RuntimeRelease {
+  id: string;
+  protocolId: string;
+  version: string;
+  roles: RuntimeRoleDefinition[];
+  nodes: RuntimeNode[];
+  promptItems: RuntimePromptItem[];
+  policies: PolicyBundle;
+  schemaVersion: string;
+  contentHash: string;
+  publishedAt: string;
+}
+
+export interface PromptSegment {
+  priority: number;
+  label: string;
+  content: string;
+}
+
+export interface CompiledPromptContract {
+  contractId: string;
+  releaseId: string;
+  nodeId: string;
+  promptItemId: string;
+  roleId: string;
+  systemSegments: PromptSegment[];
+  runtimeContext: Record<string, unknown>;
+  outputSchema: Record<string, unknown>;
+  fallbackPatientText: string;
+  contractHash: string;
+}
 
 export interface ProtocolCondition {
   id: string;
@@ -234,5 +340,6 @@ export interface ProtocolReleaseVersion {
     nodes: ProtocolGraphNode[];
     edges: ProtocolGraphEdge[];
     sourceFidelity?: SourceFidelityReleaseSnapshot;
+    runtimeRelease?: RuntimeRelease;
   };
 }

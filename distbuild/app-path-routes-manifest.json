@@ -1,4 +1,5 @@
 {
   "/_not-found/page": "/_not-found",
+  "/api/clinical-language/respond/route": "/api/clinical-language/respond",
   "/[[...slug]]/page": "/[[...slug]]"
 }

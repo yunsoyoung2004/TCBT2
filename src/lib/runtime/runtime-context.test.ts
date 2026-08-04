@@ -36,9 +36,28 @@ describe("runtime context extraction", () => {
     expect(invalid.missingFields).toContain("initialATBeliefPercent");
   });
 
+  it("does not hide a safety disclosure behind numeric prompt validation", async () => {
+    const result = await extractRuntimeState({ patientInput: { kind: "rating", value: "I have a suicide plan." }, currentNode: makeNode("initialATBeliefPercent", "rating"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+
+    expect(result.riskLevel).toBe("high");
+    expect(result.riskSignals).toContain("suicide");
+    expect(result.missingFields).toHaveLength(0);
+  });
+
   it("detects no-more-evidence phrases", async () => {
     const result = await extractRuntimeState({ patientInput: { kind: "text", value: "Não consigo pensar em mais nenhum" }, currentNode: makeNode("evidenceFor"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
     expect(result.fields.evidenceForNoMore).toBe(true);
+  });
+
+  it("rejects a greeting or bare confirmation but accepts a substantive open-ended response", async () => {
+    const greeting = await extractRuntimeState({ patientInput: { kind: "text", value: "hi" }, currentNode: makeNode("situationThoughtDistinction"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    const bareConfirmation = await extractRuntimeState({ patientInput: { kind: "text", value: "yes" }, currentNode: makeNode("situationThoughtDistinction"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    const substantive = await extractRuntimeState({ patientInput: { kind: "text", value: "I avoid speaking during meetings because I expect to make a mistake." }, currentNode: makeNode("situationThoughtDistinction"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+
+    expect(greeting.missingFields).toContain("situationThoughtDistinction");
+    expect(bareConfirmation.missingFields).toContain("situationThoughtDistinction");
+    expect(substantive.missingFields).toHaveLength(0);
+    expect(substantive.fields.situationThoughtDistinction).toContain("avoid speaking");
   });
 
   it("does not infer a factual automatic thought from its wording", async () => {

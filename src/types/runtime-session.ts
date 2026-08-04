@@ -1,6 +1,6 @@
 import type { RuntimeAction, ProtocolReleaseVersion } from "@/types/protocol-runtime";
 import type { RuntimeParticipant, MemoryRetrievalResult, MemoryUsageLog } from "@/types/longitudinal-memory";
-import type { ClinicalStageNode, PromptItem, SourceFidelityEdge } from "@/lib/protocol/source-fidelity-types";
+import type { ClinicalStageNode, PromptItem, SessionDefinition, SourceFidelityEdge } from "@/lib/protocol/source-fidelity-types";
 
 export type RuntimeSessionStatus =
   | "created"
@@ -45,6 +45,35 @@ export interface RuntimeContext {
   };
 }
 
+export interface RuntimeSessionState {
+  releaseId: string;
+  activeNodeId: string;
+  activePromptItemId?: string;
+  activePromptIndex: number;
+  completedNodeIds: string[];
+  completedPromptItemIds: string[];
+  fields: Record<string, unknown>;
+  turnCount: number;
+  nodeIterationCount: number;
+}
+
+export interface PatientProfile {
+  participantId: string;
+  preferredName?: string;
+  locale: string;
+  treatmentGoals: string[];
+  patientPreferences: string[];
+}
+
+export interface SessionMemory {
+  confirmedSituation?: string;
+  confirmedEmotion?: string;
+  confirmedThought?: string;
+  confirmedBehavior?: string;
+  sessionProgress: string[];
+  compactSummary?: string;
+}
+
 export interface RuntimeSession {
   id: string;
   projectId: string;
@@ -60,6 +89,7 @@ export interface RuntimeSession {
   currentPromptItemId?: string;
   completedPromptItemIds?: string[];
   skippedPromptItemIds?: string[];
+  runtimeState?: RuntimeSessionState;
   promptProgressionReason?: "session_started" | "prompt_delivered" | "prompt_completed" | "prompt_skipped" | "node_completed" | "safety_paused";
   sourceVersion?: string;
   sourceTextHash?: string;
@@ -185,6 +215,23 @@ export interface RuntimeValidationEvent {
   createdAt: string;
 }
 
+export interface RuntimeExecutionTrace {
+  id: string;
+  runtimeSessionId: string;
+  releaseId: string;
+  nodeId: string;
+  promptItemId: string;
+  roleId: string;
+  provider: string;
+  model?: string;
+  contractHash: string;
+  validation: OutputValidationResult;
+  fallbackUsed: boolean;
+  transitionDecision: string;
+  stateChanges: Record<string, unknown>;
+  timestamp: string;
+}
+
 export interface PatientInput {
   kind: "text" | "single_choice" | "multi_choice" | "rating" | "boolean" | "activity_completion" | "homework_status";
   value: string | string[] | number | boolean;
@@ -276,4 +323,26 @@ export interface RuntimeSessionView {
   validationEvents: RuntimeValidationEvent[];
   memoryRetrievalRuns?: MemoryRetrievalResult[];
   memoryUsageLogs?: MemoryUsageLog[];
+}
+
+export type PatientRuntimeSession = Pick<RuntimeSession, "id" | "patientAlias" | "sessionDefinitionId" | "status" | "currentNodeId" | "currentPromptItemId" | "updatedAt"> & {
+  runtimeContext: Pick<RuntimeContext, "riskLevel">;
+};
+
+export type PatientRuntimeMessage = Pick<RuntimeMessage, "id" | "role" | "content" | "status" | "createdAt" | "deliveredAt">;
+
+export interface PatientRuntimeSessionView {
+  session: PatientRuntimeSession;
+  currentNode?: Pick<ClinicalStageNode, "id" | "title">;
+  currentPromptInput?: Pick<PromptItem, "type" | "validation">;
+  messages: PatientRuntimeMessage[];
+  hasSafetyReview: boolean;
+}
+
+export interface PatientRuntimeReleaseOption {
+  id: string;
+  version: string;
+  publishedAt: string;
+  changeSummary: string;
+  sessions: Array<Pick<SessionDefinition, "id" | "number" | "title">>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { getPromptValidationWarnings, getSessionCommonRules, getSessionPrompts, movePromptItem, restorePromptItemFromVerbatim, savePromptItems, saveSessionCommonRules, sessionCatalog, togglePromptItemStatus, updatePromptItem } from "@/lib/session-catalog";
+import { getPromptValidationWarnings, getSessionBuilderDraftSnapshot, getSessionCommonRules, getSessionNodes, getSessionPrompts, movePromptItem, restorePromptItemFromVerbatim, savePromptItems, saveSessionCommonRules, sessionCatalog, togglePromptItemStatus, updatePromptItem, updateSessionNodeRuntime } from "@/lib/session-catalog";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/primitives";
 import { fadeIn, fadeScale, fadeUp, highlightPulse, logItemEnter, runtimeStepEnter, safetyNoticeEnter, statusTransition } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
+import { normalizeRuntimeReleaseFromSourceSnapshot } from "@/lib/runtime/runtime-release-normalizer";
+import { compileRuntimePrompt } from "@/lib/runtime/runtime-prompt-compiler";
 import {
   attachSafetyRuleToNode,
   createDraftFromRelease,
@@ -179,6 +181,7 @@ export function ProtocolPage() {
   const [newNodeForm, setNewNodeForm] = useState({ nodeType: "dialogue" as ProtocolNodeType, title: "", clinicalIntent: "", content: "" });
   const [publishForm, setPublishForm] = useState({ version: "0.4.0", targetEnvironment: "pilot" as const, changeSummary: "Clinical graph import and validation" });
   const [newDraftForm, setNewDraftForm] = useState({ version: "0.4.1", changeSummary: "Continue from published release" });
+  const [builderRevision, setBuilderRevision] = useState(0);
   const reducedMotion = useReducedMotionPreference();
 
   const logProtocolAction = (action: string, details: Record<string, unknown>) => {
@@ -473,9 +476,49 @@ export function ProtocolPage() {
   const sessionFlowEdges = edges;
   const immutableSourceView = graphQuery.data?.definition?.id === "tbct-br-001";
   const selectedSessionNode = useMemo(() => sessionFlowNodes.find((item) => item.id === selectedStepId) ?? sessionFlowNodes[0] ?? null, [sessionFlowNodes, selectedStepId]);
-  const sessionPrompts = useMemo(() => getSessionPrompts(selectedSessionMeta.id, selectedSessionNode?.id), [selectedSessionMeta.id, selectedSessionNode?.id]);
+  const builderNodes = getSessionNodes(selectedSessionMeta.id);
+  const selectedBuilderNode = builderNodes.find((node) => node.id === selectedSessionNode?.id) ?? null;
+  const sessionPrompts = getSessionPrompts(selectedSessionMeta.id, selectedSessionNode?.id);
   const selectedPromptItem = sessionPrompts.find((item) => item.id === selectedPromptItemId) ?? sessionPrompts[0] ?? null;
   const sessionCommonRules = getSessionCommonRules(selectedSessionMeta.id);
+  const compiledPreviewQuery = useQuery({
+    queryKey: ["compiled-runtime-prompt-preview", selectedPromptItem?.id, builderRevision],
+    enabled: Boolean(selectedPromptItem && selectedBuilderNode),
+    queryFn: async () => {
+      if (!selectedPromptItem || !selectedBuilderNode) throw new Error("Select a runtime PromptItem first");
+      const snapshot = getSessionBuilderDraftSnapshot();
+      const release = normalizeRuntimeReleaseFromSourceSnapshot({
+        releaseId: "preview-release",
+        protocolId: "tbct-br-001",
+        version: "preview",
+        publishedAt: "1970-01-01T00:00:00.000Z",
+        snapshot,
+      });
+      const node = release.nodes.find((item) => item.id === selectedBuilderNode.id);
+      const promptItem = release.promptItems.find((item) => item.id === selectedPromptItem.id);
+      const role = release.roles.find((item) => item.id === promptItem?.roleId);
+      if (!node || !promptItem || !role || role.kind !== "speaker") throw new Error("Selected runtime PromptItem is incomplete");
+      const promptIndex = node.promptSequence.indexOf(promptItem.id);
+      return compileRuntimePrompt({
+        release,
+        state: {
+          releaseId: release.id,
+          activeNodeId: node.id,
+          activePromptItemId: promptItem.id,
+          activePromptIndex: Math.max(0, promptIndex),
+          completedNodeIds: [],
+          completedPromptItemIds: [],
+          fields: { preview: true },
+          turnCount: 0,
+          nodeIterationCount: 0,
+        },
+        activeStep: { node, promptItem, role, promptIndex: Math.max(0, promptIndex), skippedPromptItemIds: [] },
+        locale: "en-US",
+        sessionMemory: { sessionProgress: ["Sanitized preview only"], compactSummary: "No patient data is included in this preview." },
+        recentMessages: [],
+      });
+    },
+  });
 
   useEffect(() => {
     setFlowNodes(sessionFlowNodes);
@@ -812,9 +855,95 @@ export function ProtocolPage() {
                             <Field label="activationCondition"><textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.activationCondition ?? null, null, 2)} readOnly /></Field>
                             <Field label="validation"><textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.validation ?? null, null, 2)} readOnly={immutableSourceView} onChange={(event) => { try { updatePromptItem(selectedPromptItem.id, { validation: JSON.parse(event.target.value) }); } catch { /* ignore */ } }} /></Field>
                           </div>
+                          <div className="rounded-panel border border-border bg-surface-subtle p-3">
+                            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Runtime Prompt Contract</div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <Field label="Sequence">
+                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.sequenceIndex ?? selectedPromptItem.order} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { sequenceIndex: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Speaker Role">
+                                <select className={inputClass} value={selectedPromptItem.roleId ?? "tbct_guide"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { roleId: event.target.value }); setBuilderRevision((revision) => revision + 1); }}>
+                                  <option value="tbct_guide">tbct_guide</option>
+                                  <option value="therapist">therapist</option>
+                                  <option value="psychoeducation_guide">psychoeducation_guide</option>
+                                  <option value="closing_guide">closing_guide</option>
+                                </select>
+                              </Field>
+                              <Field label="Scope">
+                                <select className={inputClass} value={selectedPromptItem.scope ?? "step"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { scope: event.target.value as typeof selectedPromptItem.scope }); setBuilderRevision((revision) => revision + 1); }}>
+                                  {(["global", "protocol", "session", "node", "step", "turn"] as const).map((scope) => <option key={scope} value={scope}>{scope}</option>)}
+                                </select>
+                              </Field>
+                              <Field label="Execution Mode">
+                                <select className={inputClass} value={selectedPromptItem.executionMode ?? "serial"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { executionMode: event.target.value as typeof selectedPromptItem.executionMode }); setBuilderRevision((revision) => revision + 1); }}>
+                                  {(["serial", "conditional", "repeat_until", "optional"] as const).map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                                </select>
+                              </Field>
+                            </div>
+                            <div className="mt-3 grid gap-3">
+                              <Field label="Model Guidance">
+                                <textarea className={textareaClass} value={selectedPromptItem.modelGuidance ?? ""} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { modelGuidance: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Patient-safe Fallback">
+                                <textarea className={textareaClass} value={selectedPromptItem.fallbackPatientText ?? ""} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { fallbackPatientText: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Completion Condition">
+                                <textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.completionCondition ?? null, null, 2)} onChange={(event) => { try { updatePromptItem(selectedPromptItem.id, { completionCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } catch { /* ignore incomplete JSON */ } }} />
+                              </Field>
+                            </div>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                              <Field label="Required Fields">
+                                <textarea className={textareaClass} value={(selectedPromptItem.requiredFields ?? selectedPromptItem.outputFields).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { requiredFields: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Allowed Actions">
+                                <textarea className={textareaClass} value={(selectedPromptItem.allowedActions ?? []).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { allowedActions: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Forbidden Actions">
+                                <textarea className={textareaClass} value={(selectedPromptItem.forbiddenActions ?? []).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { forbiddenActions: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Output Schema Version">
+                                <input className={inputClass} value={selectedPromptItem.outputSchemaVersion ?? "clinical-language/v2"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { outputSchemaVersion: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                            </div>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                              <Field label="Max Attempts">
+                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.maxAttempts ?? 1} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { maxAttempts: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                              <Field label="Max Iterations">
+                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.maxIterations ?? ""} onChange={(event) => { const value = Number(event.target.value); if (value) updatePromptItem(selectedPromptItem.id, { maxIterations: value }); setBuilderRevision((revision) => revision + 1); }} />
+                              </Field>
+                            </div>
+                          </div>
+                          <div className="rounded-panel border border-border bg-surface p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Compiled Prompt Preview</div>
+                              {compiledPreviewQuery.data && <Badge tone="neutral">{compiledPreviewQuery.data.contractHash.slice(0, 12)}</Badge>}
+                            </div>
+                            <textarea className={`${textareaClass} mt-3 min-h-56 font-mono text-xs`} readOnly value={compiledPreviewQuery.data?.systemSegments.map((segment) => `[${segment.priority}] ${segment.label}\n${segment.content}`).join("\n\n") ?? (compiledPreviewQuery.isLoading ? "Compiling sanitized preview..." : "Preview unavailable") } />
+                          </div>
                         </>
                       )}
-                      {inspectorTab === "flow" && <Field label="Flow"><textarea className={textareaClass} value={JSON.stringify({ entryCondition: selectedPromptItem.activationCondition, completionEffect: selectedPromptItem.completionEffect, currentNode: selectedSessionNode?.id, nextNode: sessionPrompts.find((item) => item.order === selectedPromptItem.order + 1)?.id ?? null }, null, 2)} readOnly /></Field>}
+                      {inspectorTab === "flow" && (
+                        <div className="grid gap-3">
+                          <div className="rounded-panel border border-border bg-surface-subtle p-3">
+                            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Runtime Node Contract</div>
+                            <Field label="Node Objective"><textarea className={textareaClass} value={selectedBuilderNode?.objective ?? selectedBuilderNode?.clinicalPurpose ?? ""} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { objective: event.target.value }); setBuilderRevision((revision) => revision + 1); } }} /></Field>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                              <Field label="Node Speaker Role">
+                                <select className={inputClass} value={selectedBuilderNode?.speakerRoleId ?? "tbct_guide"} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { speakerRoleId: event.target.value }); setBuilderRevision((revision) => revision + 1); } }}>
+                                  <option value="tbct_guide">tbct_guide</option><option value="therapist">therapist</option><option value="psychoeducation_guide">psychoeducation_guide</option><option value="closing_guide">closing_guide</option>
+                                </select>
+                              </Field>
+                              <Field label="Max Node Iterations"><input className={inputClass} type="number" min={1} value={selectedBuilderNode?.maxNodeIterations ?? 3} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { maxNodeIterations: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); } }} /></Field>
+                            </div>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                              <Field label="Entry Condition"><textarea className={textareaClass} value={JSON.stringify(selectedBuilderNode?.entryCondition ?? { kind: "always" }, null, 2)} onChange={(event) => { try { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { entryCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } } catch { /* ignore incomplete JSON */ } }} /></Field>
+                              <Field label="Completion Condition"><textarea className={textareaClass} value={JSON.stringify(selectedBuilderNode?.completionCondition ?? { kind: "field", field: "node.all_prompt_items_completed", operator: "equals", value: true }, null, 2)} onChange={(event) => { try { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { completionCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } } catch { /* ignore incomplete JSON */ } }} /></Field>
+                            </div>
+                          </div>
+                          <Field label="Transition Rules"><textarea className={textareaClass} value={JSON.stringify(sessionFlowEdges.filter((edge) => edge.source === selectedSessionNode?.id).map((edge) => ({ id: edge.id, targetNodeId: edge.target, priority: edge.data?.priority, fallback: edge.data?.isFallback })), null, 2)} readOnly /></Field>
+                        </div>
+                      )}
                       {inspectorTab === "data" && <Field label="Data"><textarea className={textareaClass} value={JSON.stringify({ reads: ["session memory", "previous node output", "current role"], writes: selectedPromptItem.outputFields.map((field) => ({ key: field, preserveVerbatim: true })) }, null, 2)} readOnly /></Field>}
                       {inspectorTab === "safety" && <Field label="Safety"><textarea className={textareaClass} value={JSON.stringify({ inheritedSafetyRuleIds: selectedSessionNode?.data.step.data.safetyRuleIds ?? [], prohibitedActions: ["Do not skip safety check", "Do not infer hidden content", "Do not reveal hidden scoring logic"] }, null, 2)} readOnly /></Field>}
                       {inspectorTab === "qa" && <Field label="QA"><textarea className={textareaClass} value={JSON.stringify({ checklist: ["one question only", "preserve verbatim participant wording", "do not move early", "do not replace participant summary"] }, null, 2)} readOnly /></Field>}

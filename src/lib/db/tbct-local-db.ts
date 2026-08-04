@@ -28,6 +28,7 @@ import type {
   RuntimeMessage,
   RuntimeProviderEvent,
   RuntimeSession,
+  RuntimeExecutionTrace,
   RuntimeValidationEvent,
   SessionExecutionLog,
 } from "@/types/runtime-session";
@@ -120,6 +121,7 @@ export class TbctLocalDatabase extends Dexie {
   runtimeCheckpoints!: Table<RuntimeCheckpoint, string>;
   runtimeProviderEvents!: Table<RuntimeProviderEvent, string>;
   runtimeValidationEvents!: Table<RuntimeValidationEvent, string>;
+  runtimeExecutionTraces!: Table<RuntimeExecutionTrace, string>;
   runtimeParticipants!: Table<RuntimeParticipant, string>;
   longitudinalRecords!: Table<LongitudinalRecord, string>;
   longitudinalMemories!: Table<LongitudinalMemory, string>;
@@ -1090,6 +1092,10 @@ export class TbctLocalDatabase extends Dexie {
 
     this.version(10).stores({
       sourceFidelityBackups: "id, createdAt, migrationVersion",
+    });
+
+    this.version(11).stores({
+      runtimeExecutionTraces: "id, runtimeSessionId, releaseId, nodeId, promptItemId, timestamp",
     });
   }
 }

@@ -2,11 +2,10 @@ import type { LanguageProvider } from "@/lib/runtime/providers/language-provider
 import type { LanguageGenerationInput } from "@/types/runtime-session";
 
 function patientFacingFallback(input: LanguageGenerationInput) {
-  const instruction = input.promptItem.aiInstruction.trim();
-  const isUsableInstruction = instruction.length > 8
-    && instruction.length <= 240
-    && !/^(#{1,6}\s|role and purpose|purpose|instructions?)/i.test(instruction);
-  if (isUsableInstruction) return instruction;
+  const fallback = input.promptItem.fallbackPatientText?.trim();
+  if (fallback && fallback.length <= 600 && !/(?:\bai\b|model|prompt|instruction|system message|runtime state)/i.test(fallback)) return fallback;
+  const editableText = input.promptItem.editableText.trim();
+  if (editableText && editableText.length <= 600 && !/(?:\bai\b|model|prompt|instruction|system message|runtime state)/i.test(editableText)) return editableText;
   if (input.locale.toLowerCase().startsWith("ko")) return "지금 가장 어렵거나 피하고 싶은 상황은 무엇인가요?";
   if (input.locale.toLowerCase().startsWith("pt")) return "O que está mais difícil ou que você tem evitado neste momento?";
   return "What feels most difficult or most avoided for you right now?";

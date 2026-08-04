@@ -1,16 +1,19 @@
 import type { ProtocolGraphEdge, ProtocolGraphNode } from "@/types/protocol-runtime";
 import { REAL_SESSION_03_EDGES, REAL_SESSION_03_ID, REAL_SESSION_03_NODES, REAL_SESSION_03_PROTOCOL_ID, REAL_SESSION_03_SESSION, REAL_SESSION_03_TITLE, REAL_SESSION_03_VERSION } from "@/lib/protocol/session-03-real";
 import {
+  CANONICAL_PROTOCOL_ID,
   CANONICAL_PROMPT_ITEMS,
   CANONICAL_SESSION_COMMON_RULES,
   CANONICAL_SESSION_DEFINITIONS,
   CANONICAL_SESSION_PLAN,
+  CANONICAL_SOURCE_EDGES,
   CANONICAL_SOURCE_VERSION,
   CANONICAL_STAGE_NODES,
   resolveCanonicalSessionId,
 } from "@/lib/protocol/source-fidelity-catalog";
 import { TBCT_SOURCE_TEXT_HASH } from "@/lib/protocol/tbct-source-text.generated";
-import type { SourceFidelityBackup, SourceTrace as CanonicalSourceTrace } from "@/lib/protocol/source-fidelity-types";
+import type { ConditionExpression, PromptExecutionMode, PromptScope, SourceFidelityBackup, SourceTrace as CanonicalSourceTrace, ValidationRule } from "@/lib/protocol/source-fidelity-types";
+import type { SourceFidelityReleaseSnapshot } from "@/types/protocol-runtime";
 
 export type SessionPlanStatus = "draft" | "validated" | "released";
 export type PromptItemType = "instruction" | "opening" | "explanation" | "question" | "clarification" | "follow_up" | "confirmation" | "reflection" | "rating" | "assessment" | "summary" | "transition" | "closing" | "role_transition" | "worksheet_instruction";
@@ -63,8 +66,8 @@ export type SessionCommonRules = {
 export interface SessionPlanEntry { entryId: string; sessionId: string; order: number; active: boolean; occurrence: number; label: string; }
 export interface SessionPlan { id: string; protocolId: string; orderedEntries: SessionPlanEntry[]; startingEntryId: string; status: SessionPlanStatus; version: string; createdAt: string; updatedAt: string; }
 export interface SessionDefinition { id: string; protocolId: string; number: number; title: string; technique: string; clinicalPurpose: string; roleInstruction: string; restrictions: string[]; languageRules: string[]; status: SessionDefinitionStatus; sourceTrace: SourceTrace; sourceFidelityStatus?: SourceFidelityStatus; nodeCount: number; promptCount: number; validationStatus: "review" | "ready" | "blocked"; }
-export interface ClinicalStageNode { id: string; protocolId: string; sessionId: string; title: string; type: string; clinicalPurpose: string; position: { x: number; y: number }; promptItemIds?: string[]; requiredFields: string[]; completionRule: object; branchRules: object[]; restrictions: string[]; safetyRuleIds: string[]; sourceTrace: SourceTrace; sourceFidelityStatus?: SourceFidelityStatus; status: string; }
-export interface PromptItem { id: string; protocolId: string; sessionId: string; nodeId: string; order: number; type: PromptItemType; status: "active" | "disabled" | "deprecated"; verbatimText: string; editableText: string; aiInstruction: string; activationCondition: object | null; outputFields: string[]; validation: object | null; completionEffect: object | null; restrictions?: string[]; safetyRuleIds?: string[]; sourceTrace: SourceTrace; sourceFidelityStatus?: SourceFidelityStatus; origin?: "source_imported" | "imported" | "custom"; sourceHash?: string; sourceUpdateAvailable?: boolean; migrationHistory?: Array<{ migrationVersion: string; previousId?: string; mapping: "exact" | "conflict" | "deprecated" | "source_changed"; at: string }>; createdAt: string; updatedAt: string; updatedBy: string; }
+export interface ClinicalStageNode { id: string; protocolId: string; sessionId: string; title: string; type: string; clinicalPurpose: string; objective?: string; speakerRoleId?: string; entryCondition?: ConditionExpression; completionCondition?: ConditionExpression; maxNodeIterations?: number; position: { x: number; y: number }; promptItemIds?: string[]; requiredFields: string[]; completionRule: object; branchRules: object[]; restrictions: string[]; safetyRuleIds: string[]; sourceTrace: SourceTrace; sourceFidelityStatus?: SourceFidelityStatus; status: string; }
+export interface PromptItem { id: string; protocolId: string; sessionId: string; nodeId: string; order: number; sequenceIndex?: number; type: PromptItemType; status: "active" | "disabled" | "deprecated"; verbatimText: string; editableText: string; aiInstruction: string; modelGuidance?: string; fallbackPatientText?: string; roleId?: string; scope?: PromptScope; executionMode?: PromptExecutionMode; activationCondition: object | null; completionCondition?: ConditionExpression; outputFields: string[]; requiredFields?: string[]; validation: object | null; validationRules?: ValidationRule[]; completionEffect: object | null; allowedActions?: string[]; forbiddenActions?: string[]; maxAttempts?: number; maxIterations?: number; outputSchemaVersion?: string; restrictions?: string[]; safetyRuleIds?: string[]; sourceTrace: SourceTrace; sourceFidelityStatus?: SourceFidelityStatus; origin?: "source_imported" | "imported" | "custom"; sourceHash?: string; sourceUpdateAvailable?: boolean; migrationHistory?: Array<{ migrationVersion: string; previousId?: string; mapping: "exact" | "conflict" | "deprecated" | "source_changed"; at: string }>; createdAt: string; updatedAt: string; updatedBy: string; }
 
 type SessionSeed = { definition: SessionDefinition; nodes: ClinicalStageNode[]; promptItems: PromptItem[] };
 
@@ -940,7 +943,20 @@ function collectMigrationConflicts(value: unknown, baseline: SourceFidelityCatal
 function mergePersistedSourceStore(value: unknown, baseline: SourceFidelityCatalogStore) {
   const record = asRecord(value) ?? {};
   const persistedPrompts = asArray(record.promptItems);
+  const persistedNodes = asArray(record.nodes);
+  const persistedCommonRules = asRecord(record.commonRules) ?? {};
   const migrationConflicts = collectMigrationConflicts(value, baseline);
+  const nodes = baseline.nodes.map((sourceNode) => {
+    const stored = asRecord(persistedNodes.find((item) => asRecord(item)?.id === sourceNode.id));
+    return {
+      ...sourceNode,
+      objective: typeof stored?.objective === "string" ? stored.objective : sourceNode.objective,
+      speakerRoleId: typeof stored?.speakerRoleId === "string" ? stored.speakerRoleId : sourceNode.speakerRoleId,
+      entryCondition: stored?.entryCondition && typeof stored.entryCondition === "object" ? stored.entryCondition as ConditionExpression : sourceNode.entryCondition,
+      completionCondition: stored?.completionCondition && typeof stored.completionCondition === "object" ? stored.completionCondition as ConditionExpression : sourceNode.completionCondition,
+      maxNodeIterations: typeof stored?.maxNodeIterations === "number" ? stored.maxNodeIterations : sourceNode.maxNodeIterations,
+    } satisfies ClinicalStageNode;
+  });
   const promptItems = baseline.promptItems.map((sourcePrompt) => {
     const storedPrompt = persistedPrompts.find((item) => asRecord(item)?.id === sourcePrompt.id);
     if (!storedPrompt) return sourcePrompt;
@@ -957,6 +973,20 @@ function mergePersistedSourceStore(value: unknown, baseline: SourceFidelityCatal
       ...sourcePrompt,
       editableText: typeof stored?.editableText === "string" ? stored.editableText : sourcePrompt.editableText,
       aiInstruction: typeof stored?.aiInstruction === "string" ? stored.aiInstruction : sourcePrompt.aiInstruction,
+      modelGuidance: typeof stored?.modelGuidance === "string" ? stored.modelGuidance : sourcePrompt.modelGuidance,
+      fallbackPatientText: typeof stored?.fallbackPatientText === "string" ? stored.fallbackPatientText : sourcePrompt.fallbackPatientText,
+      sequenceIndex: typeof stored?.sequenceIndex === "number" ? stored.sequenceIndex : sourcePrompt.sequenceIndex,
+      roleId: typeof stored?.roleId === "string" ? stored.roleId : sourcePrompt.roleId,
+      scope: typeof stored?.scope === "string" ? stored.scope as PromptScope : sourcePrompt.scope,
+      executionMode: typeof stored?.executionMode === "string" ? stored.executionMode as PromptExecutionMode : sourcePrompt.executionMode,
+      completionCondition: stored?.completionCondition && typeof stored.completionCondition === "object" ? stored.completionCondition as ConditionExpression : sourcePrompt.completionCondition,
+      requiredFields: Array.isArray(stored?.requiredFields) ? stored.requiredFields.filter((value): value is string => typeof value === "string") : sourcePrompt.requiredFields,
+      validationRules: Array.isArray(stored?.validationRules) ? stored.validationRules.filter((value): value is ValidationRule => Boolean(value && typeof value === "object" && typeof asRecord(value)?.id === "string")) : sourcePrompt.validationRules,
+      allowedActions: Array.isArray(stored?.allowedActions) ? stored.allowedActions.filter((value): value is string => typeof value === "string") : sourcePrompt.allowedActions,
+      forbiddenActions: Array.isArray(stored?.forbiddenActions) ? stored.forbiddenActions.filter((value): value is string => typeof value === "string") : sourcePrompt.forbiddenActions,
+      maxAttempts: typeof stored?.maxAttempts === "number" ? stored.maxAttempts : sourcePrompt.maxAttempts,
+      maxIterations: typeof stored?.maxIterations === "number" ? stored.maxIterations : sourcePrompt.maxIterations,
+      outputSchemaVersion: typeof stored?.outputSchemaVersion === "string" ? stored.outputSchemaVersion : sourcePrompt.outputSchemaVersion,
       status,
       updatedAt: typeof stored?.updatedAt === "string" ? stored.updatedAt : sourcePrompt.updatedAt,
       updatedBy: typeof stored?.updatedBy === "string" ? stored.updatedBy : sourcePrompt.updatedBy,
@@ -964,7 +994,24 @@ function mergePersistedSourceStore(value: unknown, baseline: SourceFidelityCatal
     } satisfies PromptItem;
   });
 
-  return { ...baseline, promptItems, migrationConflicts };
+  const commonRules = Object.fromEntries(Object.entries(baseline.commonRules).map(([sessionId, sourceRules]) => {
+    const stored = asRecord(persistedCommonRules[sessionId]);
+    const textFields = ["sessionTitle", "techniqueName", "roleAndStance", "sessionObjective", "clinicalContext", "previousSessionContext", "languageAndTerminologyRules", "toneAndInteractionRules", "safetyAndEscalationRules", "version"] as const;
+    const arrayFields = ["sessionWideRequiredActions", "sessionWideRestrictions", "defaultModalityRules", "languageRules", "openingRules", "sessionWideSafetyRules"] as const;
+    const merged = { ...sourceRules } as SessionCommonRules;
+    for (const field of textFields) {
+      if (typeof stored?.[field] === "string") merged[field] = stored[field] as never;
+    }
+    for (const field of arrayFields) {
+      if (Array.isArray(stored?.[field])) merged[field] = stored[field]!.filter((item): item is string => typeof item === "string") as never;
+    }
+    if (stored?.status === "incomplete" || stored?.status === "clinical_review" || stored?.status === "safety_review" || stored?.status === "validated" || stored?.status === "published") {
+      merged.status = stored.status;
+    }
+    return [sessionId, merged];
+  }));
+
+  return { ...baseline, nodes, promptItems, commonRules, migrationConflicts };
 }
 
 function readSourceFidelityStore(): SourceFidelityCatalogStore {
@@ -1036,6 +1083,20 @@ function updateSourcePrompt(sourcePrompt: PromptItem, patch: Partial<PromptItem>
     ...sourcePrompt,
     editableText: typeof patch.editableText === "string" ? patch.editableText : sourcePrompt.editableText,
     aiInstruction: typeof patch.aiInstruction === "string" ? patch.aiInstruction : sourcePrompt.aiInstruction,
+    modelGuidance: typeof patch.modelGuidance === "string" ? patch.modelGuidance : sourcePrompt.modelGuidance,
+    fallbackPatientText: typeof patch.fallbackPatientText === "string" ? patch.fallbackPatientText : sourcePrompt.fallbackPatientText,
+    sequenceIndex: typeof patch.sequenceIndex === "number" ? patch.sequenceIndex : sourcePrompt.sequenceIndex,
+    roleId: typeof patch.roleId === "string" ? patch.roleId : sourcePrompt.roleId,
+    scope: patch.scope ?? sourcePrompt.scope,
+    executionMode: patch.executionMode ?? sourcePrompt.executionMode,
+    completionCondition: patch.completionCondition ?? sourcePrompt.completionCondition,
+    requiredFields: patch.requiredFields ? [...patch.requiredFields] : sourcePrompt.requiredFields,
+    validationRules: patch.validationRules ? patch.validationRules.map((rule) => ({ ...rule })) : sourcePrompt.validationRules,
+    allowedActions: patch.allowedActions ? [...patch.allowedActions] : sourcePrompt.allowedActions,
+    forbiddenActions: patch.forbiddenActions ? [...patch.forbiddenActions] : sourcePrompt.forbiddenActions,
+    maxAttempts: typeof patch.maxAttempts === "number" ? patch.maxAttempts : sourcePrompt.maxAttempts,
+    maxIterations: typeof patch.maxIterations === "number" ? patch.maxIterations : sourcePrompt.maxIterations,
+    outputSchemaVersion: typeof patch.outputSchemaVersion === "string" ? patch.outputSchemaVersion : sourcePrompt.outputSchemaVersion,
     status: patch.status === "disabled" ? "disabled" : patch.status === "active" ? "active" : sourcePrompt.status,
     updatedAt: now(),
     updatedBy: "Demo User",
@@ -1062,7 +1123,14 @@ export function getSessionCommonRules(sessionId: string) {
   const canonicalSessionId = canonicalCatalogSessionId(sessionId);
   return canonicalSessionId ? getSourceFidelityStore().commonRules[canonicalSessionId] ?? null : null;
 }
-export function saveSessionCommonRules(_sessionId: string, _commonRules: SessionCommonRules) { return null; }
+export function saveSessionCommonRules(sessionId: string, commonRules: SessionCommonRules) {
+  const canonicalSessionId = canonicalCatalogSessionId(sessionId);
+  if (!canonicalSessionId) return null;
+  const store = getSourceFidelityStore();
+  const next = { ...store, commonRules: { ...store.commonRules, [canonicalSessionId]: { ...commonRules } } };
+  persistSourceFidelityStore(next);
+  return next.commonRules[canonicalSessionId];
+}
 export function savePromptItems(updated: PromptItem[]) {
   const updates = new Map(updated.map((promptItem) => [promptItem.id, promptItem]));
   const store = getSourceFidelityStore();
@@ -1077,6 +1145,71 @@ export function updatePromptItem(promptItemId: string, patch: Partial<Omit<Promp
   const promptItems = store.promptItems.map((promptItem) => promptItem.id === promptItemId ? updateSourcePrompt(promptItem, patch) : promptItem);
   persistSourceFidelityStore({ ...store, promptItems });
   return promptItems.find((promptItem) => promptItem.id === promptItemId) ?? null;
+}
+export function updateSessionNodeRuntime(nodeId: string, patch: Partial<Pick<ClinicalStageNode, "objective" | "speakerRoleId" | "entryCondition" | "completionCondition" | "maxNodeIterations">>) {
+  const store = getSourceFidelityStore();
+  const nodes = store.nodes.map((node) => node.id === nodeId ? { ...node, ...patch } : node);
+  persistSourceFidelityStore({ ...store, nodes });
+  return nodes.find((node) => node.id === nodeId) ?? null;
+}
+
+export function getSessionBuilderDraftSnapshot(): SourceFidelityReleaseSnapshot {
+  const draft = getSourceFidelityStore();
+  return {
+    canonicalProtocolId: CANONICAL_PROTOCOL_ID,
+    sourceVersion: draft.sourceVersion,
+    sourceTextHash: draft.sourceTextHash,
+    sessionPlan: structuredClone(CANONICAL_SESSION_PLAN),
+    sessionDefinitions: structuredClone(CANONICAL_SESSION_DEFINITIONS),
+    sessionCommonRules: Object.fromEntries(Object.entries(CANONICAL_SESSION_COMMON_RULES).map(([sessionId, sourceRules]) => {
+      const localRules = draft.commonRules[sessionId];
+      return [sessionId, {
+        ...structuredClone(sourceRules),
+        roleAndStance: localRules?.roleAndStance ?? sourceRules.roleAndStance,
+        sessionObjective: localRules?.sessionObjective ?? sourceRules.sessionObjective,
+        languageRules: localRules?.languageRules ?? sourceRules.languageRules,
+        openingRules: localRules?.openingRules ?? sourceRules.openingRules,
+        sessionWideRequiredActions: localRules?.sessionWideRequiredActions ?? sourceRules.sessionWideRequiredActions,
+        sessionWideRestrictions: localRules?.sessionWideRestrictions ?? sourceRules.sessionWideRestrictions,
+        sessionWideSafetyRules: localRules?.sessionWideSafetyRules ?? sourceRules.sessionWideSafetyRules,
+      }];
+    })),
+    clinicalStageNodes: CANONICAL_STAGE_NODES.map((sourceNode) => {
+      const localNode = draft.nodes.find((node) => node.id === sourceNode.id);
+      return {
+        ...structuredClone(sourceNode),
+        objective: localNode?.objective ?? sourceNode.objective,
+        speakerRoleId: localNode?.speakerRoleId ?? sourceNode.speakerRoleId,
+        entryCondition: localNode?.entryCondition ?? sourceNode.entryCondition,
+        completionCondition: localNode?.completionCondition ?? sourceNode.completionCondition,
+        maxNodeIterations: localNode?.maxNodeIterations ?? sourceNode.maxNodeIterations,
+      };
+    }),
+    promptItems: CANONICAL_PROMPT_ITEMS.map((sourcePrompt) => {
+      const localPrompt = draft.promptItems.find((promptItem) => promptItem.id === sourcePrompt.id);
+      return {
+        ...structuredClone(sourcePrompt),
+        editableText: localPrompt?.editableText ?? sourcePrompt.editableText,
+        aiInstruction: localPrompt?.aiInstruction ?? sourcePrompt.aiInstruction,
+        modelGuidance: localPrompt?.modelGuidance ?? sourcePrompt.modelGuidance,
+        fallbackPatientText: localPrompt?.fallbackPatientText ?? sourcePrompt.fallbackPatientText,
+        sequenceIndex: localPrompt?.sequenceIndex ?? sourcePrompt.sequenceIndex,
+        roleId: localPrompt?.roleId ?? sourcePrompt.roleId,
+        scope: localPrompt?.scope ?? sourcePrompt.scope,
+        executionMode: localPrompt?.executionMode ?? sourcePrompt.executionMode,
+        completionCondition: localPrompt?.completionCondition ?? sourcePrompt.completionCondition,
+        requiredFields: localPrompt?.requiredFields ?? sourcePrompt.requiredFields,
+        validationRules: localPrompt?.validationRules ?? sourcePrompt.validationRules,
+        allowedActions: localPrompt?.allowedActions ?? sourcePrompt.allowedActions,
+        forbiddenActions: localPrompt?.forbiddenActions ?? sourcePrompt.forbiddenActions,
+        maxAttempts: localPrompt?.maxAttempts ?? sourcePrompt.maxAttempts,
+        maxIterations: localPrompt?.maxIterations ?? sourcePrompt.maxIterations,
+        outputSchemaVersion: localPrompt?.outputSchemaVersion ?? sourcePrompt.outputSchemaVersion,
+        status: localPrompt?.status ?? sourcePrompt.status,
+      };
+    }),
+    sourceFidelityEdges: structuredClone(CANONICAL_SOURCE_EDGES),
+  };
 }
 export function restorePromptItemFromVerbatim(promptItemId: string) {
   return updatePromptItem(promptItemId, { editableText: getSourceFidelityStore().promptItems.find((promptItem) => promptItem.id === promptItemId)?.verbatimText });

@@ -311,9 +311,9 @@ beforeAll(async () => {
 });
 
 describe("pilot study stage 5 smoke", () => {
-  it("opens Dexie v10 with existing pilot data and source-fidelity backup storage", async () => {
+  it("opens Dexie v11 with existing pilot data and source-fidelity backup storage", async () => {
     const db = getLocalDb();
-    expect(db.verno).toBe(10);
+    expect(db.verno).toBe(11);
     expect(typeof db.sourceFidelityBackups).toBe("object");
     expect(typeof db.eligibilityOverrideRecords).toBe("object");
     expect(typeof db.allocationOverrideRecords).toBe("object");

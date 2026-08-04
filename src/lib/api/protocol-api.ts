@@ -4,6 +4,8 @@ import type { SafetyRule } from "@/types";
 import { getProtocolDraftCandidateApi } from "@/lib/api/clinical-assets-api";
 import { safetyRules } from "@/mocks/data";
 import { importRealSession03 } from "@/lib/protocol/session-03-importer";
+import { getSessionBuilderDraftSnapshot } from "@/lib/session-catalog";
+import { compileRuntimeRelease } from "@/lib/runtime/runtime-release-compiler";
 import {
   CANONICAL_PROTOCOL_ID,
   getCanonicalSourceFidelityIssues,
@@ -49,7 +51,9 @@ import type {
   ProtocolSession,
   ProtocolValidationIssue,
   ProtocolValidationRun,
+  RuntimeRelease,
   RuntimeExecutionLog,
+  SourceFidelityReleaseSnapshot,
 } from "@/types/protocol-runtime";
 import type { ProtocolDraftCandidate } from "@/types/clinical-assets";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
@@ -899,6 +903,14 @@ export async function runProtocolValidation(protocolId = "TBCT-BR-001", sessionI
     for (const sourceIssue of getCanonicalSourceFidelityIssues()) {
       issues.push({ id: makeId("ISS"), protocolId: activeProtocolId, sessionId: activeSessionId, severity: "critical", category: "Source Fidelity", message: sourceIssue });
     }
+    const runtimeCompilation = await compileRuntimeRelease({
+      releaseId: "validation-preview",
+      protocolId: activeProtocolId,
+      version: "validation-preview",
+      publishedAt: "1970-01-01T00:00:00.000Z",
+      snapshot: getSessionBuilderDraftSnapshot(),
+    });
+    issues.push(...runtimeCompilation.issues.filter((issue) => !issue.sessionId || issue.sessionId === activeSessionId));
   }
   const run: ProtocolValidationRun = {
     id: makeId("VAL"),
@@ -910,7 +922,7 @@ export async function runProtocolValidation(protocolId = "TBCT-BR-001", sessionI
       information: issues.filter((issue) => issue.severity === "information").length,
       passedChecks: Math.max(0, 6 - issues.length),
       sourceCoverage: nodes.length ? Math.round((nodes.filter((node) => node.data.sourceEvidenceIds.length > 0).length / nodes.length) * 100) : 0,
-      runtimeCompatibility: issues.some((issue) => issue.category === "Runtime Compatibility" && issue.severity === "critical") ? "blocked" : issues.some((issue) => issue.category === "Runtime Compatibility") ? "review" : "ready",
+      runtimeCompatibility: issues.some((issue) => issue.category.startsWith("Runtime") && issue.severity === "critical") ? "blocked" : issues.some((issue) => issue.category.startsWith("Runtime")) ? "review" : "ready",
     },
     issues,
   };
@@ -971,10 +983,41 @@ export async function runRuntimeScenario(protocolId = "TBCT-BR-001", sessionId =
   return log;
 }
 
-export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEnvironment: "development" | "staging" | "pilot" = "pilot", version = "0.4.0", changeSummary = "Local release preview") {
+export interface ReleasePackageRuntimeOptions {
+  releaseId?: string;
+  publishedAt?: string;
+  sourceFidelitySnapshot?: SourceFidelityReleaseSnapshot;
+  runtimeRelease?: RuntimeRelease;
+  runtimeIssues?: ProtocolValidationIssue[];
+}
+
+function mergeRuntimeValidationIssues(validationRun: ProtocolValidationRun, runtimeIssues: ProtocolValidationIssue[]) {
+  const issues = [...validationRun.issues, ...runtimeIssues];
+  return {
+    ...validationRun,
+    issues,
+    summary: {
+      ...validationRun.summary,
+      critical: issues.filter((issue) => issue.severity === "critical").length,
+      warning: issues.filter((issue) => issue.severity === "warning").length,
+      information: issues.filter((issue) => issue.severity === "information").length,
+      passedChecks: Math.max(0, validationRun.summary.passedChecks - runtimeIssues.length),
+      runtimeCompatibility: issues.some((issue) => issue.severity === "critical" && issue.category.startsWith("Runtime"))
+        ? "blocked"
+        : issues.some((issue) => issue.category.startsWith("Runtime"))
+          ? "review"
+          : validationRun.summary.runtimeCompatibility,
+    },
+  } satisfies ProtocolValidationRun;
+}
+
+export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEnvironment: "development" | "staging" | "pilot" = "pilot", version = "0.4.0", changeSummary = "Local release preview", options: ReleasePackageRuntimeOptions = {}) {
   const canonicalProtocol = isCanonicalProtocolId(protocolId);
   const activeProtocolId = canonicalProtocol ? CANONICAL_PROTOCOL_ID : protocolId;
-  const canonicalSnapshot = canonicalProtocol ? createCanonicalProtocolReleaseSnapshot() : undefined;
+  const canonicalReleaseSnapshot = canonicalProtocol ? createCanonicalProtocolReleaseSnapshot() : undefined;
+  const canonicalSnapshot = canonicalReleaseSnapshot
+    ? { ...canonicalReleaseSnapshot, sourceFidelity: options.sourceFidelitySnapshot ?? canonicalReleaseSnapshot.sourceFidelity }
+    : undefined;
   const [definition, graph, validationRun] = canonicalProtocol
     ? [
         createCanonicalProtocolDefinition(version),
@@ -987,7 +1030,8 @@ export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEn
         getValidationRun(activeProtocolId),
       ]);
   if (!validationRun) throw new Error("Run validation before building a release package");
-  if (validationRun.summary.critical > 0) throw new Error("Critical validation issues block release");
+  const mergedValidationRun = mergeRuntimeValidationIssues(validationRun, options.runtimeIssues ?? []);
+  if (mergedValidationRun.summary.critical > 0) throw new Error("Critical validation issues block release");
 
   const sessions = canonicalSnapshot
     ? canonicalSnapshot.sourceFidelity.sessionDefinitions.map((session) => ({
@@ -1057,6 +1101,13 @@ export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEn
     checksum: "",
     sessions,
     safetyRules: graph.nodes.filter((node) => node.type === "safety_check").map((node) => node.data.safetyRuleIds).flat(),
+    ...(options.runtimeRelease ? {
+      runtimeRelease: {
+        id: options.runtimeRelease.id,
+        schemaVersion: options.runtimeRelease.schemaVersion,
+        contentHash: options.runtimeRelease.contentHash,
+      },
+    } : {}),
     sourceFidelity: canonicalSnapshot
       ? {
           sourceVersion: canonicalSnapshot.sourceFidelity.sourceVersion,
@@ -1087,7 +1138,7 @@ export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEn
       })),
     ),
   };
-  const validationReport = validationRun;
+  const validationReport = mergedValidationRun;
   const changeLog = {
     addedNodes: graph.nodes.map((node) => node.id),
     modifiedNodes: [],
@@ -1098,14 +1149,14 @@ export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEn
     changeSummary,
   };
   const releaseManifest = {
-    releaseId: makeId("REL"),
+    releaseId: options.releaseId ?? makeId("REL"),
     protocolId: activeProtocolId,
     protocolVersion: version,
     schemaVersion: "1.0",
     runtimeSchemaVersion: definition.runtimeSchemaVersion,
     targetEnvironment,
     compiledBy: "Demo User",
-    createdAt: new Date().toISOString(),
+    createdAt: options.publishedAt ?? new Date().toISOString(),
   };
 
   const files = {
@@ -1115,11 +1166,12 @@ export async function previewReleasePackage(protocolId = "TBCT-BR-001", targetEn
     "change-log.json": JSON.stringify(changeLog, null, 2),
     "release-manifest.json": JSON.stringify(releaseManifest, null, 2),
     ...(canonicalSnapshot ? { "source-fidelity.json": JSON.stringify(canonicalSnapshot.sourceFidelity, null, 2) } : {}),
+    ...(options.runtimeRelease ? { "runtime-release.json": JSON.stringify(options.runtimeRelease, null, 2) } : {}),
   };
   const fileChecksums: Record<string, string> = {};
   for (const [name, content] of Object.entries(files)) fileChecksums[name] = await sha256(content);
   const packageChecksum = await sha256(canonicalStringify(fileChecksums));
-  return { files, packageChecksum, fileChecksums, validationRun };
+  return { files, packageChecksum, fileChecksums, validationRun: mergedValidationRun };
 }
 
 export async function publishProtocolRelease(protocolId = "TBCT-BR-001", input: { version: string; targetEnvironment: "development" | "staging" | "pilot"; changeSummary: string }) {
@@ -1134,7 +1186,25 @@ export async function publishProtocolRelease(protocolId = "TBCT-BR-001", input: 
   if (canonicalProtocol) await getLocalDb().protocolDefinitions.put(definition);
   const existing = await getProtocolReleases(activeProtocolId);
   if (existing.some((release) => release.version === input.version)) throw new Error("Protocol version already exists");
-  const preview = await previewReleasePackage(activeProtocolId, input.targetEnvironment, input.version, input.changeSummary);
+  const releaseId = makeId("VER");
+  const publishedAt = new Date().toISOString();
+  const sourceFidelitySnapshot = canonicalProtocol ? getSessionBuilderDraftSnapshot() : undefined;
+  const runtimeCompilation = sourceFidelitySnapshot
+    ? await compileRuntimeRelease({
+        releaseId,
+        protocolId: activeProtocolId,
+        version: input.version,
+        publishedAt,
+        snapshot: sourceFidelitySnapshot,
+      })
+    : undefined;
+  const preview = await previewReleasePackage(activeProtocolId, input.targetEnvironment, input.version, input.changeSummary, {
+    releaseId,
+    publishedAt,
+    sourceFidelitySnapshot,
+    runtimeRelease: runtimeCompilation?.runtimeRelease,
+    runtimeIssues: runtimeCompilation?.issues,
+  });
   const pkg: ProtocolReleasePackage = {
     id: makeId("PKG"),
     protocolId: activeProtocolId,
@@ -1142,18 +1212,22 @@ export async function publishProtocolRelease(protocolId = "TBCT-BR-001", input: 
     targetEnvironment: input.targetEnvironment,
     packageChecksum: preview.packageChecksum,
     files: preview.fileChecksums,
-    generatedAt: new Date().toISOString(),
+    generatedAt: publishedAt,
     generatedBy: "Demo User",
   };
   const immutableSnapshot = canonicalProtocol
-    ? createCanonicalProtocolReleaseSnapshot()
+    ? {
+        ...createCanonicalProtocolReleaseSnapshot(),
+        sourceFidelity: sourceFidelitySnapshot!,
+        runtimeRelease: runtimeCompilation!.runtimeRelease,
+      }
     : await getProtocolGraph(activeProtocolId, "SESSION-03");
   const release: ProtocolReleaseVersion = {
-    id: makeId("VER"),
+    id: releaseId,
     protocolId: activeProtocolId,
     version: input.version,
     releasePackageId: pkg.id,
-    publishedAt: new Date().toISOString(),
+    publishedAt,
     publishedBy: "Demo User",
     changeSummary: input.changeSummary,
     immutableSnapshot: canonicalProtocol
@@ -1182,7 +1256,12 @@ export async function downloadProtocolReleasePackage(releaseId: string) {
   if (!release) throw new Error("Release not found");
   const pkg = await getReleasePackage(release.releasePackageId);
   if (!pkg) throw new Error("Release package not found");
-  const preview = await previewReleasePackage(release.protocolId, pkg.targetEnvironment, release.version, release.changeSummary);
+  const preview = await previewReleasePackage(release.protocolId, pkg.targetEnvironment, release.version, release.changeSummary, {
+    releaseId: release.id,
+    publishedAt: release.publishedAt,
+    sourceFidelitySnapshot: release.immutableSnapshot.sourceFidelity,
+    runtimeRelease: release.immutableSnapshot.runtimeRelease,
+  });
   const zip = new JSZip();
   const folder = zip.folder(`${release.protocolId}-v${release.version}`);
   if (!folder) throw new Error("Failed to create zip folder");

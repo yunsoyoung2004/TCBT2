@@ -10,13 +10,36 @@ export const safetySignalSchema = z.object({
   immediacy: z.enum(["none", "unclear", "possible", "immediate"]),
 });
 
+const compiledPromptSegmentSchema = z.object({
+  priority: z.number().int().positive(),
+  label: z.string().min(1),
+  content: z.string(),
+});
+
+export const compiledPromptContractSchema = z.object({
+  contractId: z.string().min(1),
+  releaseId: z.string().min(1),
+  nodeId: z.string().min(1),
+  promptItemId: z.string().min(1),
+  roleId: z.string().min(1),
+  systemSegments: z.array(compiledPromptSegmentSchema),
+  runtimeContext: z.record(z.unknown()),
+  outputSchema: z.record(z.unknown()),
+  fallbackPatientText: z.string().min(1),
+  contractHash: z.string().min(1),
+});
+
 export const clinicalProviderResponseSchema = z.object({
   requestId: z.string(),
   patientMessage: z.string().min(1),
+  actionType: z.string().min(1),
+  proposedFields: z.record(z.unknown()),
+  completionEvidence: z.array(z.string()),
   detectedLanguage: z.string().min(1),
   completionStatus: z.enum(["incomplete", "complete", "needs_clarification", "safety_review", "safety_hold"]),
   extractedFields: z.record(z.unknown()),
   safetySignals: z.array(safetySignalSchema),
+  recommendedTransition: z.enum(["stay", "advance", "clarify", "safety"]),
   nextActionRecommendation: z.enum(["stay", "advance", "clarify", "safety"]),
   providerMetadata: z.object({
     provider: z.enum(clinicalProviderNames),
@@ -41,6 +64,7 @@ export const clinicalProviderRequestSchema = z.object({
   promptItemType: z.string(),
   editableText: z.string(),
   aiInstruction: z.string(),
+  compiledPrompt: compiledPromptContractSchema.optional(),
   activationCondition: z.record(z.unknown()).nullable(),
   outputFields: z.array(z.string()),
   validation: z.record(z.unknown()).nullable(),

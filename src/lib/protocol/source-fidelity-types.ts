@@ -1,5 +1,24 @@
 export type SourceFidelityStatus = "exact" | "structured_from_source" | "review_required" | "source_missing";
 
+export type ConditionOperator = "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "exists" | "in";
+
+export type ConditionExpression = {
+  kind?: "always" | "field";
+  field?: string;
+  operator?: ConditionOperator;
+  value?: string | number | boolean | string[];
+};
+
+export type PromptScope = "global" | "protocol" | "session" | "node" | "step" | "turn";
+
+export type PromptExecutionMode = "serial" | "conditional" | "repeat_until" | "optional";
+
+export type ValidationRule = {
+  id?: string;
+  kind: string;
+  [key: string]: unknown;
+};
+
 export type PromptItemType =
   | "instruction"
   | "opening"
@@ -70,6 +89,11 @@ export type ClinicalStageNode = {
   title: string;
   type: string;
   clinicalPurpose: string;
+  objective?: string;
+  speakerRoleId?: string;
+  entryCondition?: ConditionExpression;
+  completionCondition?: ConditionExpression;
+  maxNodeIterations?: number;
   position: { x: number; y: number };
   promptItemIds: string[];
   requiredFields: string[];
@@ -92,14 +116,29 @@ export type PromptItem = {
   sessionId: string;
   nodeId: string;
   order: number;
+  sequenceIndex?: number;
   type: PromptItemType;
   verbatimText: string;
   editableText: string;
+  /** @deprecated Use modelGuidance for runtime compilation. */
   aiInstruction: string;
+  modelGuidance?: string;
+  fallbackPatientText?: string;
+  roleId?: string;
+  scope?: PromptScope;
+  executionMode?: PromptExecutionMode;
   activationCondition: Record<string, unknown> | null;
+  completionCondition?: ConditionExpression;
   outputFields: string[];
+  requiredFields?: string[];
   validation: Record<string, unknown> | null;
+  validationRules?: ValidationRule[];
   completionEffect: Record<string, unknown> | null;
+  allowedActions?: string[];
+  forbiddenActions?: string[];
+  maxAttempts?: number;
+  maxIterations?: number;
+  outputSchemaVersion?: string;
   restrictions: string[];
   safetyRuleIds: string[];
   sourceTrace: SourceTrace;
