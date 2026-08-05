@@ -1,5 +1,6 @@
 import { createCanonicalTestRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
+import { listRuntimeExecutionTraces } from "@/lib/repositories/runtime-session-repository";
 import { syntheticPatientInput } from "@/lib/runtime/testing/session-fidelity-fixtures";
 import type { TurnFidelityResult } from "@/types/runtime-session";
 
@@ -57,7 +58,7 @@ export async function runSimulatedPatientSession(sessionDefinitionId: string, ma
     }
     const finalView = await getRuntimeSession(session.id);
     if (!finalView) throw new Error("Completed session could not be reloaded.");
-    const traces = await (await import("@/lib/db/tbct-local-db")).getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray();
+    const traces = await listRuntimeExecutionTraces(session.id);
     const providerEvents = finalView.providerEvents;
     const assistantMessages = finalView.messages.filter((message) => message.role === "assistant");
     const normalPrompts = finalView.promptItems.filter((prompt) => prompt.sessionId === finalView.session.sessionDefinitionId && !prompt.nodeId.endsWith("safety-pause"));

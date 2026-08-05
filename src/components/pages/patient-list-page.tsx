@@ -7,6 +7,8 @@ import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/p
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
 
+type ListedSession = Awaited<ReturnType<typeof listRuntimeSessions>>[number];
+
 export function PatientListPage() {
   const sessionsQuery = useQuery({ queryKey: ["runtime-sessions"], queryFn: listRuntimeSessions });
   const participantQuery = useQuery({ queryKey: ["runtime-participant-demo"], queryFn: getOrCreateDemoParticipant });
@@ -14,10 +16,22 @@ export function PatientListPage() {
   const sessions = sessionsQuery.data ?? [];
   const stats = {
     total: sessions.length,
-    active: sessions.filter((session) => session.status === "active").length,
+    active: sessions.filter((session) => ["active", "processing", "preparing"].includes(session.status)).length,
     waiting: sessions.filter((session) => session.status === "waiting_for_input").length,
     complete: sessions.filter((session) => session.status === "completed").length,
   };
+  const sessionGroups = Array.from({ length: 8 }, (_, index) => {
+    const number = index + 1;
+    const definitionId = `tbct-s${String(number).padStart(2, "0")}`;
+    const items = sessions
+      .filter((session) => session.sessionDefinitionId === definitionId)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return { number, definitionId, items };
+  });
+  const otherSessions = sessions
+    .filter((session) => !/^tbct-s0[1-8]$/.test(session.sessionDefinitionId))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
   if (sessionsQuery.isLoading || participantQuery.isLoading) return <PatientShell title="Sessions"><PageSkeleton /></PatientShell>;
   return (
     <PatientShell
@@ -38,7 +52,7 @@ export function PatientListPage() {
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-blue">Patient portal</div>
               <h2 className="mt-2 text-2xl font-semibold text-text-primary">Your current sessions</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-secondary">A session appears here as soon as it is created. Open the session to continue, review the inspector, or read the saved summary.</p>
+              <p className="mt-2 max-w-2xl text-sm text-text-secondary">Sessions are grouped from S01 to S08. Each group shows its own open and completed runs.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
               <StatChip label="Total" value={String(stats.total)} />
@@ -49,32 +63,76 @@ export function PatientListPage() {
           </div>
         </Card>
         {!sessions.length && <Card><EmptyState title="No runtime sessions" description="Start a session from a published release." /></Card>}
-        <div className="grid gap-4">
-          {sessions.map((session) => (
-            <Card key={session.id} className="p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-lg font-semibold text-text-primary">{session.patientAlias}</div>
-                    <div className="mt-1 text-sm text-text-secondary">{session.protocolId} · v{session.protocolVersion} · {session.sessionDefinitionId}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone={session.status === "completed" ? "success" : session.status === "escalated" ? "critical" : session.status === "waiting_for_input" ? "warning" : "primary"}>{session.status}</Badge>
-                    <Badge tone="neutral">{session.locale}</Badge>
-                    <Badge tone="neutral">Updated {new Date(session.updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</Badge>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">Open</Button></Link>
-                  <Link href={`/runtime/sessions/${session.id}`}><Button variant="secondary">Inspector</Button></Link>
-                  <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Summary</Button></Link>
-                </div>
-              </div>
-            </Card>
-          ))}
+        <div className="space-y-5">
+          {sessionGroups.map((group) => <SessionGroup key={group.definitionId} number={group.number} title={`Session ${group.number}`} definitionId={group.definitionId} sessions={group.items} />)}
+          {otherSessions.length > 0 && <SessionGroup title="Other sessions" definitionId="Other" sessions={otherSessions} />}
         </div>
       </div>
     </PatientShell>
+  );
+}
+
+function SessionGroup({ title, definitionId, sessions, number }: { title: string; definitionId: string; sessions: ListedSession[]; number?: number }) {
+  const completed = sessions.filter((session) => session.status === "completed").length;
+  const open = sessions.length - completed;
+  return (
+    <section className="overflow-hidden rounded-panel border border-border bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-subtle px-5 py-4">
+        <div>
+          <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
+          <div className="mt-1 text-xs text-text-muted">{definitionId}</div>
+        </div>
+        <div className="flex gap-2">
+          <Badge tone="neutral">Total {sessions.length}</Badge>
+          <Badge tone={open ? "warning" : "neutral"}>Open {open}</Badge>
+          <Badge tone={completed ? "success" : "neutral"}>Complete {completed}</Badge>
+        </div>
+      </div>
+      {sessions.length === 0 ? (
+        <div className="px-5 py-5 text-sm text-text-muted">No sessions created yet.</div>
+      ) : (
+        <div className="divide-y divide-border">
+          {sessions.map((session) => <SessionRow key={session.id} session={session} />)}
+        </div>
+      )}
+      {number && (
+        <div className="border-t border-border bg-clinical-blue-light/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-text-primary">Verified automated audit</div>
+              <div className="mt-1 text-xs text-text-secondary">Read-only S{String(number).padStart(2, "0")} full-run transcript from the local verification database.</div>
+            </div>
+            <Link href={`/projects/demo/patient/audits/s${String(number).padStart(2, "0")}`}><Button variant="secondary">View audit conversation</Button></Link>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SessionRow({ session }: { session: ListedSession }) {
+  const tone = session.status === "completed" ? "success" : session.status === "escalated" || session.status === "safety_paused" ? "critical" : session.status === "waiting_for_input" ? "warning" : "primary";
+  return (
+    <div className="p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-3">
+          <div>
+            <div className="text-lg font-semibold text-text-primary">{session.patientAlias}</div>
+            <div className="mt-1 text-sm text-text-secondary">{session.protocolId} · v{session.protocolVersion} · {session.sessionDefinitionId}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={tone}>{session.status}</Badge>
+            <Badge tone="neutral">{session.locale}</Badge>
+            <Badge tone="neutral">Updated {new Date(session.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</Badge>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">Open</Button></Link>
+          <Link href={`/runtime/sessions/${session.id}`}><Button variant="secondary">Inspector</Button></Link>
+          <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Summary</Button></Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

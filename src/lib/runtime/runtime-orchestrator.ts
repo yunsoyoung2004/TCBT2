@@ -72,7 +72,7 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
     recentMessages: input.recentMessages,
     safetyContext: { activeSafetyRuleIds: input.activeStep.node.safetyRuleIds, currentSafetyStatus: input.session.status },
   });
-  const staticMessage = resolveStaticPatientMessage(input.sourcePromptItem, input.session.locale);
+  const staticMessage = resolveStaticPatientMessage(input.sourcePromptItem, input.session.locale, input.session.runtimeContext);
   if (staticMessage) {
     const requestId = makeId("STATIC");
     const response = fallbackResponse({ requestId, contract, activeStep: input.activeStep, locale: input.session.locale });

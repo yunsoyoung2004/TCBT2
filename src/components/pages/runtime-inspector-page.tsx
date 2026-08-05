@@ -50,12 +50,14 @@ export function RuntimeInspectorPage() {
 
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
           <Card className="overflow-hidden">
-            <SectionHeader title="Messages" description="Delivered patient, assistant, system, and clinician messages." />
-            <div className="space-y-2 p-4">
+            <SectionHeader title="Conversation" description="Patient-visible messages in the same Program and You layout as the session." />
+            <div className="space-y-3 bg-surface-subtle/40 p-4">
               {messages.map((message) => (
-                <div key={message.id} className="rounded-panel border border-border p-3">
+                <div key={message.id} className={`max-w-[88%] rounded-panel border px-4 py-3 [&>div:first-child]:hidden ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : message.role === "clinician" ? "border-success bg-success-light/50" : "border-border bg-surface"}`}>
                   <div className="text-xs font-semibold text-text-muted">{message.role} · {message.status}</div>
-                  <div className="mt-1 text-sm text-text-primary">{message.content}</div>
+                  <div className="text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role === "clinician" ? "Clinician" : "System"}</div>
+                  <div className="mt-2 whitespace-pre-wrap break-words text-sm text-text-primary">{message.content}</div>
+                  <div className="mt-2 text-[10px] text-text-muted">{new Date(message.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</div>
                 </div>
               ))}
             </div>

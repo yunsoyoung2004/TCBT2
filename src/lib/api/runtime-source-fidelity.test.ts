@@ -3,7 +3,7 @@ import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRunt
 import { startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
 import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
-import { saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
+import { listRuntimeExecutionTraces, saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
 import { promptRequiresPatientInput } from "@/lib/runtime/source-fidelity-prompt-progression";
 
 describe("canonical source-fidelity runtime", () => {
@@ -81,7 +81,7 @@ describe("canonical source-fidelity runtime", () => {
       const result = await submitPatientInput(session.id, { kind: "text", value: "죽고싶다" });
       const after = await getRuntimeSession(session.id);
       const safetyMessages = after?.messages.filter((message) => message.role === "assistant" && message.metadata?.turnOutcome === "safety_override") ?? [];
-      const safetyTrace = (await getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray())
+      const safetyTrace = (await listRuntimeExecutionTraces(session.id))
         .find((trace) => trace.transitionDecision === "safety_override");
 
       expect(result.turnOutcome).toBe("safety_override");
@@ -139,7 +139,8 @@ describe("canonical source-fidelity runtime", () => {
       const finalResult = await submitPatientInput(session.id, { kind: "text", value: "hi" });
       const after = await getRuntimeSession(session.id);
 
-      expect(finalResult.turnOutcome).toBe("fallback");
+      expect(finalResult.turnOutcome).toBe("clarification");
+      expect(finalResult.fallbackUsed).toBe(false);
       expect(after?.session.status).toBe("paused");
       expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
       expect(after?.session.runtimeContext.clarificationAttemptCount).toBe(3);
@@ -251,7 +252,7 @@ describe("canonical source-fidelity runtime", () => {
 
       const result = await submitPatientInput(session.id, { kind: "text", value: "This is a current situation, not only an interpretation." });
       const after = await getRuntimeSession(session.id);
-      const traces = await getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray();
+      const traces = await listRuntimeExecutionTraces(session.id);
       const assistantMessages = after?.messages.filter((message) => message.role === "assistant") ?? [];
       const latestAssistantMessage = assistantMessages.at(-1);
 

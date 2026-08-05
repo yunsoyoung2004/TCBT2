@@ -8,14 +8,14 @@ type InputAssessmentResult = { accepted: boolean; confidence: number; reason: "m
 export function requiresSemanticInputAssessment(input: { patientInput: PatientInput; promptItem?: PromptItem; field: string }) {
   if (input.patientInput.kind !== "text" || typeof input.patientInput.value !== "string" || !input.promptItem) return false;
   if ((input.field === "evidenceFor" || input.field === "evidenceAgainst") && /^(?:none|nothing else|no more|more none|\uC5C6\uC5B4\uC694)$/i.test(input.patientInput.value.trim())) return false;
-  const validationKind = typeof (input.promptItem.validation as { kind?: unknown } | null)?.kind === "string"
-    ? String((input.promptItem.validation as { kind: string }).kind)
-    : "";
   if (/\b(?:disappear(?: forever)?|everything to end|all of this to end|not wake up|better off without me|better off dead|no reason to live|say(?:ing)? goodbye|can(?:not|'t) go on|cannot cope|hopeless|desperate)\b/i.test(input.patientInput.value)) return true;
   // Ordinary single-field free-text questions are recorded verbatim after the
   // local meaningful-text check. They do not need a cloud model to decide that
   // "I'm doing well" is a valid candidate thought.
-  if (!validationKind && input.promptItem.outputFields.length <= 1) return false;
+  if (input.promptItem.outputFields.length <= 1) return false;
+  const validationKind = typeof (input.promptItem.validation as { kind?: unknown } | null)?.kind === "string"
+    ? String((input.promptItem.validation as { kind: string }).kind)
+    : "";
   return !["boolean", "enum", "rating"].includes(validationKind);
 }
 

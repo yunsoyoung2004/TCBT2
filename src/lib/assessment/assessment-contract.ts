@@ -29,5 +29,13 @@ export function sanitizeAssessmentResult(raw: unknown, request: AssessmentReques
   const allowed = new Set(request.allowedFields);
   const extractedFields = Object.fromEntries(Object.entries(parsed.extractedFields).filter(([field]) => allowed.has(field)));
   const recommendedTransition = parsed.recommendedTransition && request.allowedTransitions.includes(parsed.recommendedTransition) ? parsed.recommendedTransition : null;
-  return { ...parsed, extractedFields, recommendedTransition };
+  const supportedFields = request.allowedFields.filter((field) => extractedFields[field] !== undefined && extractedFields[field] !== "");
+  const completionStatus = request.allowedFields.length > 1
+    ? supportedFields.length === request.allowedFields.length
+      ? "complete" as const
+      : supportedFields.length > 0
+        ? "incomplete" as const
+        : "needs_clarification" as const
+    : parsed.completionStatus;
+  return { ...parsed, extractedFields, recommendedTransition, completionStatus };
 }

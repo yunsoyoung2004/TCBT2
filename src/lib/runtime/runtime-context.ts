@@ -22,8 +22,86 @@ function isNoMoreEvidence(text: string) {
   ].some((phrase) => normalized === phrase || normalized.includes(phrase));
 }
 
+/**
+ * Fields whose prompt is reused turn after turn to rate one list item at a
+ * time (one problem, one goal, ...). The catalog's `validation.kind` for
+ * these is "rating", which by default overwrites the field on every turn;
+ * without this list they would silently discard every rating but the last,
+ * so totals such as `problemRatings` summed later are wrong.
+ */
+const CUMULATIVE_RATING_FIELDS: Record<string, string> = {
+  problemRatings: "currentProblemScore",
+  goalRatings: "currentGoalScore",
+  symptomItemScores: "currentSymptomScore",
+};
+
+/** Validation kinds whose two output fields must sum to (approximately) 100. */
+const SUM_TO_100_PAIR_KINDS = new Set(["consensus_weights"]);
+
+/** validation.kind values that represent a growing, deduplicated list the
+ * patient builds one entry at a time (problems, goals, contributors,
+ * symptom items, evidence, disadvantages/advantages, appeal evidence, ...). */
+const LIST_BUILDING_VALIDATION_KINDS = new Set(["array", "min_items"]);
+
+function isDuplicateListEntry(existing: unknown, candidate: string) {
+  if (!Array.isArray(existing)) return false;
+  const normalizedCandidate = normalizeText(candidate);
+  return existing.some((item) => typeof item === "string" && normalizeText(item) === normalizedCandidate);
+}
+
+/**
+ * Pairs a growing list (problems, goals, symptom items) with the rating
+ * field that scores it one item at a time. The catalog only declares a
+ * single generic rating prompt per list — nothing else tracks which item is
+ * "next" or whether every item has been rated — so this table drives three
+ * derived fields: `<pointerField>` (the current item's own text, for
+ * substituting into the "[problem]"-style bracket in the source script) and
+ * `all<X>Rated` (a completion-gate flag a repeat_until prompt can check).
+ */
+const LIST_RATING_PAIRS: Array<{ listField: string; ratingsField: string; pointerField: string; sufficiencyField: string }> = [
+  { listField: "problems", ratingsField: "problemRatings", pointerField: "currentProblemText", sufficiencyField: "allProblemsRated" },
+  { listField: "goals", ratingsField: "goalRatings", pointerField: "currentGoalText", sufficiencyField: "allGoalsRated" },
+  { listField: "symptomItems", ratingsField: "symptomItemScores", pointerField: "currentSymptomItemText", sufficiencyField: "allSymptomItemsRated" },
+];
+
+/** After either the source list or the ratings array changes, point
+ * `pointerField` at the next unrated item and flag whether every item in
+ * the list now has a rating. */
+function refreshListRatingPointers(nextFields: Record<string, unknown>) {
+  for (const pair of LIST_RATING_PAIRS) {
+    const list = Array.isArray(nextFields[pair.listField]) ? (nextFields[pair.listField] as string[]) : undefined;
+    if (!list) continue;
+    const ratings = Array.isArray(nextFields[pair.ratingsField]) ? (nextFields[pair.ratingsField] as unknown[]) : [];
+    nextFields[pair.pointerField] = list[ratings.length];
+    nextFields[pair.sufficiencyField] = list.length > 0 && ratings.length >= list.length;
+  }
+}
+
+/** validation.kind values whose growing list only needs at least two entries
+ * (or an explicit "no more" from the patient) before the prompt stops
+ * repeating — evidence collection, appeal evidence, chair-dialogue exchanges. */
+const MIN_TWO_SUFFICIENCY_FIELDS: Record<string, string> = {
+  prosecutionEvidence: "prosecutionEvidenceSufficient",
+  defenseEvidence: "defenseEvidenceSufficient",
+  appealEvidence: "appealEvidenceSufficient",
+  emotionReasonDialogue: "emotionReasonDialogueSufficient",
+};
+
+/** Detects a language from the patient's own first substantive message
+ * instead of asking a meta-question ("Which language would you like?"),
+ * per the source protocol's "language lock from first substantive message"
+ * instruction. This is a script/character-set detection, not an inference
+ * about the patient's meaning, so it is safe to compute deterministically. */
+function detectScriptLocale(text: string) {
+  if (/[가-힣]/.test(text)) return "ko-KR";
+  if (/[぀-ヿ一-鿿]/.test(text)) return "ja-JP";
+  if (/[àâçéèêëîïôûùüÿñæœ]/i.test(text)) return "fr-FR";
+  if (/[ãáàâêéíóôõúüç]/i.test(text)) return "pt-BR";
+  return "en-US";
+}
+
 const NON_ANSWER_TEXT = new Set([
-  "hi", "hello", "hey", "yo", "test", "testing", "ok", "okay", "sure", "yes", "no", "true", "false", "idk", "i don't know", "i do not know",
+  "hi", "hello", "hey", "yo", "test", "testing", "ok", "okay", "sure", "yes", "no", "true", "false", "idk", "i don't know", "i dont know", "i do not know",
   "\uC548\uB155", "\uC548\uB155\uD558\uC138\uC694", "\uD558\uC774", "\uD14C\uC2A4\uD2B8", "\uD14C\uC2A4\uD2B8\uC785\uB2C8\uB2E4", "\uB124", "\uC608", "\uC751", "\uADF8\uB798", "\uC88B\uC544\uC694", "\uBAB0\uB77C", "\uBAA8\uB974\uACA0\uC5B4\uC694", "\uC798 \uBAA8\uB974\uACA0\uC5B4\uC694", "\uC74C",
   "oi", "ol\u00E1", "ola", "teste", "sim", "n\u00E3o", "nao", "n\u00E3o sei", "nao sei",
 ]);
@@ -70,11 +148,17 @@ function isMeaningfulTextResponse(input: {
 
   const validation = input.promptItem?.validation as { kind?: string; values?: unknown } | null | undefined;
   const normalized = normalizeText(rawText);
+  const normalizedLexical = normalized.replace(/[.,!?…'"`~·\-_/\\()[\]{}]+/g, "").replace(/\s+/g, " ").trim();
   const activeQuestion = normalizeText(input.promptItem?.fallbackPatientText || input.promptItem?.verbatimText || "");
   const normalizedWithoutUiNoise = normalized.replace(/\b(?:read|read aloud)\b\s*$/i, "").trim();
   if (activeQuestion && activeQuestion.length >= 12 && (normalizedWithoutUiNoise === activeQuestion || normalizedWithoutUiNoise.includes(activeQuestion))) return false;
   const compact = compactText(rawText);
-  if (!compact || NON_ANSWER_TEXT.has(normalized) || NON_ANSWER_TEXT.has(compact)) return false;
+  if (!compact || NON_ANSWER_TEXT.has(normalized) || NON_ANSWER_TEXT.has(normalizedLexical) || NON_ANSWER_TEXT.has(compact) || /^(?:hm+|uh+|um+)$/i.test(normalizedLexical)) return false;
+  if (/^(?:could|can|would) you (?:say|ask|explain|repeat|rephrase|put)\b.*(?:simply|again|differently|mean)?\??$/i.test(normalized)) return false;
+  // A long, unbroken keyboard-like token is not a usable clinical answer. Keep
+  // ordinary one-word emotions ("anxious", "sad") valid while rejecting the
+  // common paste/test gibberish shape before any model call.
+  if (!/\s/.test(normalized) && compact.length >= 14 && !/[\uAC00-\uD7A3\u3040-\u30FF\u4E00-\u9FFF]/.test(compact)) return false;
 
   if (validation?.kind === "boolean") {
     return ["yes", "no", "true", "false", "\uB124", "\uC608", "\uC751", "\uC544\uB2C8", "\uC544\uB2C8\uC694", "sim", "n\u00E3o", "nao"].includes(normalized);
@@ -127,7 +211,12 @@ export async function extractRuntimeState(input: {
     : parseDeterministicPromptInput(input.patientInput, input.currentPromptItem?.validation);
   const percent = parsePercent(input.patientInput.value);
   const numericLike = kind === "rating" || /intensity|percent|rating|score|weight/i.test(field);
-  const validPercent = typeof percent === "number" && percent >= 0 && percent <= 100;
+  // Respect the prompt's own configured range (e.g. a 0-5 color-coded scale)
+  // instead of always assuming a 0-100% belief/intensity rating.
+  const ratingRange = input.currentPromptItem?.validation as { min?: unknown; max?: unknown } | null | undefined;
+  const effectiveRatingMin = Number(ratingRange?.min ?? 0);
+  const effectiveRatingMax = Number(ratingRange?.max ?? 100);
+  const validPercent = typeof percent === "number" && percent >= effectiveRatingMin && percent <= effectiveRatingMax;
   const riskSignals = detectRuntimeRiskSignals(lowered);
   const riskLevel = riskSignals.length > 0 ? "high" : input.currentContext.riskLevel ?? "low";
   if (riskSignals.length > 0) nextFields.crisisSignal = true;
@@ -145,6 +234,13 @@ export async function extractRuntimeState(input: {
       missingFields: directlyEnteredFields.slice(numericValues.length),
     };
   }
+  // A pair of ratings such as the Consensus chair's advantage/disadvantage
+  // weights must total 100; otherwise treat the turn as incomplete and ask
+  // the patient to restate it rather than silently recording an inconsistent
+  // pair. See SUM_TO_100_PAIR_KINDS for which validation kinds this applies to.
+  if (kind && SUM_TO_100_PAIR_KINDS.has(kind) && directlyEnteredFields.length === 2 && numericValues.length >= 2 && !riskSignals.length && Math.abs(numericValues[0] + numericValues[1] - 100) > 1) {
+    return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 0.3, missingFields: directlyEnteredFields };
+  }
   if (!riskSignals.length && !isMeaningfulTextResponse({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
     return {
       fields: input.currentContext.fields,
@@ -155,7 +251,19 @@ export async function extractRuntimeState(input: {
       missingFields: expectedFields.length ? [field] : [],
     };
   }
-  if (!riskSignals.length && input.currentPromptItem && requiresSemanticInputAssessment({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
+  const explicitlyProvidedFields = new Set<string>();
+  if (!numericLike && expectedFields.length > 1) {
+    for (const expectedField of expectedFields) {
+      const escaped = expectedField.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = rawText.match(new RegExp(`(?:^|[,;\\n])\\s*${escaped}\\s*:\\s*([^,;\\n]+)`, "i"));
+      if (match?.[1]?.trim()) {
+        nextFields[expectedField] = match[1].trim();
+        explicitlyProvidedFields.add(expectedField);
+      }
+    }
+  }
+  const allExpectedFieldsProvided = expectedFields.length > 0 && expectedFields.every((expectedField) => explicitlyProvidedFields.has(expectedField));
+  if (!riskSignals.length && !allExpectedFieldsProvided && input.currentPromptItem && requiresSemanticInputAssessment({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
     const assessment = await assessRuntimePatientInput({ patientInput: input.patientInput, promptItem: input.currentPromptItem, locale: input.locale });
     if (assessment.error && /\b(?:disappear|not wake up|better off without me|better off dead|no reason to live|cannot go on|can't go on|hopeless|desperate)\b/i.test(rawText)) {
       return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language", "assessment_failure_conservative_clarification"], confidence: 0, missingFields: expectedFields };
@@ -181,18 +289,75 @@ export async function extractRuntimeState(input: {
     }
   }
 
-  if (numericLike && (directlyEnteredFields.length > 1 || derivedBooleanFields.length > 0)) {
+  const currentFieldValue = input.currentContext.fields[field];
+  if (Array.isArray(currentFieldValue) && !LIST_BUILDING_VALIDATION_KINDS.has(kind) && field !== "evidenceFor" && field !== "evidenceAgainst" && kind !== "participation_percentages" && !numericLike) {
+    // A follow-up/confirmation prompt sharing a list-typed field (e.g. one of
+    // several "problems" elicitation questions) must not silently overwrite
+    // the list already built by an earlier prompt just because it has no
+    // validation.kind of its own. Treat it as one more entry in the same
+    // list instead of destroying everything collected so far.
+    const current = currentFieldValue as string[];
+    if (isNoMoreEvidence(rawText)) {
+      nextFields[`${field}NoMore`] = true;
+    } else if (!isDuplicateListEntry(current, rawText)) {
+      nextFields[field] = [...current, rawText].filter(Boolean);
+    }
+  } else if (kind === "language_lock_from_first_substantive_message") {
+    // The protocol locks the session language from the patient's own first
+    // substantive reply rather than asking a meta-question about it.
+    nextFields.sessionLanguage = detectScriptLocale(rawText);
+    nextFields.languageLocked = true;
+  } else if (CUMULATIVE_RATING_FIELDS[field] && numericLike) {
+    // These prompts are reused turn after turn to rate one list item at a
+    // time; accumulate instead of overwriting so later totals are correct.
+    const current = Array.isArray(input.currentContext.fields[field]) ? (input.currentContext.fields[field] as number[]) : [];
+    const value = validPercent ? percent : deterministic.handled && deterministic.valid ? Number(deterministic.value) : null;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      nextFields[field] = [...current, value];
+      nextFields[CUMULATIVE_RATING_FIELDS[field]] = value;
+    }
+  } else if (numericLike && (directlyEnteredFields.length > 1 || derivedBooleanFields.length > 0)) {
     directlyEnteredFields.forEach((expectedField, index) => { nextFields[expectedField] = numericValues[index]; });
     derivedBooleanFields.forEach((expectedField) => { nextFields[expectedField] = true; });
   } else if (field === "initialATBeliefPercent" || field === "conclusionBeliefPercent" || field === "revisedATBeliefPercent" || field === "initialEmotionIntensityPercent" || field === "newEmotionIntensities") {
     nextFields[field] = validPercent ? percent : input.patientInput.value;
-  } else if (field === "evidenceFor" || field === "evidenceAgainst") {
+  } else if (kind === "computed_remainder") {
+    // The patient (not the assistant) states their own remaining share; the
+    // runtime only checks it against the mathematical remainder of the
+    // other contributors already recorded, so a mismatch can be explored
+    // via the existing "participantRejectsRemainder" branch instead of the
+    // assistant silently supplying or overwriting the number.
+    const otherRounds = (nextFields.participationRatingsRound1 ?? nextFields.participationRatingRounds) as Array<{ percent: number }> | undefined;
+    const sumOthers = Array.isArray(otherRounds) ? otherRounds.reduce((sum, item) => sum + (Number(item?.percent) || 0), 0) : 0;
+    const expectedRemainder = Math.max(0, 100 - sumOthers);
+    nextFields[field] = validPercent ? percent : input.patientInput.value;
+    nextFields.expectedParticipationRemainder = expectedRemainder;
+    nextFields.participantRejectsRemainder = typeof percent === "number" && Math.abs(percent - expectedRemainder) > 1;
+  } else if (kind === "participation_percentages") {
+    // Accumulate one contributor's share per turn instead of overwriting,
+    // so the running sum (and the participant's eventual remainder) can be
+    // computed instead of guessed.
+    const current = Array.isArray(input.currentContext.fields[field]) ? (input.currentContext.fields[field] as Array<{ contributor: string; percent: number }>) : [];
+    const percentMatch = rawText.match(/-?\d+(?:\.\d+)?/);
+    if (percentMatch) {
+      const contributorPercent = Number(percentMatch[0]);
+      const contributorName = rawText.replace(percentMatch[0], "").replace(/[%,.:–-]+/g, " ").trim() || `Contributor ${current.length + 1}`;
+      nextFields[field] = [...current, { contributor: contributorName, percent: contributorPercent }];
+    }
+  } else if (LIST_BUILDING_VALIDATION_KINDS.has(kind) || field === "evidenceFor" || field === "evidenceAgainst") {
+    // A growing list the patient builds one entry at a time (problems,
+    // goals, contributors, symptom items, evidence, disadvantages, ...).
+    // Skip an exact repeat of an existing entry instead of registering it
+    // as a second, distinct item.
     const current = Array.isArray(input.currentContext.fields[field]) ? (input.currentContext.fields[field] as string[]) : [];
     if (isNoMoreEvidence(rawText)) {
       nextFields[`${field}NoMore`] = true;
+    } else if (isDuplicateListEntry(current, rawText)) {
+      nextFields[`${field}Duplicate`] = true;
     } else {
       nextFields[field] = [...current, rawText].filter(Boolean);
       nextFields[`${field}NoMore`] = false;
+      nextFields[`${field}Duplicate`] = false;
     }
   } else if (field === "automaticThought") {
     nextFields.automaticThought = rawText;
@@ -201,14 +366,24 @@ export async function extractRuntimeState(input: {
     nextFields.workingAutomaticThought = rawText;
   } else if (field === "workingAutomaticThought") {
     nextFields.workingAutomaticThought = rawText;
-  } else if (expectedFields.length) {
+  } else if (expectedFields.length === 1) {
     nextFields[field] = deterministic.handled && deterministic.valid ? deterministic.value : input.patientInput.value;
+  }
+
+  // Some prompts (e.g. the second/third TBCT candidate examples) are meant to
+  // surface a *different* reaction than an earlier sibling field. If the
+  // patient's answer just repeats the sibling verbatim, flag it so a
+  // catalog-authored clarification prompt can gently invite them to consider
+  // how this situation might differ, instead of silently accepting the copy.
+  const siblingField = (input.currentPromptItem?.validation as { siblingField?: unknown } | null)?.siblingField;
+  if (typeof siblingField === "string" && typeof nextFields[field] === "string" && typeof nextFields[siblingField] === "string") {
+    nextFields[`${field}RepeatsSibling`] = normalizeText(nextFields[field] as string) === normalizeText(nextFields[siblingField] as string);
   }
 
   // Multi-concept text prompts must not copy one value into clinically distinct
   // fields. Accept explicit `field: value` segments; otherwise keep the first
   // field and request the missing concepts on the same PromptItem.
-  if (!numericLike && expectedFields.length > 1) {
+  if (!numericLike && expectedFields.length > 1 && explicitlyProvidedFields.size === 0) {
     for (const expectedField of expectedFields) {
       const escaped = expectedField.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const match = rawText.match(new RegExp(`(?:^|[,;\\n])\\s*${escaped}\\s*:\\s*([^,;\\n]+)`, "i"));
@@ -216,6 +391,18 @@ export async function extractRuntimeState(input: {
     }
   }
   const missingExpectedFields = expectedFields.filter((expectedField) => nextFields[expectedField] === undefined || nextFields[expectedField] === "");
+
+  // Derive a `<field>Count` for every list-shaped field so branch conditions
+  // already authored in the catalog (e.g. "evidenceForCount < 2") have a
+  // real value to read instead of always evaluating against `undefined`.
+  for (const [key, value] of Object.entries(nextFields)) {
+    if (Array.isArray(value)) nextFields[`${key}Count`] = value.length;
+  }
+  refreshListRatingPointers(nextFields);
+  for (const [listField, sufficiencyField] of Object.entries(MIN_TWO_SUFFICIENCY_FIELDS)) {
+    const count = Number(nextFields[`${listField}Count`] ?? 0);
+    nextFields[sufficiencyField] = count >= 2 || nextFields[`${listField}NoMore`] === true;
+  }
 
   return {
     fields: nextFields,

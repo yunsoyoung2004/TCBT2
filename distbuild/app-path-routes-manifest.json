@@ -1,10 +1,10 @@
 {
-  "/_not-found/page": "/_not-found",
   "/api/clinical-language/assess-input/route": "/api/clinical-language/assess-input",
   "/api/clinical-language/respond/route": "/api/clinical-language/respond",
+  "/_not-found/page": "/_not-found",
   "/api/assessment/input/route": "/api/assessment/input",
-  "/api/patient-reflection/route": "/api/patient-reflection",
   "/api/audit/session-snapshot/route": "/api/audit/session-snapshot",
+  "/api/patient-reflection/route": "/api/patient-reflection",
   "/api/speech/transcribe/route": "/api/speech/transcribe",
   "/[[...slug]]/page": "/[[...slug]]"
 }

@@ -52,6 +52,13 @@ type PromptSpec = {
   completionEffect?: Record<string, unknown> | null;
   restrictions?: string[];
   safetyRuleIds?: string[];
+  /** Re-asks the same PromptItem (accumulating into its list/rating field)
+   * until `completionCondition` is met or `maxIterations` is reached, instead
+   * of moving on after a single turn. Used for "rate every item in a list
+   * one at a time" and "collect 2-4 pieces of evidence one at a time" steps. */
+  executionMode?: PromptItem["executionMode"];
+  maxIterations?: number;
+  completionCondition?: PromptItem["completionCondition"];
 };
 
 type NodeSpec = {
@@ -340,9 +347,13 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
         editableText: sourceText(prompt.source),
         aiInstruction: shortAiMsg,
         fallbackPatientText: prompt.patientText,
+        markerHint: prompt.marker,
         activationCondition: prompt.activationCondition ?? null,
         outputFields: prompt.outputFields ?? [],
         validation: prompt.validation ?? null,
+        executionMode: prompt.executionMode,
+        maxIterations: prompt.maxIterations,
+        completionCondition: prompt.completionCondition,
         completionEffect: prompt.completionEffect ?? { type: "advance_prompt" },
         restrictions: prompt.restrictions ?? node.restrictions ?? [],
         safetyRuleIds: prompt.safetyRuleIds ?? node.safetyRuleIds ?? [],
@@ -542,8 +553,16 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         restrictions: [sourceText([93, 104])],
         prompts: [
           { slug: "candidate-two-same-situation", type: "question", source: [93, 104], marker: "Now I'd like to put a second person", outputFields: ["candidateTwoSameSituation"] },
-          { slug: "candidate-two-emotion", type: "question", source: [93, 104], marker: "Upon hearing this, do you think it's possible", outputFields: ["candidateTwoEmotion"] },
+          { slug: "candidate-two-emotion", type: "question", source: [93, 104], marker: "Upon hearing this, do you think it's possible", outputFields: ["candidateTwoEmotion"], validation: { kind: "text", siblingField: "candidateOneEmotion" } },
           { slug: "candidate-two-possibility", type: "clarification", source: [93, 104], marker: "I'm talking about possibility", outputFields: ["candidateTwoPossibility"] },
+          {
+            slug: "candidate-two-emotion-recheck",
+            type: "clarification",
+            source: [93, 104],
+            patientText: "That's one possibility. This second candidate is being told they seem ‘sad or discouraged’ rather than confident and capable — quite different wording than the first candidate heard. Given that, what do you think this candidate might feel?",
+            activationCondition: { field: "candidateTwoEmotionRepeatsSibling", operator: "equals", value: true },
+            outputFields: ["candidateTwoEmotion"],
+          },
           { slug: "candidate-two-thought", type: "question", source: [93, 104], marker: "For them to feel sad or discouraged", outputFields: ["candidateTwoThought"] },
           { slug: "candidate-two-behavior", type: "question", source: [93, 104], marker: "With that thought and that sadness", outputFields: ["candidateTwoBehavior"] },
           { slug: "candidate-two-reaction", type: "question", source: [93, 104], marker: "Do you think the interviewer's reaction", outputFields: ["candidateTwoReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
@@ -559,7 +578,15 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         restrictions: [sourceText([105, 117])],
         prompts: [
           { slug: "candidate-three-same-situation", type: "question", source: [105, 117], marker: "And here's the third and last one", outputFields: ["candidateThreeSameSituation"] },
-          { slug: "candidate-three-emotion", type: "question", source: [105, 117], marker: "Do you think it's possible that this third candidate", outputFields: ["candidateThreeEmotion"] },
+          { slug: "candidate-three-emotion", type: "question", source: [105, 117], marker: "Do you think it's possible that this third candidate", outputFields: ["candidateThreeEmotion"], validation: { kind: "text", siblingField: "candidateOneEmotion" } },
+          {
+            slug: "candidate-three-emotion-recheck",
+            type: "clarification",
+            source: [105, 117],
+            patientText: "This third candidate is being told they seem ‘irritated or hostile’ — a different reaction again from the first two candidates. Given that wording, what do you think this candidate might feel?",
+            activationCondition: { field: "candidateThreeEmotionRepeatsSibling", operator: "equals", value: true },
+            outputFields: ["candidateThreeEmotion"],
+          },
           { slug: "candidate-three-thought", type: "question", source: [105, 117], marker: "For them to feel irritated or hostile", outputFields: ["candidateThreeThought"] },
           { slug: "candidate-three-behavior", type: "question", source: [105, 117], marker: "With that thought and that irritation", outputFields: ["candidateThreeBehavior"] },
           { slug: "candidate-three-reaction", type: "question", source: [105, 117], marker: "Do you think the interviewer's reaction", outputFields: ["candidateThreeReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
@@ -705,7 +732,20 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         requiredFields: ["problemRatings"],
         restrictions: [sourceText([314, 318])],
         prompts: [
-          { slug: "reflect-problem-score", type: "rating", source: [314, 318], marker: "Thank you. So [problem", outputFields: ["problemRatings"], validation: { kind: "rating", min: 0, max: 5, includeColor: true } },
+          {
+            slug: "reflect-problem-score",
+            type: "rating",
+            source: [314, 318],
+            marker: "Thank you. So [problem",
+            outputFields: ["problemRatings"],
+            validation: { kind: "rating", min: 0, max: 5, includeColor: true },
+            // Re-asks this same prompt once per listed problem instead of
+            // stopping after a single rating, so every problem the participant
+            // named actually gets its own score.
+            executionMode: "repeat_until",
+            maxIterations: 5,
+            completionCondition: { kind: "field", field: "allProblemsRated", operator: "equals", value: true },
+          },
           { slug: "acknowledge-distress", type: "reflection", source: [314, 318], marker: "That sounds really hard. I appreciate", activationCondition: { field: "currentProblemScore", operator: "in", value: [4, 5] } },
           { slug: "acknowledge-manageable", type: "reflection", source: [314, 318], marker: "That's good to hear", activationCondition: { field: "currentProblemScore", operator: "in", value: [0, 1] } },
           { slug: "score-clarification", type: "clarification", source: [314, 318], marker: "When you think about it as", activationCondition: { field: "currentProblemScoreUncertain", operator: "equals", value: true } },
@@ -761,7 +801,17 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         requiredFields: ["goalRatings"],
         restrictions: [sourceText([369, 376])],
         prompts: [
-          { slug: "reflect-goal-score", type: "rating", source: [369, 376], marker: "So pursuing [goal]", outputFields: ["goalRatings"], validation: { kind: "rating", min: 0, max: 5, includeColor: true } },
+          {
+            slug: "reflect-goal-score",
+            type: "rating",
+            source: [369, 376],
+            marker: "So pursuing [goal]",
+            outputFields: ["goalRatings"],
+            validation: { kind: "rating", min: 0, max: 5, includeColor: true },
+            executionMode: "repeat_until",
+            maxIterations: 5,
+            completionCondition: { kind: "field", field: "allGoalsRated", operator: "equals", value: true },
+          },
           { slug: "acknowledge-difficult-goal", type: "reflection", source: [369, 376], marker: "That's a really meaningful goal", activationCondition: { field: "currentGoalScore", operator: "in", value: [4, 5] } },
           { slug: "acknowledge-achieved-goal", type: "reflection", source: [369, 376], marker: "Wonderful", activationCondition: { field: "currentGoalScore", operator: "equals", value: 0 } },
         ],
@@ -1367,7 +1417,18 @@ const SESSION_05_TO_06_SPECS: SessionSpec[] = [
         requiredFields: ["symptomItemScores"],
         restrictions: [sourceText([1105, 1123])],
         prompts: [
-          { slug: "item-score", type: "rating", source: [1105, 1123], outputFields: ["symptomItemScores"], validation: { kind: "hierarchy_item_score", min: 0, max: 5, exactParticipantWords: true, noRescoreExistingItem: true } },
+          {
+            slug: "item-score",
+            type: "rating",
+            source: [1105, 1123],
+            outputFields: ["symptomItemScores"],
+            validation: { kind: "hierarchy_item_score", min: 0, max: 5, exactParticipantWords: true, noRescoreExistingItem: true },
+            // Re-asks this same prompt once per listed symptom item instead of
+            // stopping after a single score, so every item gets its own rating.
+            executionMode: "repeat_until",
+            maxIterations: 21,
+            completionCondition: { kind: "field", field: "allSymptomItemsRated", operator: "equals", value: true },
+          },
         ],
       },
       {
@@ -1555,8 +1616,21 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         restrictions: [sourceText([1408, 1432])],
         prompts: [
           { slug: "chair-arrangement", type: "role_transition", source: [1408, 1432], outputFields: ["chairArrangementConfirmed"], validation: { kind: "role_arrangement_confirmed" } },
-          { slug: "emotion-to-reason", type: "role_transition", source: [1408, 1432], marker: "Emotion, speak directly to Reason", outputFields: ["emotionReasonDialogue"], validation: { kind: "direct_part_to_part_dialogue", therapistSilence: true } },
-          { slug: "continue-dialogue", type: "follow_up", source: [1408, 1432], marker: "Is there more", outputFields: ["emotionReasonDialogue"], validation: { kind: "only_permitted_step_three_intervention" } },
+          { slug: "emotion-to-reason", type: "role_transition", source: [1408, 1432], marker: "Emotion, speak directly to Reason", outputFields: ["emotionReasonDialogue"], validation: { kind: "array", therapistSilence: true, maxItems: 8 } },
+          {
+            slug: "continue-dialogue",
+            type: "follow_up",
+            source: [1408, 1432],
+            marker: "Is there more",
+            outputFields: ["emotionReasonDialogue"],
+            validation: { kind: "array", maxItems: 8 },
+            // Keeps alternating exchanges going until at least two have
+            // happened (or the participant says there is nothing more),
+            // rather than accepting one "Is there more?" answer and moving on.
+            executionMode: "repeat_until",
+            maxIterations: 4,
+            completionCondition: { kind: "field", field: "emotionReasonDialogueSufficient", operator: "equals", value: true },
+          },
         ],
       },
       {
@@ -1602,12 +1676,17 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["proposedActions", "possibleObstacles", "obstacleSolutions", "implementationPlan", "supportPeople", "followUpPlan"],
         restrictions: [sourceText([1462, 1477])],
         prompts: [
-          { slug: "proposed-actions", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["proposedActions"], validation: { kind: "action_plan_field", fieldIndex: 1, participantOwned: true } },
-          { slug: "possible-obstacles", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["possibleObstacles"], validation: { kind: "action_plan_field", fieldIndex: 2, participantOwned: true } },
-          { slug: "obstacle-solutions", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["obstacleSolutions"], validation: { kind: "action_plan_field", fieldIndex: 3, participantOwned: true } },
-          { slug: "implementation-plan", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["implementationPlan"], validation: { kind: "action_plan_field", fieldIndex: 4, participantOwned: true } },
-          { slug: "support-people", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["supportPeople"], validation: { kind: "action_plan_field", fieldIndex: 5, participantOwned: true } },
-          { slug: "follow-up", type: "worksheet_instruction", source: [1462, 1477], outputFields: ["followUpPlan"], validation: { kind: "action_plan_field", fieldIndex: 6, participantOwned: true, assistantMustNotSupply: true } },
+          // "question", not "worksheet_instruction": each of these six fields
+          // is participant-owned and must actually be supplied by them.
+          // worksheet_instruction is a passive type that completes as soon as
+          // the assistant delivers it, so all six fields were structurally
+          // guaranteed to stay empty regardless of what the patient typed.
+          { slug: "proposed-actions", type: "question", source: [1462, 1477], outputFields: ["proposedActions"], validation: { kind: "action_plan_field", fieldIndex: 1, participantOwned: true } },
+          { slug: "possible-obstacles", type: "question", source: [1462, 1477], outputFields: ["possibleObstacles"], validation: { kind: "action_plan_field", fieldIndex: 2, participantOwned: true } },
+          { slug: "obstacle-solutions", type: "question", source: [1462, 1477], outputFields: ["obstacleSolutions"], validation: { kind: "action_plan_field", fieldIndex: 3, participantOwned: true } },
+          { slug: "implementation-plan", type: "question", source: [1462, 1477], outputFields: ["implementationPlan"], validation: { kind: "action_plan_field", fieldIndex: 4, participantOwned: true } },
+          { slug: "support-people", type: "question", source: [1462, 1477], outputFields: ["supportPeople"], validation: { kind: "action_plan_field", fieldIndex: 5, participantOwned: true } },
+          { slug: "follow-up", type: "question", source: [1462, 1477], outputFields: ["followUpPlan"], validation: { kind: "action_plan_field", fieldIndex: 6, participantOwned: true, assistantMustNotSupply: true } },
         ],
       },
       {
@@ -1716,7 +1795,19 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         restrictions: [sourceText([1549, 1574]), sourceText([1585, 1589])],
         prompts: [
           { slug: "enter-prosecutor-role", type: "role_transition", source: [1585, 1589], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
-          { slug: "prosecution-evidence", type: "question", source: [1585, 1589], outputFields: ["prosecutionEvidence"], validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, participantSuppliesEvidence: true, acrossLife: true } },
+          {
+            slug: "prosecution-evidence",
+            type: "question",
+            source: [1585, 1589],
+            outputFields: ["prosecutionEvidence"],
+            validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, participantSuppliesEvidence: true, acrossLife: true },
+            // Re-asks for one piece of evidence at a time until at least two
+            // are collected (or the participant signals there are no more),
+            // instead of accepting a single item and moving on.
+            executionMode: "repeat_until",
+            maxIterations: 4,
+            completionCondition: { kind: "field", field: "prosecutionEvidenceSufficient", operator: "equals", value: true },
+          },
         ],
       },
       {
@@ -1740,7 +1831,16 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         restrictions: [sourceText([1549, 1574]), sourceText([1593, 1598])],
         prompts: [
           { slug: "enter-defense-role", type: "role_transition", source: [1593, 1598], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
-          { slug: "defense-evidence", type: "question", source: [1593, 1598], outputFields: ["defenseEvidence"], validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, concreteExamplesRequired: true } },
+          {
+            slug: "defense-evidence",
+            type: "question",
+            source: [1593, 1598],
+            outputFields: ["defenseEvidence"],
+            validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, concreteExamplesRequired: true },
+            executionMode: "repeat_until",
+            maxIterations: 4,
+            completionCondition: { kind: "field", field: "defenseEvidenceSufficient", operator: "equals", value: true },
+          },
           { slug: "concrete-defense-evidence", type: "clarification", source: [1593, 1598], marker: "concrete example", activationCondition: { field: "defenseEvidenceIsVague", operator: "equals", value: true }, outputFields: ["defenseEvidence"] },
         ],
       },
@@ -1811,7 +1911,9 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         prompts: [
           { slug: "enter-jury-role", type: "role_transition", source: [1609, 1616], outputFields: ["juryOrientation"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true, privateJuryRoom: true } },
           { slug: "juror-role", type: "question", source: [1609, 1616], marker: "What is the role of a juror", outputFields: ["juryOrientation"] },
-          { slug: "review-four-blocks", type: "worksheet_instruction", source: [1609, 1616], outputFields: ["juryReview"], validation: { kind: "review_all_evidence_blocks", blocks: ["prosecution", "defense", "prosecution_rebuttal", "defense_surrebuttal"], oneItemAtATime: true } },
+          // "question": the jury's review must come from the participant, not
+          // complete the instant the assistant describes what to review.
+          { slug: "review-four-blocks", type: "question", source: [1609, 1616], outputFields: ["juryReview"], validation: { kind: "review_all_evidence_blocks", blocks: ["prosecution", "defense", "prosecution_rebuttal", "defense_surrebuttal"], oneItemAtATime: true } },
           { slug: "participant-verdict", type: "question", source: [1609, 1616], marker: "verdict: guilty or not guilty", outputFields: ["verdict"], validation: { kind: "enum", values: ["guilty", "not_guilty"], participantGenerated: true, assistantMustNotSupply: true, challengeGuiltyThroughEvidenceReview: true } },
         ],
       },
@@ -1871,7 +1973,21 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         source: [1630, 1630],
         requiredFields: ["appealEvidence", "appealHomeworkAcknowledged"],
         prompts: [
-          { slug: "appeal-evidence", type: "worksheet_instruction", source: [1630, 1630], marker: "identify at least two", outputFields: ["appealEvidence"], validation: { kind: "array", minItems: 2, maxItems: 3, supportsField: "positiveBelief" } },
+          {
+            slug: "appeal-evidence",
+            // "question", not "worksheet_instruction": this prompt requires
+            // the participant to actually supply evidence turn after turn,
+            // and the passive "worksheet_instruction" type would otherwise
+            // be treated as complete on assistant delivery alone.
+            type: "question",
+            source: [1630, 1630],
+            marker: "identify at least two",
+            outputFields: ["appealEvidence"],
+            validation: { kind: "array", minItems: 2, maxItems: 3, supportsField: "positiveBelief" },
+            executionMode: "repeat_until",
+            maxIterations: 3,
+            completionCondition: { kind: "field", field: "appealEvidenceSufficient", operator: "equals", value: true },
+          },
           { slug: "daily-appeal-homework", type: "instruction", source: [1630, 1630], marker: "daily task", outputFields: ["appealHomeworkAcknowledged"] },
         ],
       },

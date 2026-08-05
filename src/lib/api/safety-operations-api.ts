@@ -1,4 +1,5 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { findActiveTriggerSuppression, getPendingResumeRequest, listClinicianHandoffs, listFollowUpTasks, listInterventionRecords, listNotifications, listResumeRequests, listSafetyEvents, listSafetyReports, listSafetyTransitions, listSafetyTriageRecords, listPendingClinicianHandoffs, saveClinicianHandoff, saveFollowUpTask, saveInterventionRecord, saveNotification, saveResumeRequest, saveSafetyEvent, saveSafetyReport, saveSafetyTransition, saveSafetyTriageRecord, saveTriggerSuppression, updateClinician, updateClinicianHandoff, updateFollowUpTask, updateInterventionRecord, updateNotification, updateResumeRequest, updateSafetyEvent, updateTriggerSuppression, getSafetyEvent, listClinicians, getClinician, getSafetyReport } from "@/lib/repositories/safety-event-repository";
 import { getLongitudinalMemory } from "@/lib/repositories/longitudinal-memory-repository";
@@ -307,7 +308,7 @@ export async function getSafetyFollowUps() {
 export async function placeSessionOnSafetyHold(sessionId: string, eventId: string, reason: string) {
   const view = await getRuntimeSession(sessionId);
   if (!view) throw new Error("Source session missing");
-  await getLocalDb().runtimeSessions.put({ ...view.session, status: "safety_paused", updatedAt: new Date().toISOString() });
+  await updateRuntimeSessionRecord(sessionId, { status: "safety_paused" });
   const event = await updateSafetyEvent(eventId, { sessionHoldRequired: true, patientFacingStatus: "session_paused" });
   await transition(eventId, event.status, event.status, reason);
   return event;
@@ -391,7 +392,7 @@ export async function resumeSafetyHeldSession(sessionId: string, eventId: string
   const request = await getPendingResumeRequest(eventId).catch(() => null);
   const authorized = (await listResumeRequests(eventId)).find((item) => item.status === "authorized");
   const resumeNodeId = authorized?.proposedResumeNodeId ?? (await resolveResumeNode(sessionId));
-  await getLocalDb().runtimeSessions.put({ ...view.session, status: "active", currentNodeId: resumeNodeId, updatedAt: new Date().toISOString() });
+  await updateRuntimeSessionRecord(sessionId, { status: "active", currentNodeId: resumeNodeId });
   const nextStatus: SafetyEventStatus = event.severity === "low" ? "monitoring" : "resolved";
   const updated = await updateSafetyEvent(eventId, { status: nextStatus, patientFacingStatus: "review_completed" });
   const lastPatientMessage = view.messages.filter((message) => message.role === "patient").at(-1)?.content ?? view.session.runtimeContext.lastPatientMessage ?? "";
@@ -423,7 +424,7 @@ export async function terminateSessionForSafety(sessionId: string, eventId: stri
   const event = await getSafetyEvent(eventId);
   const view = await getRuntimeSession(sessionId);
   if (!event || !view) throw new Error("Safety termination target missing");
-  await getLocalDb().runtimeSessions.put({ ...view.session, status: "terminated", terminatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  await updateRuntimeSessionRecord(sessionId, { status: "terminated", terminatedAt: new Date().toISOString() });
   const next = await updateSafetyEvent(eventId, { status: "resolved", patientFacingStatus: "session_terminated", resolutionSummary: input.patientFacingMessage });
   await transition(eventId, event.status, "resolved", input.reason);
   return next;

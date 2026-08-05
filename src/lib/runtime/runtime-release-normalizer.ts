@@ -88,11 +88,25 @@ const DEFAULT_RUNTIME_ROLES: RuntimeRoleDefinition[] = [
 
 const INTERNAL_GUIDANCE_PATTERN = /^(collect|prompt|identify|elicit|capture|explore|help|support|confirm|introduce|run|present|close|start|continue|rate|re-?rate|offer|invite|explain|keep|surface|anchor|set up|formulate|map|convert|prepare|begin|get|deepen|choose|score|establish|reflect|validate|use)\b/i;
 
+/** A `marker` excerpt is usable as a patient-facing lead-in only if it doesn't
+ * itself read like a therapist/authoring instruction (e.g. "identify at
+ * least two", "confirm the working thought"). */
+function isUsableMarkerLeadIn(text: string) {
+  return !INTERNAL_GUIDANCE_PATTERN.test(text) && !/^Step\s+\d+\s*:/i.test(text) && !/\b(?:ask|invite|guide|instruct) the participant\b/i.test(text);
+}
+
+// "role_transition" is deliberately absent: every role_transition prompt in
+// the catalog carries outputFields expecting a genuine patient answer (a
+// ready confirmation, a pre/post rating, a verdict). Treating the type as
+// passive made those steps complete as soon as the assistant delivered the
+// instruction, before the patient ever confirmed readiness or supplied the
+// rating -- exactly the "role transitions never wait for ready" and "missing
+// intermediate ratings" defects flagged for S07/S08. Falling through to the
+// generic outputFields.length > 0 check below fixes this without special-casing.
 const PASSIVE_PROMPT_TYPES = new Set<PromptItem["type"]>([
   "instruction",
   "explanation",
   "transition",
-  "role_transition",
   "worksheet_instruction",
   "closing",
 ]);
@@ -132,6 +146,8 @@ export function resolveLocaleFallbackPatientText(value: string | undefined, loca
 export function isPatientSafeFallbackText(value: string | undefined) {
   const text = value?.trim() ?? "";
   if (!text || text.length > 600) return false;
+  if (/^(?:---\s*)?(?:#{1,6}\s*)?(?:interaction style|role and purpose|safety and clinical guardrails|important guidelines)\b/i.test(text)) return false;
+  if (/^(?:```|[-*]\s+(?:use|do not|never|always|close by|from reason|from emotion)\b)/i.test(text)) return false;
   if (INTERNAL_GUIDANCE_PATTERN.test(text) || /^Step\s+\d+\s*:/i.test(text) || /\b(?:ask|invite|guide|instruct) the participant\b/i.test(text)) return false;
   return !/(?:\bai\b|model|prompt|instruction|system message|node[-_ ]?id|role id|runtime state)/i.test(text);
 }
@@ -140,23 +156,88 @@ function humanizeField(field: string) {
   return field.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/Percent$/i, " percentage").toLowerCase();
 }
 
+/** Third-person clinical fields describe a hypothetical or other person, not the patient themselves. */
+function pronounSetForField(field: string) {
+  if (/^candidate|^otherPerson/i.test(field)) return { subject: "they", possessive: "their", object: "them", copulaHave: "would" };
+  return { subject: "you", possessive: "your", object: "you", copulaHave: "do" };
+}
+
+function fieldCompletionClause(field: string) {
+  const p = pronounSetForField(field);
+  if (/emotion/i.test(field)) return `what emotion comes up for ${p.object}`;
+  if (/thought/i.test(field)) return `what thought goes through ${p.possessive} mind`;
+  if (/behavior/i.test(field)) return `what ${p.subject} ${p.subject === "they" ? "would do" : "do"}`;
+  if (/reaction/i.test(field)) return `how ${p.subject} ${p.subject === "they" ? "would respond" : "respond"}`;
+  if (/belief/i.test(field)) return `how much ${p.subject} ${p.subject === "they" ? "would believe" : "believe"} that`;
+  if (/weight/i.test(field)) return "what percentage feels right to you";
+  if (/intensity|percent/i.test(field)) return "how strong that feels";
+  if (/summary/i.test(field)) return "how you would summarize that in your own words";
+  if (/insight|meaning/i.test(field)) return "what that means to you";
+  return `what comes to mind for ${p.object}`;
+}
+
+/** Turns an authoring `marker` fragment (a real clinical-script excerpt) into a
+ * natural patient-facing question. Prefer the marker verbatim when it already
+ * reads as a question; otherwise complete it with a clause built from the
+ * output field so the result still asks something concrete instead of an
+ * instruction like "Please describe your X for this step." */
+function naturalMarkerQuestion(marker: string | undefined, field: string) {
+  const cleaned = marker?.trim().replace(/\s+/g, " ").replace(/^(?:and|so|now|then)\s+/i, "");
+  if (!cleaned || !isUsableMarkerLeadIn(cleaned)) return undefined;
+  const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  const looksLikeQuestion = /[?]$/.test(capitalized) || /^(?:what|how|why|when|where|who|which|is|are|do|does|did|can|could|would|should|will)\b/i.test(capitalized);
+  if (looksLikeQuestion) return /[?]$/.test(capitalized) ? capitalized : `${capitalized}?`;
+  if (!field) return `${capitalized}?`;
+  return `${capitalized}, ${fieldCompletionClause(field)}?`;
+}
+
+/** Formats the actual configured rating range instead of assuming 0-100%. */
+function scaleRangeText(validation: { min?: unknown; max?: unknown } | null | undefined) {
+  const min = Number(validation?.min ?? 0);
+  const max = Number(validation?.max ?? 100);
+  return max <= 5 ? `On a scale from ${min} to ${max}` : `From ${min} to ${max}%`;
+}
+
+function returningArrowQuestion(promptItem: PromptItem) {
+  if (/thought-arrow$/.test(promptItem.id)) return naturalMarkerQuestion(promptItem.markerHint, "") ? `${naturalMarkerQuestion(promptItem.markerHint, "")!.replace(/\?$/, "")}, does the original thought get stronger, weaker, or stay the same?` : undefined;
+  if (/emotion-arrow$/.test(promptItem.id)) return naturalMarkerQuestion(promptItem.markerHint, "") ? `${naturalMarkerQuestion(promptItem.markerHint, "")!.replace(/\?$/, "")}, what happens to the emotion?` : undefined;
+  if (/behavior-arrow$/.test(promptItem.id)) return naturalMarkerQuestion(promptItem.markerHint, "") ? `${naturalMarkerQuestion(promptItem.markerHint, "")!.replace(/\?$/, "")}, what happens to the behavior?` : undefined;
+  return undefined;
+}
+
 function sourceSpecificRuntimeFallback(promptItem: PromptItem) {
   const fields = promptItem.outputFields;
-  const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
+  const subject = fields[0] ? humanizeField(fields[0]) : "this step";
+  const sourceStepSubject = promptItem.id.replace(/^.*-p\d+-/, "").replace(/-/g, " ") || subject;
+  const validation = (promptItem.validation as { kind?: unknown; min?: unknown; max?: unknown } | null) ?? null;
+  const validationKind = String(validation?.kind ?? "");
+  const arrowQuestion = returningArrowQuestion(promptItem);
+  if (arrowQuestion) return arrowQuestion;
   if (/^paired_ratings/.test(validationKind) && fields.length >= 2) {
-    return `Please rate both ${humanizeField(fields[0])} and ${humanizeField(fields[1])} from 0 to 100%.`;
+    return `${scaleRangeText(validation)}, how would you rate both ${humanizeField(fields[0])} and ${humanizeField(fields[1])} right now?`;
   }
-  if (promptItem.type === "rating" && fields[0]) return `From 0 to 100%, what is your ${humanizeField(fields[0])}?`;
-  if (promptItem.type === "role_transition") return "Please move into the next stated role and take a moment to settle before continuing.";
-  if (fields[0] && /evidence/i.test(fields[0])) return `Please give one specific item of ${humanizeField(fields[0])}.`;
+  if (promptItem.type === "rating" && fields[0]) {
+    const lead = naturalMarkerQuestion(promptItem.markerHint, fields[0]);
+    return lead ?? `${scaleRangeText(validation)}, how would you rate your ${humanizeField(fields[0])} right now?`;
+  }
+  if (promptItem.type === "role_transition") {
+    const marker = promptItem.markerHint?.trim();
+    if (marker && /^(?:please|take a moment)/i.test(marker)) return marker.endsWith(".") ? marker : `${marker}.`;
+    return "Let's move into that role now. Take a moment to settle there before we continue.";
+  }
+  if (fields[0] && /evidence/i.test(fields[0])) {
+    const marker = promptItem.markerHint?.trim();
+    const usableMarker = marker && isUsableMarkerLeadIn(marker) ? marker : undefined;
+    return usableMarker ? `${usableMarker.replace(/\.$/, "")} — what is one specific example that comes to mind?` : `What is one specific example of ${humanizeField(fields[0])}?`;
+  }
   if (fields[0] && ["question", "clarification", "follow_up", "confirmation", "reflection"].includes(promptItem.type)) {
-    return `Please describe your ${humanizeField(fields[0])} for this step.`;
+    return naturalMarkerQuestion(promptItem.markerHint, fields[0]) ?? `What would you say about ${humanizeField(fields[0])} right now?`;
   }
   if (promptItem.type === "reflection") return "Thank you for sharing that. We will keep it in view as we continue.";
   if (["instruction", "explanation", "transition", "worksheet_instruction"].includes(promptItem.type)) {
-    return "We will continue with the next part of this exercise, one step at a time.";
+    return naturalMarkerQuestion(promptItem.markerHint, "") ?? `Let's continue with ${sourceStepSubject}, one step at a time.`;
   }
-  return "We will continue with the next part of this exercise, one step at a time.";
+  return naturalMarkerQuestion(promptItem.markerHint, subject) ?? `What would you say about ${subject} right now?`;
 }
 
 function toConditionExpression(value: Record<string, unknown> | ConditionExpression | null | undefined) {
@@ -172,6 +253,8 @@ function toConditionExpression(value: Record<string, unknown> | ConditionExpress
 }
 
 function promptRequiresPatientInput(promptItem: PromptItem) {
+  const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
+  if (["calculated_problem_totals", "calculated_goal_totals"].includes(validationKind) || promptItem.id === "tbct-s02-n11-p02-recorded-summary") return false;
   if (["question", "clarification", "follow_up", "confirmation", "reflection", "rating"].includes(promptItem.type)) return true;
   if (PASSIVE_PROMPT_TYPES.has(promptItem.type)) return false;
   return promptItem.outputFields.length > 0;

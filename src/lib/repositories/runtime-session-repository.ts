@@ -1,4 +1,10 @@
-import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { RUNTIME_STORE_ENDPOINT } from "@/lib/runtime/runtime-store-ops";
+import type {
+  CommitRuntimeAssistantTurnInput,
+  CommitRuntimeAssistantTurnResult,
+  RuntimePatientTurnClaim,
+  RuntimeStoreOp,
+} from "@/lib/runtime/runtime-store-ops";
 import type {
   ClinicianEscalationEvent,
   RuntimeCheckpoint,
@@ -10,23 +16,31 @@ import type {
   SessionExecutionLog,
 } from "@/types/runtime-session";
 
+export type { RuntimePatientTurnClaim, CommitRuntimeAssistantTurnInput };
+
+// Thin fetch client over src/app/api/runtime/session-store/route.ts. The
+// runtime conversation store (sessions, messages, logs, checkpoints,
+// escalations, provider/validation events, execution traces) now lives in
+// Neon Postgres, not local IndexedDB -- every function here keeps its
+// original name and signature so call sites across the app are unaffected.
+async function callStore<T>(op: RuntimeStoreOp): Promise<T> {
+  const response = await fetch(RUNTIME_STORE_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(op),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.ok) throw new Error(body?.error ?? "Runtime store operation failed.");
+  return body.result as T;
+}
+
 export async function createRuntimeSessionRecord(session: RuntimeSession) {
-  await getLocalDb().runtimeSessions.put(session);
-  return session;
+  return callStore<RuntimeSession>({ op: "createSession", session });
 }
 
 export async function updateRuntimeSessionRecord(sessionId: string, patch: Partial<RuntimeSession>) {
-  const db = getLocalDb();
-  const current = await db.runtimeSessions.get(sessionId);
-  if (!current) throw new Error("Runtime session not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.runtimeSessions.put(next);
-  return next;
+  return callStore<RuntimeSession>({ op: "updateSession", sessionId, patch });
 }
-
-export type RuntimePatientTurnClaim =
-  | { claimed: true; session: RuntimeSession }
-  | { claimed: false; session: RuntimeSession };
 
 export async function claimRuntimePatientTurn(input: {
   sessionId: string;
@@ -34,199 +48,87 @@ export async function claimRuntimePatientTurn(input: {
   expectedSessionVersion: number;
   patientMessage: RuntimeMessage;
 }): Promise<RuntimePatientTurnClaim> {
-  const db = getLocalDb();
-  return db.transaction("rw", db.runtimeSessions, db.runtimeMessages, async () => {
-    const current = await db.runtimeSessions.get(input.sessionId);
-    if (!current) throw new Error("Runtime session not found");
-    if (input.patientMessage.runtimeSessionId !== input.sessionId) throw new Error("Patient message session does not match the turn claim");
-    const currentVersion = current.version ?? 0;
-    const canClaim = current.status === "waiting_for_input"
-      && currentVersion === input.expectedSessionVersion
-      && current.pendingTurnId === undefined
-      && current.lastCompletedTurnId !== input.clientTurnId;
-    if (!canClaim) return { claimed: false, session: current };
-
-    const next: RuntimeSession = {
-      ...current,
-      status: "processing",
-      pendingTurnId: input.clientTurnId,
-      version: currentVersion + 1,
-      messageIds: [...new Set([...current.messageIds, input.patientMessage.id])],
-      runtimeContext: {
-        ...current.runtimeContext,
-        lastPatientMessage: input.patientMessage.content,
-      },
-      updatedAt: new Date().toISOString(),
-    };
-    await db.runtimeMessages.put(input.patientMessage);
-    await db.runtimeSessions.put(next);
-    return { claimed: true, session: next };
-  });
+  return callStore<RuntimePatientTurnClaim>({ op: "claimPatientTurn", ...input });
 }
 
 export async function getRuntimeSessionRecord(sessionId: string) {
-  return getLocalDb().runtimeSessions.get(sessionId);
+  return callStore<RuntimeSession | undefined>({ op: "getSession", sessionId });
 }
 
 export async function listRuntimeSessionRecords() {
-  return getLocalDb().runtimeSessions.orderBy("updatedAt").reverse().toArray();
+  return callStore<RuntimeSession[]>({ op: "listSessions" });
 }
 
 export async function saveRuntimeMessage(message: RuntimeMessage) {
-  const db = getLocalDb();
-  await db.transaction("rw", db.runtimeMessages, db.runtimeSessions, async () => {
-    await db.runtimeMessages.put(message);
-    const session = await db.runtimeSessions.get(message.runtimeSessionId);
-    if (session) {
-      await db.runtimeSessions.put({
-        ...session,
-        messageIds: [...new Set([...session.messageIds, message.id])],
-        updatedAt: new Date().toISOString(),
-        runtimeContext: {
-          ...session.runtimeContext,
-          lastPatientMessage: message.role === "patient" ? message.content : session.runtimeContext.lastPatientMessage,
-          lastAssistantMessage: message.role === "assistant" ? message.content : session.runtimeContext.lastAssistantMessage,
-        },
-      });
-    }
-  });
+  await callStore<RuntimeMessage>({ op: "saveMessage", message });
   return message;
 }
 
 export async function listRuntimeMessages(runtimeSessionId: string) {
-  return getLocalDb().runtimeMessages.where("runtimeSessionId").equals(runtimeSessionId).sortBy("createdAt");
+  return callStore<RuntimeMessage[]>({ op: "listMessages", runtimeSessionId });
 }
 
 export async function saveRuntimeLog(log: SessionExecutionLog) {
-  const db = getLocalDb();
-  await db.runtimeSessionLogs.put(log);
-  const session = await db.runtimeSessions.get(log.runtimeSessionId);
-  if (session) {
-    await db.runtimeSessions.put({ ...session, executionLogIds: [...new Set([...session.executionLogIds, log.id])], updatedAt: new Date().toISOString() });
-  }
+  await callStore<SessionExecutionLog>({ op: "saveLog", log });
   return log;
 }
 
 export async function listRuntimeLogs(runtimeSessionId: string) {
-  return getLocalDb().runtimeSessionLogs.where("runtimeSessionId").equals(runtimeSessionId).sortBy("timestamp");
+  return callStore<SessionExecutionLog[]>({ op: "listLogs", runtimeSessionId });
 }
 
 export async function saveRuntimeCheckpoint(checkpoint: RuntimeCheckpoint) {
-  await getLocalDb().runtimeCheckpoints.put(checkpoint);
-  return checkpoint;
+  return callStore<RuntimeCheckpoint>({ op: "saveCheckpoint", checkpoint });
 }
 
 export async function getLatestRuntimeCheckpoint(runtimeSessionId: string) {
-  return getLocalDb().runtimeCheckpoints.where("runtimeSessionId").equals(runtimeSessionId).last();
+  return callStore<RuntimeCheckpoint | undefined>({ op: "getLatestCheckpoint", runtimeSessionId });
 }
 
 export async function listRuntimeCheckpoints(runtimeSessionId: string) {
-  return getLocalDb().runtimeCheckpoints.where("runtimeSessionId").equals(runtimeSessionId).sortBy("sequence");
+  return callStore<RuntimeCheckpoint[]>({ op: "listCheckpoints", runtimeSessionId });
 }
 
 export async function saveRuntimeEscalation(event: ClinicianEscalationEvent) {
-  const db = getLocalDb();
-  await db.runtimeEscalations.put(event);
-  const session = await db.runtimeSessions.get(event.runtimeSessionId);
-  if (session) {
-    await db.runtimeSessions.put({ ...session, escalationIds: [...new Set([...session.escalationIds, event.id])], updatedAt: new Date().toISOString() });
-  }
-  return event;
+  return callStore<ClinicianEscalationEvent>({ op: "saveEscalation", event });
 }
 
 export async function updateRuntimeEscalation(escalationId: string, patch: Partial<ClinicianEscalationEvent>) {
-  const db = getLocalDb();
-  const current = await db.runtimeEscalations.get(escalationId);
-  if (!current) throw new Error("Escalation event not found");
-  const next = { ...current, ...patch };
-  await db.runtimeEscalations.put(next);
-  return next;
+  return callStore<ClinicianEscalationEvent>({ op: "updateEscalation", escalationId, patch });
 }
 
 export async function listRuntimeEscalations() {
-  return getLocalDb().runtimeEscalations.orderBy("createdAt").reverse().toArray();
+  return callStore<ClinicianEscalationEvent[]>({ op: "listEscalations" });
 }
 
 export async function listRuntimeEscalationsBySession(runtimeSessionId: string) {
-  return getLocalDb().runtimeEscalations.where("runtimeSessionId").equals(runtimeSessionId).sortBy("createdAt");
+  return callStore<ClinicianEscalationEvent[]>({ op: "listEscalationsBySession", runtimeSessionId });
 }
 
 export async function saveRuntimeProviderEvent(event: RuntimeProviderEvent) {
-  await getLocalDb().runtimeProviderEvents.put(event);
+  await callStore<void>({ op: "saveProviderEvent", event });
 }
 
 export async function listRuntimeProviderEvents(runtimeSessionId: string) {
-  return getLocalDb().runtimeProviderEvents.where("runtimeSessionId").equals(runtimeSessionId).sortBy("createdAt");
+  return callStore<RuntimeProviderEvent[]>({ op: "listProviderEvents", runtimeSessionId });
 }
 
 export async function saveRuntimeValidationEvent(event: RuntimeValidationEvent) {
-  await getLocalDb().runtimeValidationEvents.put(event);
+  await callStore<void>({ op: "saveValidationEvent", event });
 }
 
 export async function listRuntimeValidationEvents(runtimeSessionId: string) {
-  return getLocalDb().runtimeValidationEvents.where("runtimeSessionId").equals(runtimeSessionId).sortBy("createdAt");
+  return callStore<RuntimeValidationEvent[]>({ op: "listValidationEvents", runtimeSessionId });
 }
 
 export async function saveRuntimeExecutionTrace(trace: RuntimeExecutionTrace) {
-  await getLocalDb().runtimeExecutionTraces.put(trace);
-  return trace;
+  return callStore<RuntimeExecutionTrace>({ op: "saveExecutionTrace", trace });
 }
 
 export async function listRuntimeExecutionTraces(runtimeSessionId: string) {
-  return getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(runtimeSessionId).sortBy("timestamp");
+  return callStore<RuntimeExecutionTrace[]>({ op: "listExecutionTraces", runtimeSessionId });
 }
 
-export type CommitRuntimeAssistantTurnInput = {
-  sessionId: string;
-  assistantMessage: RuntimeMessage;
-  providerEvent: RuntimeProviderEvent;
-  validationEvent: RuntimeValidationEvent;
-  trace: RuntimeExecutionTrace;
-  sessionPatch: Partial<RuntimeSession>;
-};
-
 export async function commitRuntimeAssistantTurn(input: CommitRuntimeAssistantTurnInput) {
-  const db = getLocalDb();
-  return db.transaction(
-    "rw",
-    db.runtimeSessions,
-    db.runtimeMessages,
-    db.runtimeProviderEvents,
-    db.runtimeValidationEvents,
-    db.runtimeExecutionTraces,
-    async () => {
-      const current = await db.runtimeSessions.get(input.sessionId);
-      if (!current) throw new Error("Runtime session not found");
-      const turnId = typeof input.assistantMessage.metadata?.turnId === "string" ? input.assistantMessage.metadata.turnId : undefined;
-      const duplicate = await db.runtimeMessages
-        .where("runtimeSessionId")
-        .equals(input.sessionId)
-        .filter((message) => message.role === "assistant"
-          && (turnId
-            ? message.metadata?.turnId === turnId
-            : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId))
-        .first();
-      if (duplicate) return { session: current, assistantMessage: duplicate, duplicate: true };
-
-      await db.runtimeMessages.put(input.assistantMessage);
-      await db.runtimeProviderEvents.put(input.providerEvent);
-      await db.runtimeValidationEvents.put(input.validationEvent);
-      await db.runtimeExecutionTraces.put(input.trace);
-      const nextSession: RuntimeSession = {
-        ...current,
-        ...input.sessionPatch,
-        pendingTurnId: current.pendingTurnId && input.sessionPatch.status !== "processing" ? undefined : input.sessionPatch.pendingTurnId ?? current.pendingTurnId,
-        lastCompletedTurnId: current.pendingTurnId && input.sessionPatch.status !== "processing" ? current.pendingTurnId : input.sessionPatch.lastCompletedTurnId ?? current.lastCompletedTurnId,
-        messageIds: [...new Set([...current.messageIds, ...(input.sessionPatch.messageIds ?? []), input.assistantMessage.id])],
-        runtimeContext: {
-          ...current.runtimeContext,
-          ...input.sessionPatch.runtimeContext,
-          lastAssistantMessage: input.assistantMessage.content,
-        },
-        updatedAt: new Date().toISOString(),
-      };
-      await db.runtimeSessions.put(nextSession);
-      return { session: nextSession, assistantMessage: input.assistantMessage, duplicate: false };
-    },
-  );
+  return callStore<CommitRuntimeAssistantTurnResult>({ op: "commitAssistantTurn", input });
 }

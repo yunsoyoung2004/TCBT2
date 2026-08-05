@@ -11,7 +11,34 @@ const schema = { type: "object", additionalProperties: false, required: ["inputV
   safetySignals: { type: "array", items: { type: "string" } }, recommendedTransition: { type: ["string", "null"] }, internalSummary: { type: ["string", "null"] },
 } } as const;
 
-function systemInstruction() { return "Classify only the supplied de-identified patient input. Detect explicit or indirect suicidal ideation, passive death wishes, self-harm, plans, preparation, means, and immediate danger. Indirect signals include wanting to disappear forever, not wake up, end everything, say goodbye, or believing others are better off without the speaker. Do not flag ordinary uses such as stop feeling anxious, a weekend plan, dying of embarrassment, discussion about another person, or quoted program text. Use moderate when indirect death-related meaning is plausible but unclear; high or critical only when current risk is supported. Return JSON matching the schema. Do not diagnose, recommend treatment, or write patient-visible text. Use only allowed fields and transitions."; }
+function systemInstruction() { return `You are a conservative classification and data-extraction API. Analyze only the supplied de-identified patient input.
+
+FIELD EXTRACTION
+- Evaluate every allowed field independently.
+- Extract a field only when the patient explicitly supplies evidence for that field.
+- Never copy one phrase into two clinically different fields.
+- A situation is an observable event or circumstance (what happened, where, when, or with whom).
+- A thought or belief is the meaning, prediction, judgment, or words that went through the person's mind.
+- If only a thought is present, extract the thought and leave the situation absent. If only a situation is present, do the reverse.
+- Do not invent, infer, diagnose, or complete missing content.
+- Use only allowed field names. Incompatible or unrelated input must produce an empty extractedFields object.
+
+COMPLETION CONSISTENCY
+- complete: every requested concept needed by the node goal is explicitly supported.
+- incomplete: at least one useful requested field is supported but another is missing.
+- needs_clarification: the message is unclear, unrelated, a non-answer, or supports none of the requested fields.
+- inputValid=false for greetings, copied questions, gibberish, or content that does not answer the active task.
+
+Examples:
+Input: "I had too much work, and I thought I was failing." Allowed: distressingSituation, automaticThought
+Output fields: {"distressingSituation":"having too much work","automaticThought":"I was failing"}; completionStatus=complete.
+Input: "I keep thinking that I am not good enough." Same allowed fields.
+Output fields: {"automaticThought":"I am not good enough"}; completionStatus=incomplete.
+
+SAFETY
+Detect explicit or indirect suicidal ideation, passive death wishes, self-harm, plans, preparation, means, and immediate danger. Indirect signals include wanting to disappear forever, not wake up, end everything, say goodbye, or believing others are better off without the speaker. Do not flag ordinary uses such as stop feeling anxious, a weekend plan, dying of embarrassment, discussion about another person, or quoted program text. Use moderate when indirect death-related meaning is plausible but unclear; high or critical only when current risk is supported.
+
+Return JSON matching the schema. Do not write patient-visible text, diagnose, recommend treatment, or use unauthorized fields or transitions.`; }
 function safeRequest(request: AssessmentRequest) { return { ...request, patientInput: redactDirectIdentifiers(request.patientInput) }; }
 
 abstract class BaseAssessmentModel implements AssessmentModel {
@@ -68,7 +95,29 @@ class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
 class DeterministicAssessmentModel implements AssessmentModel {
   getProviderMetadata(): AssessmentProviderMetadata { return { provider: "deterministic", privacyBoundary: "none" }; }
   async healthCheck() { return { ok: true, provider: "deterministic" as const }; }
-  async assessInput(request: AssessmentRequest): Promise<AssessmentResult> { const normalized = request.patientInput.trim().toLowerCase(); const words = normalized.match(/[a-z\u00c0-\u00ff]+/gi) ?? []; const hangul = (normalized.match(/[\uac00-\ud7a3]/g) ?? []).length; const nonAnswer = ["hi", "hello", "hey", "test", "testing", "ok", "okay", "yes", "no", "idk", "fuiissiidojfosid"].includes(normalized); const distinction = /distinction/i.test(`${request.inputType} ${request.expectedAnswerDescription ?? ""}`); const valid = !nonAnswer && normalized.length > 1 && (!distinction || words.length >= 2 || hangul >= 4); const directRisk = /\b(?:want to die|wanna die|kill myself|suicid|suisid)\b/i.test(normalized); const indirectRisk = /\b(?:disappear(?: forever)?|not wake up|better off without me|better off dead|no reason to live|everything to end|can't go on|cannot go on)\b/i.test(normalized); return { inputValid: valid, relevance: valid ? "relevant" : "unclear", intent: directRisk || indirectRisk ? "distress_disclosure" : valid ? "answer" : "other", extractedFields: {}, completionStatus: valid ? "complete" : "needs_clarification", safetyLevel: directRisk ? "high" : indirectRisk ? "moderate" : "none", safetySignals: directRisk ? ["direct_suicidal_language"] : indirectRisk ? ["indirect_safety_language"] : [], recommendedTransition: null, internalSummary: null }; }
+  async assessInput(request: AssessmentRequest): Promise<AssessmentResult> {
+    const raw = request.patientInput.trim();
+    const normalized = raw.toLowerCase();
+    const words = normalized.match(/[a-z\u00c0-\u00ff]+/gi) ?? [];
+    const hangul = (normalized.match(/[\uac00-\ud7a3]/g) ?? []).length;
+    const nonAnswer = ["hi", "hello", "hey", "test", "testing", "ok", "okay", "yes", "no", "idk", "fuiissiidojfosid"].includes(normalized);
+    const distinction = /distinction/i.test(`${request.inputType} ${request.expectedAnswerDescription ?? ""}`);
+    const valid = !nonAnswer && normalized.length > 1 && (!distinction || words.length >= 2 || hangul >= 4);
+    const directRisk = /\b(?:want to die|wanna die|kill myself|suicid|suisid)\b/i.test(normalized);
+    const indirectRisk = /\b(?:disappear(?: forever)?|not wake up|better off without me|better off dead|no reason to live|everything to end|can't go on|cannot go on)\b/i.test(normalized);
+    const extractedFields: Record<string, unknown> = {};
+    if (request.allowedFields.includes("distressingSituation") && request.allowedFields.includes("automaticThought")) {
+      const split = raw.match(/^(.*?)(?:,?\s+(?:and\s+)?(?:i\s+)?(?:thought|keep thinking|was thinking)\s+(?:that\s+)?)(.+)$/i);
+      if (split?.[1]?.trim()) extractedFields.distressingSituation = split[1].trim();
+      if (split?.[2]?.trim()) extractedFields.automaticThought = split[2].trim();
+      if (!split && /\b(?:i am|i'm|i was|i'm not|i am not)\b/i.test(raw)) extractedFields.automaticThought = raw;
+    }
+    const extractedCount = Object.keys(extractedFields).length;
+    const completionStatus = request.allowedFields.length > 1
+      ? extractedCount === request.allowedFields.length ? "complete" : extractedCount > 0 ? "incomplete" : "needs_clarification"
+      : valid ? "complete" : "needs_clarification";
+    return { inputValid: valid, relevance: valid ? "relevant" : "unclear", intent: directRisk || indirectRisk ? "distress_disclosure" : valid ? "answer" : "other", extractedFields, completionStatus, safetyLevel: directRisk ? "high" : indirectRisk ? "moderate" : "none", safetySignals: directRisk ? ["direct_suicidal_language"] : indirectRisk ? ["indirect_safety_language"] : [], recommendedTransition: null, internalSummary: null };
+  }
 }
 
 class GeminiAssessmentModel extends BaseAssessmentModel {

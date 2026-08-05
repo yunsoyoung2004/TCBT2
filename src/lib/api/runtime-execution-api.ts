@@ -50,6 +50,21 @@ function getPromptCompletionEffectType(promptItem: PromptItem) {
 }
 
 function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem): RuntimeSession["runtimeContext"] {
+  const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
+  const ratingValues = (value: unknown): number[] => {
+    if (Array.isArray(value)) return value.flatMap(ratingValues);
+    if (typeof value === "number" && Number.isFinite(value)) return [value];
+    if (typeof value === "string") return [...value.matchAll(/\b[0-5]\b/g)].map((match) => Number(match[0]));
+    return [];
+  };
+  if (validationKind === "calculated_problem_totals") {
+    const ratings = ratingValues(runtimeContext.fields.problemRatings);
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, totalProblemScore: ratings.reduce((sum, value) => sum + value, 0), yellowRedProblemsCount: ratings.filter((value) => value >= 4).length } };
+  }
+  if (validationKind === "calculated_goal_totals") {
+    const ratings = ratingValues(runtimeContext.fields.goalRatings);
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, totalGoalsScore: ratings.reduce((sum, value) => sum + value, 0), yellowRedGoalsCount: ratings.filter((value) => value >= 4).length } };
+  }
   const effect = promptItem.completionEffect;
   if (effect?.type === "set_field" && typeof effect.field === "string") {
     return { ...runtimeContext, fields: { ...runtimeContext.fields, [effect.field]: effect.value } };
@@ -173,7 +188,7 @@ async function deliverClarificationTurn(input: {
       model: "runtime-clarification",
       contractHash: `clarification:${input.session.id}:${input.promptItem.id}`,
       validation: outputValidation,
-      fallbackUsed: true,
+      fallbackUsed: false,
       transitionDecision: "clarification",
       stateChanges: { activeNodeId: input.node.id, activePromptItemId: input.promptItem.id, clarificationReason: input.reason },
       fidelityEvidence: {
@@ -661,7 +676,16 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
   const promptItem = activePromptItem;
   if (promptItem) {
     if (activeStep.promptItem.requiresPatientInput) {
-      const alreadyDelivered = view.messages.some((message) => message.promptItemId === promptItem.id && message.role === "assistant");
+      // A repeat_until prompt (e.g. "rate the next item", "collect one more
+      // piece of evidence") is meant to be delivered again on every
+      // iteration. Without this exemption, "already has one assistant
+      // message on file" would skip re-delivery on the second+ iteration,
+      // which also skips the commit path that clears the turn claim --
+      // leaving the session unable to accept the patient's next answer.
+      const alreadyDelivered = activeStep.promptItem.executionMode !== "repeat_until"
+        && view.messages.some((message) => message.promptItemId === promptItem.id && message.role === "assistant");
+      // eslint-disable-next-line no-console
+      console.log(`[DEBUG executeCurrentNode] promptId=${promptItem.id} executionMode=${activeStep.promptItem.executionMode} alreadyDelivered=${alreadyDelivered} sessionPendingBefore=${session.pendingTurnId}`);
       const delivered = !alreadyDelivered
         ? await deliverRuntimePrompt({ session: activeSession, node, promptItem, release: view.release, recentMessages: view.messages })
         : undefined;
@@ -898,8 +922,8 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       stateExtraction: extracted,
       safetyResult,
       generatedMessage: clarification.assistantMessage,
-      turnOutcome: clarification.sessionStatus === "paused" ? "fallback" : "clarification",
-      fallbackUsed: true,
+      turnOutcome: "clarification",
+      fallbackUsed: false,
       sessionStatus: clarification.sessionStatus,
       logIds: [],
     };

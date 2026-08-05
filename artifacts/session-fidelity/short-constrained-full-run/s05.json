@@ -1,0 +1,3316 @@
+{
+  "sessionId": "tbct-s05",
+  "runtimeSessionId": "RTS-c7fff0ef",
+  "releaseId": "demo-release",
+  "constraint": "benign_plan_not_safety",
+  "constraintInjected": true,
+  "constraintExpectationMet": true,
+  "constraintRecovered": true,
+  "totalSubmissions": 12,
+  "totalMessages": 28,
+  "finalStatus": "completed",
+  "riskLevel": "low",
+  "completedPromptItemIds": [
+    "tbct-s05-n01-p01-guilt-belief-baseline",
+    "tbct-s05-n01-p02-shame-intensity-baseline",
+    "tbct-s05-n02-p01-participation-language",
+    "tbct-s05-n03-p01-list-contributors",
+    "tbct-s05-n03-p02-participant-last",
+    "tbct-s05-n04-p01-rate-other-contributors",
+    "tbct-s05-n04-p02-participant-remainder",
+    "tbct-s05-n04-p03-guilt-distortion-check",
+    "tbct-s05-n05-p01-deepen-each-contributor",
+    "tbct-s05-n05-p02-new-contributor-next-round",
+    "tbct-s05-n06-p01-updated-percentage",
+    "tbct-s05-n06-p02-reflect-without-interpretation",
+    "tbct-s05-n07-p01-guilt-belief-final",
+    "tbct-s05-n07-p02-shame-intensity-final",
+    "tbct-s05-n08-p01-values",
+    "tbct-s05-n10-p01-participant-summary-table"
+  ],
+  "skippedPromptItemIds": [],
+  "promptExecutionStatuses": {
+    "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+    "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+    "tbct-s05-n02-p01-participation-language": "executed",
+    "tbct-s05-n03-p01-list-contributors": "executed",
+    "tbct-s05-n03-p02-participant-last": "executed",
+    "tbct-s05-n04-p01-rate-other-contributors": "executed",
+    "tbct-s05-n04-p02-participant-remainder": "executed",
+    "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+    "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+    "tbct-s05-n06-p01-updated-percentage": "executed",
+    "tbct-s05-n06-p02-reflect-without-interpretation": "executed",
+    "tbct-s05-n07-p01-guilt-belief-final": "executed",
+    "tbct-s05-n07-p02-shame-intensity-final": "executed",
+    "tbct-s05-n08-p01-values": "executed",
+    "tbct-s05-n10-p01-participant-summary-table": "executed"
+  },
+  "fallbackCount": 0,
+  "repairCount": 0,
+  "providerErrorCount": 0,
+  "duplicateAssistantMessages": [],
+  "fields": {
+    "guiltBeliefBaseline": 55,
+    "shameIntensityBaseline": 55,
+    "shameBaselineRecorded": true,
+    "contributors": "One clear example from this week.",
+    "participationRatingsRound1": "55",
+    "participantParticipationRound1": "One clear example from this week.",
+    "contributorExploration": "One clear example from this week.",
+    "participationRatingRounds": "55",
+    "participationRatingStable": "55",
+    "guiltBeliefFinal": 55,
+    "shameIntensityFinal": 55,
+    "valuesArticulated": "One clear example from this week."
+  },
+  "attempts": [
+    {
+      "submission": 1,
+      "clientTurnId": "tbct-s05-short-1",
+      "constraint": "benign_plan_not_safety",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "programMessage": "On a scale of 0 to 100%, how much do you believe you were guilty of [event]?",
+      "patientInput": {
+        "kind": "text",
+        "value": "I plan to visit my mother this weekend."
+      },
+      "turnOutcome": "clarification",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {},
+      "currentNodeAfter": "tbct-s05-n01-baseline-guilt-shame",
+      "currentPromptItemAfter": "tbct-s05-n01-p01-guilt-belief-baseline"
+    },
+    {
+      "submission": 2,
+      "clientTurnId": "tbct-s05-short-2",
+      "constraint": null,
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "programMessage": "Please enter one number from 0 to 100.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55
+      },
+      "currentNodeAfter": "tbct-s05-n01-baseline-guilt-shame",
+      "currentPromptItemAfter": "tbct-s05-n01-p02-shame-intensity-baseline"
+    },
+    {
+      "submission": 3,
+      "clientTurnId": "tbct-s05-short-3",
+      "constraint": null,
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "programMessage": "What's the size of this emotion — shame — for you right now when you think about this?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 54"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true
+      },
+      "currentNodeAfter": "tbct-s05-n03-populate-grid",
+      "currentPromptItemAfter": "tbct-s05-n03-p01-list-contributors"
+    },
+    {
+      "submission": 4,
+      "clientTurnId": "tbct-s05-short-4",
+      "constraint": null,
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "programMessage": "Please describe your contributors for this step.",
+      "patientInput": {
+        "kind": "text",
+        "value": "One clear example from this week."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week."
+      },
+      "currentNodeAfter": "tbct-s05-n04-first-participation-ratings",
+      "currentPromptItemAfter": "tbct-s05-n04-p01-rate-other-contributors"
+    },
+    {
+      "submission": 5,
+      "clientTurnId": "tbct-s05-short-5",
+      "constraint": null,
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "programMessage": "From 0 to 100%, what is your participation ratings round1?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55"
+      },
+      "currentNodeAfter": "tbct-s05-n04-first-participation-ratings",
+      "currentPromptItemAfter": "tbct-s05-n04-p02-participant-remainder"
+    },
+    {
+      "submission": 6,
+      "clientTurnId": "tbct-s05-short-6",
+      "constraint": null,
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "programMessage": "Ask the patient to assign a participation percentage to each contributor listed, leaving themselves for last. Whatever remains after summing all others is assigned to the patient. Record all percentages in the first evaluation column.",
+      "patientInput": {
+        "kind": "text",
+        "value": "One clear example from this week."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week."
+      },
+      "currentNodeAfter": "tbct-s05-n05-socratic-deepening",
+      "currentPromptItemAfter": "tbct-s05-n05-p01-deepen-each-contributor"
+    },
+    {
+      "submission": 7,
+      "clientTurnId": "tbct-s05-short-7",
+      "constraint": null,
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "programMessage": "Before we move to the next evaluation, could you help me understand a little more about each of these elements and each person's participation?",
+      "patientInput": {
+        "kind": "text",
+        "value": "One clear example from this week."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week."
+      },
+      "currentNodeAfter": "tbct-s05-n06-rerating-rounds",
+      "currentPromptItemAfter": "tbct-s05-n06-p01-updated-percentage"
+    },
+    {
+      "submission": 8,
+      "clientTurnId": "tbct-s05-short-8",
+      "constraint": null,
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "programMessage": "After each round, reflect the patient's own percentage back to them without interpretation, and check in: \"How does that feel?\" Let the patient draw their own conclusions before continuing.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week.",
+        "participationRatingRounds": "55"
+      },
+      "currentNodeAfter": "tbct-s05-n06-rerating-rounds",
+      "currentPromptItemAfter": "tbct-s05-n06-p02-reflect-without-interpretation"
+    },
+    {
+      "submission": 9,
+      "clientTurnId": "tbct-s05-short-9",
+      "constraint": null,
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "programMessage": "How does that feel?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week.",
+        "participationRatingRounds": "55",
+        "participationRatingStable": "55"
+      },
+      "currentNodeAfter": "tbct-s05-n07-guilt-shame-rerating",
+      "currentPromptItemAfter": "tbct-s05-n07-p01-guilt-belief-final"
+    },
+    {
+      "submission": 10,
+      "clientTurnId": "tbct-s05-short-10",
+      "constraint": null,
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "programMessage": "How much do you now believe you were guilty of [event]?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week.",
+        "participationRatingRounds": "55",
+        "participationRatingStable": "55",
+        "guiltBeliefFinal": 55
+      },
+      "currentNodeAfter": "tbct-s05-n07-guilt-shame-rerating",
+      "currentPromptItemAfter": "tbct-s05-n07-p02-shame-intensity-final"
+    },
+    {
+      "submission": 11,
+      "clientTurnId": "tbct-s05-short-11",
+      "constraint": null,
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "programMessage": "What's the size of this emotion — shame — for you now?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week.",
+        "participationRatingRounds": "55",
+        "participationRatingStable": "55",
+        "guiltBeliefFinal": 55,
+        "shameIntensityFinal": 55
+      },
+      "currentNodeAfter": "tbct-s05-n08-values",
+      "currentPromptItemAfter": "tbct-s05-n08-p01-values"
+    },
+    {
+      "submission": 12,
+      "clientTurnId": "tbct-s05-short-12",
+      "constraint": null,
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "programMessage": "As you think about what matters most to you — what you care about, what gives your life meaning — what values come up for you now?",
+      "patientInput": {
+        "kind": "text",
+        "value": "One clear example from this week."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "completed",
+      "riskLevel": "low",
+      "extractedFields": {
+        "guiltBeliefBaseline": 55,
+        "shameIntensityBaseline": 55,
+        "shameBaselineRecorded": true,
+        "contributors": "One clear example from this week.",
+        "participationRatingsRound1": "55",
+        "participantParticipationRound1": "One clear example from this week.",
+        "contributorExploration": "One clear example from this week.",
+        "participationRatingRounds": "55",
+        "participationRatingStable": "55",
+        "guiltBeliefFinal": 55,
+        "shameIntensityFinal": 55,
+        "valuesArticulated": "One clear example from this week."
+      },
+      "currentNodeAfter": "tbct-s05-n10-summary-table"
+    }
+  ],
+  "messages": [
+    {
+      "id": "RMSG-6d4dfd83",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "On a scale of 0 to 100%, how much do you believe you were guilty of [event]?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:24.792Z",
+      "deliveredAt": "2026-08-05T07:07:24.792Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "9b5d7f2ec9dd54d0cd0a8846dcd33f8a607450364d034c0f6f91f673608fe38f",
+        "sourcePromptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+        "assistantMessageId": "RMSG-6d4dfd83",
+        "executionTraceId": "RTX-1dd5ae3f",
+        "sessionVersionBefore": 0,
+        "sessionVersionAfter": 1,
+        "turnOutcome": "assistant_only"
+      }
+    },
+    {
+      "id": "RMSG-81cded36",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "I plan to visit my mother this weekend.",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "createdAt": "2026-08-05T07:07:24.811Z",
+      "deliveredAt": "2026-08-05T07:07:24.811Z",
+      "metadata": {
+        "inputKind": "text",
+        "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+        "clientTurnId": "tbct-s05-short-1"
+      }
+    },
+    {
+      "id": "RMSG-9d3b0789",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "Please enter one number from 0 to 100.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:24.831Z",
+      "deliveredAt": "2026-08-05T07:07:24.831Z",
+      "metadata": {
+        "turnId": "TURN-8c1fe672",
+        "turnOutcome": "clarification",
+        "clarificationReason": "insufficient_input"
+      }
+    },
+    {
+      "id": "RMSG-94e3e57b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "createdAt": "2026-08-05T07:07:24.861Z",
+      "deliveredAt": "2026-08-05T07:07:24.861Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+        "clientTurnId": "tbct-s05-short-2"
+      }
+    },
+    {
+      "id": "RMSG-4e711fa6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "What's the size of this emotion — shame — for you right now when you think about this?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:24.909Z",
+      "deliveredAt": "2026-08-05T07:07:24.909Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "1a48b5761dd30f183b6ba1755fa2fa7cb7bba28b84494a78db0d8a03964209ba",
+        "sourcePromptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+        "clientTurnId": "tbct-s05-short-2",
+        "patientMessageId": "RMSG-94e3e57b",
+        "assistantMessageId": "RMSG-4e711fa6",
+        "executionTraceId": "RTX-4a97d717",
+        "sessionVersionBefore": 2,
+        "sessionVersionAfter": 3,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-d1c6efcd",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55, 54",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "createdAt": "2026-08-05T07:07:24.938Z",
+      "deliveredAt": "2026-08-05T07:07:24.938Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+        "clientTurnId": "tbct-s05-short-3"
+      }
+    },
+    {
+      "id": "RMSG-0fbd05e6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "I'm not asking about guilt or blame — I want to understand what connection, even indirect or involuntary, each person or factor had with what happened. Does that feel workable?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n02-language-substitution",
+      "promptItemId": "tbct-s05-n02-p01-participation-language",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:24.981Z",
+      "deliveredAt": "2026-08-05T07:07:24.981Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "f7339538614ae2c6586e0d1301355ff1ca77c7a59e63feb2afcded9e68ec01f6",
+        "sourcePromptItemId": "tbct-s05-n02-p01-participation-language",
+        "clientTurnId": "tbct-s05-short-3",
+        "patientMessageId": "RMSG-d1c6efcd",
+        "assistantMessageId": "RMSG-0fbd05e6",
+        "executionTraceId": "RTX-0e69a6da",
+        "sessionVersionBefore": 3,
+        "sessionVersionAfter": 4,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-be2a9e43",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "Please describe your contributors for this step.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.004Z",
+      "deliveredAt": "2026-08-05T07:07:25.004Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "8dec1a0bab3b9a2226fa9bfbf2e3d61c4c127dadc8a3a75a8f783fbe54569b33",
+        "sourcePromptItemId": "tbct-s05-n03-p01-list-contributors",
+        "assistantMessageId": "RMSG-be2a9e43",
+        "executionTraceId": "RTX-1687772d",
+        "sessionVersionBefore": 3,
+        "sessionVersionAfter": 4,
+        "turnOutcome": "assistant_only"
+      }
+    },
+    {
+      "id": "RMSG-a0103622",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "One clear example from this week.",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "createdAt": "2026-08-05T07:07:25.031Z",
+      "deliveredAt": "2026-08-05T07:07:25.031Z",
+      "metadata": {
+        "inputKind": "text",
+        "promptItemId": "tbct-s05-n03-p01-list-contributors",
+        "clientTurnId": "tbct-s05-short-4"
+      }
+    },
+    {
+      "id": "RMSG-518c644d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "We will come to yourself last.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p02-participant-last",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.080Z",
+      "deliveredAt": "2026-08-05T07:07:25.080Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "d9557e6ea8833c051f4b7629f974cc7f862bc564092ad29407dde4ab3d1cbacf",
+        "sourcePromptItemId": "tbct-s05-n03-p02-participant-last",
+        "clientTurnId": "tbct-s05-short-4",
+        "patientMessageId": "RMSG-a0103622",
+        "assistantMessageId": "RMSG-518c644d",
+        "executionTraceId": "RTX-eb7f114e",
+        "sessionVersionBefore": 4,
+        "sessionVersionAfter": 5,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-23e63ce2",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "From 0 to 100%, what is your participation ratings round1?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.107Z",
+      "deliveredAt": "2026-08-05T07:07:25.107Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "aa0f165dbe9ab3efe6cb2523041a3efb94b14db59c71beaa8811d8aa99e0e5ee",
+        "sourcePromptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+        "assistantMessageId": "RMSG-23e63ce2",
+        "executionTraceId": "RTX-365198a0",
+        "sessionVersionBefore": 4,
+        "sessionVersionAfter": 5,
+        "turnOutcome": "assistant_only"
+      }
+    },
+    {
+      "id": "RMSG-7e94f413",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "createdAt": "2026-08-05T07:07:25.135Z",
+      "deliveredAt": "2026-08-05T07:07:25.135Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+        "clientTurnId": "tbct-s05-short-5"
+      }
+    },
+    {
+      "id": "RMSG-4abcc983",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "Ask the patient to assign a participation percentage to each contributor listed, leaving themselves for last. Whatever remains after summing all others is assigned to the patient. Record all percentages in the first evaluation column.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.173Z",
+      "deliveredAt": "2026-08-05T07:07:25.173Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "82df54d6716791939c699848d7cefe3ac17387a9ed73ccc0c48f9e4e620b8fed",
+        "sourcePromptItemId": "tbct-s05-n04-p02-participant-remainder",
+        "clientTurnId": "tbct-s05-short-5",
+        "patientMessageId": "RMSG-7e94f413",
+        "assistantMessageId": "RMSG-4abcc983",
+        "executionTraceId": "RTX-db133f49",
+        "sessionVersionBefore": 5,
+        "sessionVersionAfter": 6,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-20a27714",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "One clear example from this week.",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "createdAt": "2026-08-05T07:07:25.200Z",
+      "deliveredAt": "2026-08-05T07:07:25.200Z",
+      "metadata": {
+        "inputKind": "text",
+        "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+        "clientTurnId": "tbct-s05-short-6"
+      }
+    },
+    {
+      "id": "RMSG-d62f431a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "Before we move to the next evaluation, could you help me understand a little more about each of these elements and each person's participation?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.245Z",
+      "deliveredAt": "2026-08-05T07:07:25.245Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "29afbe26dc404731938cbe27b91c0e895a5160d8aac0b03ea7db25613e956971",
+        "sourcePromptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+        "clientTurnId": "tbct-s05-short-6",
+        "patientMessageId": "RMSG-20a27714",
+        "assistantMessageId": "RMSG-d62f431a",
+        "executionTraceId": "RTX-528c6011",
+        "sessionVersionBefore": 6,
+        "sessionVersionAfter": 7,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-c0c48a2e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "One clear example from this week.",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "createdAt": "2026-08-05T07:07:25.276Z",
+      "deliveredAt": "2026-08-05T07:07:25.276Z",
+      "metadata": {
+        "inputKind": "text",
+        "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+        "clientTurnId": "tbct-s05-short-7"
+      }
+    },
+    {
+      "id": "RMSG-67fc02a1",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "For the next round, is there another person, circumstance, or factor that contributed to what happened?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p02-new-contributor-next-round",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.325Z",
+      "deliveredAt": "2026-08-05T07:07:25.325Z",
+      "metadata": {
+        "fallbackUsed": false,
+        "llmCalled": false,
+        "messageSource": "approved_static",
+        "contractHash": "944608efc167b02fae6045a756cae7e7f1a7d00d5c281582ba250a7b503f10a7",
+        "sourcePromptItemId": "tbct-s05-n05-p02-new-contributor-next-round",
+        "sourceTextHash": "ce4a6cdd4a2a83870782dd979b5e78c8125c71ee6e91a016b9da7f26e0e215a3",
+        "clientTurnId": "tbct-s05-short-7",
+        "patientMessageId": "RMSG-c0c48a2e",
+        "assistantMessageId": "RMSG-67fc02a1",
+        "executionTraceId": "RTX-7b2c5619",
+        "sessionVersionBefore": 7,
+        "sessionVersionAfter": 8,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-41340bc9",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "After each round, reflect the patient's own percentage back to them without interpretation, and check in: \"How does that feel?\" Let the patient draw their own conclusions before continuing.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.349Z",
+      "deliveredAt": "2026-08-05T07:07:25.349Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "fe7f5150564035ba6d32c8e933f1483e3ca8e63a4c7ad6d5d286ebc1b9ca735a",
+        "sourcePromptItemId": "tbct-s05-n06-p01-updated-percentage",
+        "assistantMessageId": "RMSG-41340bc9",
+        "executionTraceId": "RTX-6d35ce07",
+        "sessionVersionBefore": 7,
+        "sessionVersionAfter": 8,
+        "turnOutcome": "assistant_only"
+      }
+    },
+    {
+      "id": "RMSG-3a9805c0",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "createdAt": "2026-08-05T07:07:25.390Z",
+      "deliveredAt": "2026-08-05T07:07:25.390Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+        "clientTurnId": "tbct-s05-short-8"
+      }
+    },
+    {
+      "id": "RMSG-0b2228b8",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "How does that feel?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.435Z",
+      "deliveredAt": "2026-08-05T07:07:25.435Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "4824d4a519d4f83b5352d3b8a22b08585afdbbd3aa426b5973a3d35b8ff377ff",
+        "sourcePromptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+        "clientTurnId": "tbct-s05-short-8",
+        "patientMessageId": "RMSG-3a9805c0",
+        "assistantMessageId": "RMSG-0b2228b8",
+        "executionTraceId": "RTX-8168d21e",
+        "sessionVersionBefore": 8,
+        "sessionVersionAfter": 9,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-da4cb46b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "createdAt": "2026-08-05T07:07:25.481Z",
+      "deliveredAt": "2026-08-05T07:07:25.481Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+        "clientTurnId": "tbct-s05-short-9"
+      }
+    },
+    {
+      "id": "RMSG-d9bc6144",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "How much do you now believe you were guilty of [event]?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.555Z",
+      "deliveredAt": "2026-08-05T07:07:25.555Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "035323603e226aee6cd7c84b7481c7fca06075c2b66b54b877fffc4bbe1c80ca",
+        "sourcePromptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+        "clientTurnId": "tbct-s05-short-9",
+        "patientMessageId": "RMSG-da4cb46b",
+        "assistantMessageId": "RMSG-d9bc6144",
+        "executionTraceId": "RTX-88f8eb77",
+        "sessionVersionBefore": 9,
+        "sessionVersionAfter": 10,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-66eba46f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "createdAt": "2026-08-05T07:07:25.604Z",
+      "deliveredAt": "2026-08-05T07:07:25.604Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+        "clientTurnId": "tbct-s05-short-10"
+      }
+    },
+    {
+      "id": "RMSG-b23ea0e7",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "What's the size of this emotion — shame — for you now?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.667Z",
+      "deliveredAt": "2026-08-05T07:07:25.667Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "ed743c69aac6075252c341afd75bc12b4ef0c04aa574fc638ce712a6bc1d0d72",
+        "sourcePromptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+        "clientTurnId": "tbct-s05-short-10",
+        "patientMessageId": "RMSG-66eba46f",
+        "assistantMessageId": "RMSG-b23ea0e7",
+        "executionTraceId": "RTX-18168f2a",
+        "sessionVersionBefore": 10,
+        "sessionVersionAfter": 11,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-8ae7ecdf",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "55",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "createdAt": "2026-08-05T07:07:25.720Z",
+      "deliveredAt": "2026-08-05T07:07:25.720Z",
+      "metadata": {
+        "inputKind": "rating",
+        "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+        "clientTurnId": "tbct-s05-short-11"
+      }
+    },
+    {
+      "id": "RMSG-8b4b3ca9",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "As you think about what matters most to you — what you care about, what gives your life meaning — what values come up for you now?",
+      "status": "validated",
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.765Z",
+      "deliveredAt": "2026-08-05T07:07:25.765Z",
+      "metadata": {
+        "llmCalled": false,
+        "messageSource": "deterministic_neutral",
+        "contractHash": "5cc2987bd7c242a3be003b73fe312c9663aeff7bfbed5d0a11995e9db4f8edb9",
+        "sourcePromptItemId": "tbct-s05-n08-p01-values",
+        "clientTurnId": "tbct-s05-short-11",
+        "patientMessageId": "RMSG-8ae7ecdf",
+        "assistantMessageId": "RMSG-8b4b3ca9",
+        "executionTraceId": "RTX-45df6255",
+        "sessionVersionBefore": 11,
+        "sessionVersionAfter": 12,
+        "turnOutcome": "patient_assistant"
+      }
+    },
+    {
+      "id": "RMSG-07b96622",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "patient",
+      "content": "One clear example from this week.",
+      "status": "delivered",
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "createdAt": "2026-08-05T07:07:25.802Z",
+      "deliveredAt": "2026-08-05T07:07:25.802Z",
+      "metadata": {
+        "inputKind": "text",
+        "promptItemId": "tbct-s05-n08-p01-values",
+        "clientTurnId": "tbct-s05-short-12"
+      }
+    },
+    {
+      "id": "RMSG-e3a2f143",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "role": "assistant",
+      "content": "Let’s review the responsibility grid you created, including each contributor and the share you assigned.",
+      "status": "validated",
+      "nodeId": "tbct-s05-n10-summary-table",
+      "promptItemId": "tbct-s05-n10-p01-participant-summary-table",
+      "sourceEvidenceIds": [],
+      "createdAt": "2026-08-05T07:07:25.860Z",
+      "deliveredAt": "2026-08-05T07:07:25.860Z",
+      "metadata": {
+        "fallbackUsed": false,
+        "llmCalled": false,
+        "messageSource": "approved_static",
+        "contractHash": "0efe204b03251f1c0318872559402c07f9581384af8912553d1c6a5fc6ffd0d4",
+        "sourcePromptItemId": "tbct-s05-n10-p01-participant-summary-table",
+        "sourceTextHash": "ce4a6cdd4a2a83870782dd979b5e78c8125c71ee6e91a016b9da7f26e0e215a3",
+        "clientTurnId": "tbct-s05-short-12",
+        "patientMessageId": "RMSG-07b96622",
+        "assistantMessageId": "RMSG-e3a2f143",
+        "executionTraceId": "RTX-dff688a6",
+        "sessionVersionBefore": 12,
+        "sessionVersionAfter": 13,
+        "turnOutcome": "patient_assistant"
+      }
+    }
+  ],
+  "traces": [
+    {
+      "id": "RTX-0e69a6da",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n02-language-substitution",
+      "promptItemId": "tbct-s05-n02-p01-participation-language",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 153,
+      "roleId": "psychoeducation_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "f7339538614ae2c6586e0d1301355ff1ca77c7a59e63feb2afcded9e68ec01f6",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "I'm not asking about guilt or blame — I want to understand what connection, even indirect or involuntary, each person or factor had with what happened. Does that feel workable?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "next_node",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "next_node",
+      "committedTransition": "next_node",
+      "committedNextNodeId": "tbct-s05-n03-populate-grid",
+      "committedNextPromptItemId": "tbct-s05-n03-p01-list-contributors",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-3",
+        "patientMessageId": "RMSG-d1c6efcd",
+        "assistantMessageId": "RMSG-0fbd05e6",
+        "executionTraceId": "RTX-0e69a6da",
+        "sessionVersionBefore": 3,
+        "sessionVersionAfter": 4
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n03-populate-grid",
+        "activePromptItemId": "tbct-s05-n03-p01-list-contributors",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:24.981Z"
+    },
+    {
+      "id": "RTX-1687772d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 154,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "8dec1a0bab3b9a2226fa9bfbf2e3d61c4c127dadc8a3a75a8f783fbe54569b33",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "Please describe your contributors for this step.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n03-populate-grid",
+      "committedNextPromptItemId": "tbct-s05-n03-p01-list-contributors",
+      "turnAssociation": {
+        "kind": "assistant_only",
+        "assistantMessageId": "RMSG-be2a9e43",
+        "executionTraceId": "RTX-1687772d",
+        "sessionVersionBefore": 3,
+        "sessionVersionAfter": 4
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n03-populate-grid",
+        "activePromptItemId": "tbct-s05-n03-p01-list-contributors",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.004Z"
+    },
+    {
+      "id": "RTX-18168f2a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 164,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "ed743c69aac6075252c341afd75bc12b4ef0c04aa574fc638ce712a6bc1d0d72",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "What's the size of this emotion — shame — for you now?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "committedNextPromptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-10",
+        "patientMessageId": "RMSG-66eba46f",
+        "assistantMessageId": "RMSG-b23ea0e7",
+        "executionTraceId": "RTX-18168f2a",
+        "sessionVersionBefore": 10,
+        "sessionVersionAfter": 11
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed",
+        "tbct-s05-n06-p02-reflect-without-interpretation": "executed",
+        "tbct-s05-n07-p01-guilt-belief-final": "executed",
+        "tbct-s05-n07-p02-shame-intensity-final": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n07-guilt-shame-rerating",
+        "activePromptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round",
+          "tbct-s05-n06-p01-updated-percentage",
+          "tbct-s05-n06-p02-reflect-without-interpretation",
+          "tbct-s05-n07-p01-guilt-belief-final"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.667Z"
+    },
+    {
+      "id": "RTX-1dd5ae3f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 151,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "9b5d7f2ec9dd54d0cd0a8846dcd33f8a607450364d034c0f6f91f673608fe38f",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "On a scale of 0 to 100%, how much do you believe you were guilty of [event]?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "committedNextPromptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "turnAssociation": {
+        "kind": "assistant_only",
+        "assistantMessageId": "RMSG-6d4dfd83",
+        "executionTraceId": "RTX-1dd5ae3f",
+        "sessionVersionBefore": 0,
+        "sessionVersionAfter": 1
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n01-baseline-guilt-shame",
+        "activePromptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+        "completedPromptItemIds": []
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:24.792Z"
+    },
+    {
+      "id": "RTX-365198a0",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 156,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "aa0f165dbe9ab3efe6cb2523041a3efb94b14db59c71beaa8811d8aa99e0e5ee",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "From 0 to 100%, what is your participation ratings round1?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n04-first-participation-ratings",
+      "committedNextPromptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "turnAssociation": {
+        "kind": "assistant_only",
+        "assistantMessageId": "RMSG-23e63ce2",
+        "executionTraceId": "RTX-365198a0",
+        "sessionVersionBefore": 4,
+        "sessionVersionAfter": 5
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n04-first-participation-ratings",
+        "activePromptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.107Z"
+    },
+    {
+      "id": "RTX-45df6255",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 165,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "5cc2987bd7c242a3be003b73fe312c9663aeff7bfbed5d0a11995e9db4f8edb9",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "As you think about what matters most to you — what you care about, what gives your life meaning — what values come up for you now?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n08-values",
+      "committedNextPromptItemId": "tbct-s05-n08-p01-values",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-11",
+        "patientMessageId": "RMSG-8ae7ecdf",
+        "assistantMessageId": "RMSG-8b4b3ca9",
+        "executionTraceId": "RTX-45df6255",
+        "sessionVersionBefore": 11,
+        "sessionVersionAfter": 12
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed",
+        "tbct-s05-n06-p02-reflect-without-interpretation": "executed",
+        "tbct-s05-n07-p01-guilt-belief-final": "executed",
+        "tbct-s05-n07-p02-shame-intensity-final": "executed",
+        "tbct-s05-n08-p01-values": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n08-values",
+        "activePromptItemId": "tbct-s05-n08-p01-values",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round",
+          "tbct-s05-n06-p01-updated-percentage",
+          "tbct-s05-n06-p02-reflect-without-interpretation",
+          "tbct-s05-n07-p01-guilt-belief-final",
+          "tbct-s05-n07-p02-shame-intensity-final"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.765Z"
+    },
+    {
+      "id": "RTX-4a97d717",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 152,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "1a48b5761dd30f183b6ba1755fa2fa7cb7bba28b84494a78db0d8a03964209ba",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "What's the size of this emotion — shame — for you right now when you think about this?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "committedNextPromptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-2",
+        "patientMessageId": "RMSG-94e3e57b",
+        "assistantMessageId": "RMSG-4e711fa6",
+        "executionTraceId": "RTX-4a97d717",
+        "sessionVersionBefore": 2,
+        "sessionVersionAfter": 3
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n01-baseline-guilt-shame",
+        "activePromptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:24.909Z"
+    },
+    {
+      "id": "RTX-528c6011",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 159,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "29afbe26dc404731938cbe27b91c0e895a5160d8aac0b03ea7db25613e956971",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "Before we move to the next evaluation, could you help me understand a little more about each of these elements and each person's participation?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n05-socratic-deepening",
+      "committedNextPromptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-6",
+        "patientMessageId": "RMSG-20a27714",
+        "assistantMessageId": "RMSG-d62f431a",
+        "executionTraceId": "RTX-528c6011",
+        "sessionVersionBefore": 6,
+        "sessionVersionAfter": 7
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n05-socratic-deepening",
+        "activePromptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.245Z"
+    },
+    {
+      "id": "RTX-6d35ce07",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 161,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "fe7f5150564035ba6d32c8e933f1483e3ca8e63a4c7ad6d5d286ebc1b9ca735a",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "After each round, reflect the patient's own percentage back to them without interpretation, and check in: \"How does that feel?\" Let the patient draw their own conclusions before continuing.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n06-rerating-rounds",
+      "committedNextPromptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "turnAssociation": {
+        "kind": "assistant_only",
+        "assistantMessageId": "RMSG-41340bc9",
+        "executionTraceId": "RTX-6d35ce07",
+        "sessionVersionBefore": 7,
+        "sessionVersionAfter": 8
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n06-rerating-rounds",
+        "activePromptItemId": "tbct-s05-n06-p01-updated-percentage",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.349Z"
+    },
+    {
+      "id": "RTX-7b2c5619",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p02-new-contributor-next-round",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 160,
+      "roleId": "psychoeducation_guide",
+      "provider": "deterministic",
+      "model": "approved-static",
+      "contractHash": "944608efc167b02fae6045a756cae7e7f1a7d00d5c281582ba250a7b503f10a7",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "For the next round, is there another person, circumstance, or factor that contributed to what happened?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "next_node",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "next_node",
+      "committedTransition": "next_node",
+      "committedNextNodeId": "tbct-s05-n06-rerating-rounds",
+      "committedNextPromptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-7",
+        "patientMessageId": "RMSG-c0c48a2e",
+        "assistantMessageId": "RMSG-67fc02a1",
+        "executionTraceId": "RTX-7b2c5619",
+        "sessionVersionBefore": 7,
+        "sessionVersionAfter": 8
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n06-rerating-rounds",
+        "activePromptItemId": "tbct-s05-n06-p01-updated-percentage",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.325Z"
+    },
+    {
+      "id": "RTX-8168d21e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 162,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "4824d4a519d4f83b5352d3b8a22b08585afdbbd3aa426b5973a3d35b8ff377ff",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "How does that feel?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n06-rerating-rounds",
+      "committedNextPromptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-8",
+        "patientMessageId": "RMSG-3a9805c0",
+        "assistantMessageId": "RMSG-0b2228b8",
+        "executionTraceId": "RTX-8168d21e",
+        "sessionVersionBefore": 8,
+        "sessionVersionAfter": 9
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed",
+        "tbct-s05-n06-p02-reflect-without-interpretation": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n06-rerating-rounds",
+        "activePromptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round",
+          "tbct-s05-n06-p01-updated-percentage"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.435Z"
+    },
+    {
+      "id": "RTX-88f8eb77",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 163,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "035323603e226aee6cd7c84b7481c7fca06075c2b66b54b877fffc4bbe1c80ca",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "How much do you now believe you were guilty of [event]?",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "committedNextPromptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-9",
+        "patientMessageId": "RMSG-da4cb46b",
+        "assistantMessageId": "RMSG-d9bc6144",
+        "executionTraceId": "RTX-88f8eb77",
+        "sessionVersionBefore": 9,
+        "sessionVersionAfter": 10
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed",
+        "tbct-s05-n06-p02-reflect-without-interpretation": "executed",
+        "tbct-s05-n07-p01-guilt-belief-final": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n07-guilt-shame-rerating",
+        "activePromptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round",
+          "tbct-s05-n06-p01-updated-percentage",
+          "tbct-s05-n06-p02-reflect-without-interpretation"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.555Z"
+    },
+    {
+      "id": "RTX-c30a272b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "runtime-clarification",
+      "contractHash": "clarification:RTS-c7fff0ef:tbct-s05-n01-p01-guilt-belief-baseline",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "Please enter one number from 0 to 100.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "clarification",
+      "committedTransition": "clarification",
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n01-baseline-guilt-shame",
+        "activePromptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+        "clarificationReason": "insufficient_input"
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:24.831Z"
+    },
+    {
+      "id": "RTX-db133f49",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 157,
+      "roleId": "tbct_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "82df54d6716791939c699848d7cefe3ac17387a9ed73ccc0c48f9e4e620b8fed",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "Ask the patient to assign a participation percentage to each contributor listed, leaving themselves for last. Whatever remains after summing all others is assigned to the patient. Record all percentages in the first evaluation column.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "waiting_for_input",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "waiting_for_input",
+      "committedTransition": "waiting_for_input",
+      "committedNextNodeId": "tbct-s05-n04-first-participation-ratings",
+      "committedNextPromptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-5",
+        "patientMessageId": "RMSG-7e94f413",
+        "assistantMessageId": "RMSG-4abcc983",
+        "executionTraceId": "RTX-db133f49",
+        "sessionVersionBefore": 5,
+        "sessionVersionAfter": 6
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n04-first-participation-ratings",
+        "activePromptItemId": "tbct-s05-n04-p02-participant-remainder",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.173Z"
+    },
+    {
+      "id": "RTX-dff688a6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n10-summary-table",
+      "promptItemId": "tbct-s05-n10-p01-participant-summary-table",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 168,
+      "roleId": "psychoeducation_guide",
+      "provider": "deterministic",
+      "model": "approved-static",
+      "contractHash": "0efe204b03251f1c0318872559402c07f9581384af8912553d1c6a5fc6ffd0d4",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "Let’s review the responsibility grid you created, including each contributor and the share you assigned.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "complete_session",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "complete_session",
+      "committedTransition": "complete_session",
+      "committedNextNodeId": "tbct-s05-n10-summary-table",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-12",
+        "patientMessageId": "RMSG-07b96622",
+        "assistantMessageId": "RMSG-e3a2f143",
+        "executionTraceId": "RTX-dff688a6",
+        "sessionVersionBefore": 12,
+        "sessionVersionAfter": 13
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed",
+        "tbct-s05-n04-p01-rate-other-contributors": "executed",
+        "tbct-s05-n04-p02-participant-remainder": "executed",
+        "tbct-s05-n05-p01-deepen-each-contributor": "executed",
+        "tbct-s05-n05-p02-new-contributor-next-round": "executed",
+        "tbct-s05-n06-p01-updated-percentage": "executed",
+        "tbct-s05-n06-p02-reflect-without-interpretation": "executed",
+        "tbct-s05-n07-p01-guilt-belief-final": "executed",
+        "tbct-s05-n07-p02-shame-intensity-final": "executed",
+        "tbct-s05-n08-p01-values": "executed",
+        "tbct-s05-n10-p01-participant-summary-table": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n10-summary-table",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last",
+          "tbct-s05-n04-p01-rate-other-contributors",
+          "tbct-s05-n04-p02-participant-remainder",
+          "tbct-s05-n04-p03-guilt-distortion-check",
+          "tbct-s05-n05-p01-deepen-each-contributor",
+          "tbct-s05-n05-p02-new-contributor-next-round",
+          "tbct-s05-n06-p01-updated-percentage",
+          "tbct-s05-n06-p02-reflect-without-interpretation",
+          "tbct-s05-n07-p01-guilt-belief-final",
+          "tbct-s05-n07-p02-shame-intensity-final",
+          "tbct-s05-n08-p01-values",
+          "tbct-s05-n10-p01-participant-summary-table"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.860Z"
+    },
+    {
+      "id": "RTX-eb7f114e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "releaseId": "demo-release",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p02-participant-last",
+      "sessionId": "tbct-s05",
+      "sequenceIndex": 155,
+      "roleId": "psychoeducation_guide",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "contractHash": "d9557e6ea8833c051f4b7629f974cc7f862bc564092ad29407dde4ab3d1cbacf",
+      "validation": {
+        "accepted": true,
+        "corrected": false,
+        "rejected": false,
+        "issues": [],
+        "finalText": "We will come to yourself last.",
+        "fallbackRequired": false
+      },
+      "fallbackUsed": false,
+      "transitionDecision": "next_node",
+      "modelRecommendedTransition": "stay",
+      "deterministicTransitionEvaluation": "next_node",
+      "committedTransition": "next_node",
+      "committedNextNodeId": "tbct-s05-n04-first-participation-ratings",
+      "committedNextPromptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "turnAssociation": {
+        "kind": "patient_assistant",
+        "clientTurnId": "tbct-s05-short-4",
+        "patientMessageId": "RMSG-a0103622",
+        "assistantMessageId": "RMSG-518c644d",
+        "executionTraceId": "RTX-eb7f114e",
+        "sessionVersionBefore": 4,
+        "sessionVersionAfter": 5
+      },
+      "promptExecutionStatuses": {
+        "tbct-s05-n01-p01-guilt-belief-baseline": "executed",
+        "tbct-s05-n01-p02-shame-intensity-baseline": "executed",
+        "tbct-s05-n02-p01-participation-language": "executed",
+        "tbct-s05-n03-p01-list-contributors": "executed",
+        "tbct-s05-n03-p02-participant-last": "executed"
+      },
+      "stateChanges": {
+        "activeNodeId": "tbct-s05-n04-first-participation-ratings",
+        "activePromptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+        "completedPromptItemIds": [
+          "tbct-s05-n01-p01-guilt-belief-baseline",
+          "tbct-s05-n01-p02-shame-intensity-baseline",
+          "tbct-s05-n02-p01-participation-language",
+          "tbct-s05-n03-p01-list-contributors",
+          "tbct-s05-n03-p02-participant-last"
+        ]
+      },
+      "fidelity": {
+        "activePromptFidelity": "pass",
+        "sequenceFidelity": "pass",
+        "roleFidelity": "pass",
+        "responseContingency": "pass",
+        "languageFidelity": "pass",
+        "safetyFidelity": "pass",
+        "transitionFidelity": "pass",
+        "exposureSafety": "pass",
+        "responsiveness": "pass",
+        "reasons": []
+      },
+      "timestamp": "2026-08-05T07:07:25.080Z"
+    }
+  ],
+  "providerEvents": [
+    {
+      "id": "RPE-6ee253bb",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "inputSummary": "9b5d7f2ec9dd54d0cd0a8846dcd33f8a607450364d034c0f6f91f673608fe38f",
+      "outputText": "On a scale of 0 to 100%, how much do you believe you were guilty of [event]?",
+      "createdAt": "2026-08-05T07:07:24.792Z"
+    },
+    {
+      "id": "RPE-45dff21b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "runtime-clarification",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "inputSummary": "clarification:insufficient_input",
+      "outputText": "Please enter one number from 0 to 100.",
+      "createdAt": "2026-08-05T07:07:24.831Z"
+    },
+    {
+      "id": "RPE-2a4f11db",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "inputSummary": "1a48b5761dd30f183b6ba1755fa2fa7cb7bba28b84494a78db0d8a03964209ba",
+      "outputText": "What's the size of this emotion — shame — for you right now when you think about this?",
+      "createdAt": "2026-08-05T07:07:24.909Z"
+    },
+    {
+      "id": "RPE-17c3600d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n02-language-substitution",
+      "promptItemId": "tbct-s05-n02-p01-participation-language",
+      "inputSummary": "f7339538614ae2c6586e0d1301355ff1ca77c7a59e63feb2afcded9e68ec01f6",
+      "outputText": "I'm not asking about guilt or blame — I want to understand what connection, even indirect or involuntary, each person or factor had with what happened. Does that feel workable?",
+      "createdAt": "2026-08-05T07:07:24.981Z"
+    },
+    {
+      "id": "RPE-6768c875",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "inputSummary": "8dec1a0bab3b9a2226fa9bfbf2e3d61c4c127dadc8a3a75a8f783fbe54569b33",
+      "outputText": "Please describe your contributors for this step.",
+      "createdAt": "2026-08-05T07:07:25.004Z"
+    },
+    {
+      "id": "RPE-0aba360e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p02-participant-last",
+      "inputSummary": "d9557e6ea8833c051f4b7629f974cc7f862bc564092ad29407dde4ab3d1cbacf",
+      "outputText": "We will come to yourself last.",
+      "createdAt": "2026-08-05T07:07:25.080Z"
+    },
+    {
+      "id": "RPE-459f72cf",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "inputSummary": "aa0f165dbe9ab3efe6cb2523041a3efb94b14db59c71beaa8811d8aa99e0e5ee",
+      "outputText": "From 0 to 100%, what is your participation ratings round1?",
+      "createdAt": "2026-08-05T07:07:25.107Z"
+    },
+    {
+      "id": "RPE-29917b06",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "inputSummary": "82df54d6716791939c699848d7cefe3ac17387a9ed73ccc0c48f9e4e620b8fed",
+      "outputText": "Ask the patient to assign a participation percentage to each contributor listed, leaving themselves for last. Whatever remains after summing all others is assigned to the patient. Record all percentages in the first evaluation column.",
+      "createdAt": "2026-08-05T07:07:25.173Z"
+    },
+    {
+      "id": "RPE-a962e18f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "inputSummary": "29afbe26dc404731938cbe27b91c0e895a5160d8aac0b03ea7db25613e956971",
+      "outputText": "Before we move to the next evaluation, could you help me understand a little more about each of these elements and each person's participation?",
+      "createdAt": "2026-08-05T07:07:25.245Z"
+    },
+    {
+      "id": "RPE-af0b4c34",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "approved-static",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p02-new-contributor-next-round",
+      "latencyMs": 0,
+      "inputSummary": "944608efc167b02fae6045a756cae7e7f1a7d00d5c281582ba250a7b503f10a7",
+      "outputText": "For the next round, is there another person, circumstance, or factor that contributed to what happened?",
+      "createdAt": "2026-08-05T07:07:25.325Z"
+    },
+    {
+      "id": "RPE-74e6e29c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "inputSummary": "fe7f5150564035ba6d32c8e933f1483e3ca8e63a4c7ad6d5d286ebc1b9ca735a",
+      "outputText": "After each round, reflect the patient's own percentage back to them without interpretation, and check in: \"How does that feel?\" Let the patient draw their own conclusions before continuing.",
+      "createdAt": "2026-08-05T07:07:25.349Z"
+    },
+    {
+      "id": "RPE-b78f762f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "inputSummary": "4824d4a519d4f83b5352d3b8a22b08585afdbbd3aa426b5973a3d35b8ff377ff",
+      "outputText": "How does that feel?",
+      "createdAt": "2026-08-05T07:07:25.435Z"
+    },
+    {
+      "id": "RPE-da68bf55",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "inputSummary": "035323603e226aee6cd7c84b7481c7fca06075c2b66b54b877fffc4bbe1c80ca",
+      "outputText": "How much do you now believe you were guilty of [event]?",
+      "createdAt": "2026-08-05T07:07:25.555Z"
+    },
+    {
+      "id": "RPE-7a35e505",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "inputSummary": "ed743c69aac6075252c341afd75bc12b4ef0c04aa574fc638ce712a6bc1d0d72",
+      "outputText": "What's the size of this emotion — shame — for you now?",
+      "createdAt": "2026-08-05T07:07:25.667Z"
+    },
+    {
+      "id": "RPE-d0615f2a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "deterministic-neutral",
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "inputSummary": "5cc2987bd7c242a3be003b73fe312c9663aeff7bfbed5d0a11995e9db4f8edb9",
+      "outputText": "As you think about what matters most to you — what you care about, what gives your life meaning — what values come up for you now?",
+      "createdAt": "2026-08-05T07:07:25.765Z"
+    },
+    {
+      "id": "RPE-a475b664",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "provider": "deterministic",
+      "model": "approved-static",
+      "nodeId": "tbct-s05-n10-summary-table",
+      "promptItemId": "tbct-s05-n10-p01-participant-summary-table",
+      "latencyMs": 0,
+      "inputSummary": "0efe204b03251f1c0318872559402c07f9581384af8912553d1c6a5fc6ffd0d4",
+      "outputText": "Let’s review the responsibility grid you created, including each contributor and the share you assigned.",
+      "createdAt": "2026-08-05T07:07:25.860Z"
+    }
+  ],
+  "validations": [
+    {
+      "id": "RVE-234ddfe2",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "On a scale of 0 to 100%, how much do you believe you were guilty of [event]?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:24.792Z"
+    },
+    {
+      "id": "RVE-e700cebd",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p01-guilt-belief-baseline",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "Please enter one number from 0 to 100.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:24.831Z"
+    },
+    {
+      "id": "RVE-53cc4765",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "promptItemId": "tbct-s05-n01-p02-shame-intensity-baseline",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "What's the size of this emotion — shame — for you right now when you think about this?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:24.909Z"
+    },
+    {
+      "id": "RVE-3085de2e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n02-language-substitution",
+      "promptItemId": "tbct-s05-n02-p01-participation-language",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "I'm not asking about guilt or blame — I want to understand what connection, even indirect or involuntary, each person or factor had with what happened. Does that feel workable?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:24.981Z"
+    },
+    {
+      "id": "RVE-08a14dac",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p01-list-contributors",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "Please describe your contributors for this step.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.004Z"
+    },
+    {
+      "id": "RVE-cfe2ea7c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "promptItemId": "tbct-s05-n03-p02-participant-last",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "We will come to yourself last.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.080Z"
+    },
+    {
+      "id": "RVE-f30bc28e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p01-rate-other-contributors",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "From 0 to 100%, what is your participation ratings round1?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.107Z"
+    },
+    {
+      "id": "RVE-1da62a8d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "promptItemId": "tbct-s05-n04-p02-participant-remainder",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "Ask the patient to assign a participation percentage to each contributor listed, leaving themselves for last. Whatever remains after summing all others is assigned to the patient. Record all percentages in the first evaluation column.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.173Z"
+    },
+    {
+      "id": "RVE-d5fca879",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p01-deepen-each-contributor",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "Before we move to the next evaluation, could you help me understand a little more about each of these elements and each person's participation?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.245Z"
+    },
+    {
+      "id": "RVE-83c51eb9",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "promptItemId": "tbct-s05-n05-p02-new-contributor-next-round",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "For the next round, is there another person, circumstance, or factor that contributed to what happened?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.325Z"
+    },
+    {
+      "id": "RVE-c894c2f5",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p01-updated-percentage",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "After each round, reflect the patient's own percentage back to them without interpretation, and check in: \"How does that feel?\" Let the patient draw their own conclusions before continuing.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.349Z"
+    },
+    {
+      "id": "RVE-c787e45c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "promptItemId": "tbct-s05-n06-p02-reflect-without-interpretation",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "How does that feel?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.435Z"
+    },
+    {
+      "id": "RVE-caf6a6ce",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p01-guilt-belief-final",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "How much do you now believe you were guilty of [event]?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.555Z"
+    },
+    {
+      "id": "RVE-d04095c6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "promptItemId": "tbct-s05-n07-p02-shame-intensity-final",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "What's the size of this emotion — shame — for you now?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.667Z"
+    },
+    {
+      "id": "RVE-d5ab5ea4",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n08-values",
+      "promptItemId": "tbct-s05-n08-p01-values",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "As you think about what matters most to you — what you care about, what gives your life meaning — what values come up for you now?",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.765Z"
+    },
+    {
+      "id": "RVE-0d7d2e2d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "nodeId": "tbct-s05-n10-summary-table",
+      "promptItemId": "tbct-s05-n10-p01-participant-summary-table",
+      "accepted": true,
+      "corrected": false,
+      "rejected": false,
+      "issues": [],
+      "finalText": "Let’s review the responsibility grid you created, including each contributor and the share you assigned.",
+      "fallbackRequired": false,
+      "createdAt": "2026-08-05T07:07:25.860Z"
+    }
+  ],
+  "logs": [
+    {
+      "id": "RLOG-6d26fca3",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.764Z",
+      "stage": "session",
+      "status": "completed",
+      "summary": "Session started",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame"
+    },
+    {
+      "id": "RLOG-ded0b6c6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.781Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 1 - Baseline Guilt and Shame",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame"
+    },
+    {
+      "id": "RLOG-a0deacdb",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.823Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "input": {
+        "kind": "text"
+      }
+    },
+    {
+      "id": "RLOG-e1abd24f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.825Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "fields": {},
+        "responseCategory": "text",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 1,
+        "missingFields": [
+          "guiltBeliefBaseline"
+        ]
+      }
+    },
+    {
+      "id": "RLOG-3ac4dd49",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.827Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01",
+          "TBCT-S05-CRISIS-PAUSE"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-45c3a178",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.834Z",
+      "stage": "error",
+      "status": "skipped",
+      "summary": "Input validation failed",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "missingFields": [
+          "guiltBeliefBaseline"
+        ]
+      }
+    },
+    {
+      "id": "RLOG-1081e4e3",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.870Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-49cdde17",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.872Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-72eca87b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.875Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01",
+          "TBCT-S05-CRISIS-PAUSE"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-428607e0",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.899Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 1 - Baseline Guilt and Shame",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame"
+    },
+    {
+      "id": "RLOG-8d3fa6aa",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.950Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-802be028",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.953Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-cc3f5b1a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.955Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n01-baseline-guilt-shame",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01",
+          "TBCT-S05-CRISIS-PAUSE"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-10525ec3",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.970Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 2 - Language Substitution",
+      "nodeId": "tbct-s05-n02-language-substitution"
+    },
+    {
+      "id": "RLOG-a4616e2d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:24.996Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 3 - Populate the Grid",
+      "nodeId": "tbct-s05-n03-populate-grid"
+    },
+    {
+      "id": "RLOG-ffaea49f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.043Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "input": {
+        "kind": "text"
+      }
+    },
+    {
+      "id": "RLOG-89d8a400",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.045Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week."
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-6b4961c3",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.047Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n03-populate-grid",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-a80c99ec",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.068Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 3 - Populate the Grid",
+      "nodeId": "tbct-s05-n03-populate-grid"
+    },
+    {
+      "id": "RLOG-d5f4104c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.098Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 4 - First Round of Participation Ratings",
+      "nodeId": "tbct-s05-n04-first-participation-ratings"
+    },
+    {
+      "id": "RLOG-029e20fc",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.146Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-4e1b2172",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.149Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55"
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-80fcaa1f",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.151Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-34639c84",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.166Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 4 - First Round of Participation Ratings",
+      "nodeId": "tbct-s05-n04-first-participation-ratings"
+    },
+    {
+      "id": "RLOG-6e50d8b7",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.213Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "input": {
+        "kind": "text"
+      }
+    },
+    {
+      "id": "RLOG-f34c29a6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.215Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week."
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-6b1e5ec9",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.218Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n04-first-participation-ratings",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-ba224f2e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.235Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 5 - Socratic Deepening",
+      "nodeId": "tbct-s05-n05-socratic-deepening"
+    },
+    {
+      "id": "RLOG-c428079a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.291Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "input": {
+        "kind": "text"
+      }
+    },
+    {
+      "id": "RLOG-440d5010",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.293Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week."
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-26423fbc",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.296Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n05-socratic-deepening",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-6da4ae58",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.318Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 5 - Socratic Deepening",
+      "nodeId": "tbct-s05-n05-socratic-deepening"
+    },
+    {
+      "id": "RLOG-078f7ea6",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.341Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 6 - Second Through Fifth Evaluations",
+      "nodeId": "tbct-s05-n06-rerating-rounds"
+    },
+    {
+      "id": "RLOG-e1f7f45d",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.402Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-7f4a8fab",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.404Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week.",
+          "participationRatingRounds": "55"
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-43f59ed5",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.406Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-c4773cf3",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.424Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 6 - Second Through Fifth Evaluations",
+      "nodeId": "tbct-s05-n06-rerating-rounds"
+    },
+    {
+      "id": "RLOG-cfa45552",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.503Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-0412342b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.507Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week.",
+          "participationRatingRounds": "55",
+          "participationRatingStable": "55"
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-74080347",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.512Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n06-rerating-rounds",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-8b7b7220",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.542Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 7 - Guilt and Shame Re-rating",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating"
+    },
+    {
+      "id": "RLOG-69055910",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.624Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-d9bceaad",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.627Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week.",
+          "participationRatingRounds": "55",
+          "participationRatingStable": "55",
+          "guiltBeliefFinal": 55
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-acd2719c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.630Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-b0e4b31c",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.655Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 7 - Guilt and Shame Re-rating",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating"
+    },
+    {
+      "id": "RLOG-704714ee",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.734Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "input": {
+        "kind": "rating"
+      }
+    },
+    {
+      "id": "RLOG-0870f03b",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.737Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week.",
+          "participationRatingRounds": "55",
+          "participationRatingStable": "55",
+          "guiltBeliefFinal": 55,
+          "shameIntensityFinal": 55
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-4963a5d8",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.739Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n07-guilt-shame-rerating",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-1a247573",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.758Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 8 - Values",
+      "nodeId": "tbct-s05-n08-values"
+    },
+    {
+      "id": "RLOG-ba8f8380",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.819Z",
+      "stage": "input",
+      "status": "completed",
+      "summary": "Patient input received",
+      "nodeId": "tbct-s05-n08-values",
+      "input": {
+        "kind": "text"
+      }
+    },
+    {
+      "id": "RLOG-d1758be1",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.820Z",
+      "stage": "state_extraction",
+      "status": "completed",
+      "summary": "State extracted",
+      "nodeId": "tbct-s05-n08-values",
+      "output": {
+        "fields": {
+          "guiltBeliefBaseline": 55,
+          "shameIntensityBaseline": 55,
+          "shameBaselineRecorded": true,
+          "contributors": "One clear example from this week.",
+          "participationRatingsRound1": "55",
+          "participantParticipationRound1": "One clear example from this week.",
+          "contributorExploration": "One clear example from this week.",
+          "participationRatingRounds": "55",
+          "participationRatingStable": "55",
+          "guiltBeliefFinal": 55,
+          "shameIntensityFinal": 55,
+          "valuesArticulated": "One clear example from this week."
+        },
+        "responseCategory": "text",
+        "activityCompletion": "not_started",
+        "homeworkStatus": "not_assigned",
+        "riskLevel": "low",
+        "riskSignals": [],
+        "confidence": 0.92,
+        "missingFields": []
+      }
+    },
+    {
+      "id": "RLOG-3f63268a",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.824Z",
+      "stage": "safety_check",
+      "status": "completed",
+      "summary": "Safety check passed",
+      "nodeId": "tbct-s05-n08-values",
+      "output": {
+        "triggered": false,
+        "ruleIds": [
+          "GLOBAL-RISK-01"
+        ],
+        "action": "continue",
+        "escalationRequired": false
+      }
+    },
+    {
+      "id": "RLOG-b637329e",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.849Z",
+      "stage": "node_resolution",
+      "status": "completed",
+      "summary": "Current node resolved: Step 10 - Summary Table",
+      "nodeId": "tbct-s05-n10-summary-table"
+    },
+    {
+      "id": "RLOG-f393ccf9",
+      "runtimeSessionId": "RTS-c7fff0ef",
+      "timestamp": "2026-08-05T07:07:25.866Z",
+      "stage": "completion",
+      "status": "completed",
+      "summary": "Session completed"
+    }
+  ],
+  "result": "pass"
+}

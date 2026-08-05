@@ -124,6 +124,14 @@ export type PromptItem = {
   aiInstruction: string;
   modelGuidance?: string;
   fallbackPatientText?: string;
+  /**
+   * Short natural-language cue copied from the authoring spec's `marker`.
+   * Used only when `verbatimText` collapses to a full source paragraph
+   * (marker not found as an isolated quote) so the runtime fallback
+   * generator has real clinical wording to build a patient-facing
+   * question from instead of a generic instruction-shaped template.
+   */
+  markerHint?: string;
   roleId?: string;
   scope?: PromptScope;
   executionMode?: PromptExecutionMode;

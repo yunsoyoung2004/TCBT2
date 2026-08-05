@@ -159,7 +159,7 @@ export function PatientSessionPage() {
       title={activeSession.patientAlias}
       sessionLabel={activeSession.sessionDefinitionId}
       progressLabel={activeSession.status}
-      saveState={`Saved ${new Date(activeSession.updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}
+      saveState={`Saved ${new Date(activeSession.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
       actions={
         <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>Completion</Button>
       }
