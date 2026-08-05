@@ -1,0 +1,11 @@
+{
+  "status": "blocked_provider_credit",
+  "provider": "anthropic",
+  "providerError": "HTTP 400: Your credit balance is too low to access the Anthropic API.",
+  "tests": { "passed": 75, "failed": 0 },
+  "deterministicSessions01To08": "passed",
+  "typeCheck": "passed",
+  "productionBuild": "passed",
+  "patientScriptsOrFixturesModified": false,
+  "liveRuns": { "s01": "not_started_credit_block", "s03": "not_started_credit_block" }
+}

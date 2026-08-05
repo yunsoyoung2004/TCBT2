@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
@@ -10,7 +10,9 @@ import { getRuntimeSessionSummary } from "@/lib/api/session-summary-api";
 
 export function PatientSessionCompletePage() {
   const params = useParams<{ sessionId: string }>();
-  const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+  const sessionId = (Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId) ?? segments.at(-2) ?? "";
   const sessionQuery = useQuery({ queryKey: ["runtime-session-complete", sessionId], queryFn: () => getRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   const summaryQuery = useQuery({ queryKey: ["runtime-session-summary-short", sessionId], queryFn: () => getRuntimeSessionSummary(sessionId), enabled: Boolean(sessionId) });
   if (sessionQuery.isLoading || summaryQuery.isLoading) return <PatientShell title="Session Complete"><PageSkeleton /></PatientShell>;

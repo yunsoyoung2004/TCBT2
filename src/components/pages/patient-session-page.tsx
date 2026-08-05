@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
@@ -10,9 +10,17 @@ import { PatientInputControls } from "@/components/runtime/patient-input-control
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
-import { getPatientRuntimeSession, restoreRuntimeSession } from "@/lib/api/runtime-session-api";
+import { getPatientRuntimeSession, getRuntimeSession, restoreRuntimeSession } from "@/lib/api/runtime-session-api";
+import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
 import { pauseRuntimeSession, resumeRuntimeSession, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput } from "@/types/runtime-session";
+import { useBrowserTts } from "@/lib/speech/use-browser-tts";
+import { useAudioRecorder } from "@/lib/speech/use-audio-recorder";
+
+function makeClientTurnId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") return `TURN-${globalThis.crypto.randomUUID()}`;
+  return `TURN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export function PatientSessionPage() {
   const pathname = usePathname();
@@ -21,11 +29,21 @@ export function PatientSessionPage() {
   const reducedMotion = useReducedMotionPreference();
   const sessionId = pathname.split("/").filter(Boolean).at(-1) ?? "";
   const sessionQuery = useQuery({ queryKey: ["patient-runtime-session", sessionId], queryFn: () => getPatientRuntimeSession(sessionId), enabled: Boolean(sessionId) });
+  const submittingTurnRef = useRef(false);
+  const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  const [autoRead, setAutoRead] = useState(false);
+  const [isSendingRecording, setIsSendingRecording] = useState(false);
+  const lastAutoReadMessageIdRef = useRef<string | null>(null);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] });
     await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
     await queryClient.invalidateQueries({ queryKey: ["safety-events"] });
+    const auditView = await getRuntimeSession(sessionId);
+    if (auditView) {
+      try { await saveRemoteSessionAuditSnapshot(auditView); }
+      catch { toast.warning("The session continued, but its remote audit copy could not be saved."); }
+    }
   };
 
   const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session started"); await refresh(); } });
@@ -34,12 +52,19 @@ export function PatientSessionPage() {
   const restoreMutation = useMutation({ mutationFn: () => restoreRuntimeSession(sessionId), onSuccess: async () => { toast.success("Checkpoint restored"); await refresh(); } });
   const terminateMutation = useMutation({ mutationFn: () => terminateRuntimeSession(sessionId, "Participant ended session"), onSuccess: async () => { toast.warning("Session terminated"); await refresh(); } });
   const inputMutation = useMutation({
-    mutationFn: ({ currentSessionId, patientInput }: { currentSessionId: string; patientInput: PatientInput }) => submitPatientInput(currentSessionId, patientInput),
+    mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion }),
     onSuccess: async (result) => {
       if (result.stateExtraction?.missingFields.length) {
         toast.info("Please share a little more so we can stay with this question.");
       }
       await refresh();
+    },
+    onError: () => {
+      toast.error("We could not submit that response. Please try again.");
+    },
+    onSettled: () => {
+      submittingTurnRef.current = false;
+      setIsSubmittingTurn(false);
     },
   });
   const sessionData = sessionQuery.data;
@@ -63,8 +88,27 @@ export function PatientSessionPage() {
     return undefined;
   }, [inSafetyHold, previousHold]);
 
+  const messages = sessionData?.messages ?? [];
+  const activeSession = sessionData?.session;
+  const tts = useBrowserTts(activeSession?.locale ?? "en-US");
+  const recorder = useAudioRecorder();
+  const { supported: ttsSupported, speakingMessageId, speak, stop } = tts;
+  const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
+  const latestAssistantMessage = [...patientVisibleMessages].reverse().find((message) => message.role === "assistant");
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("tbct:auto-read");
+    if (stored === "true") setAutoRead(true);
+  }, []);
+
+  useEffect(() => {
+    if (!autoRead || !ttsSupported || !latestAssistantMessage || lastAutoReadMessageIdRef.current === latestAssistantMessage.id) return;
+    lastAutoReadMessageIdRef.current = latestAssistantMessage.id;
+    speak(latestAssistantMessage.id, latestAssistantMessage.content);
+  }, [autoRead, latestAssistantMessage, speak, ttsSupported]);
+
   if (sessionQuery.isLoading) return <PatientShell title="Session"><PageSkeleton /></PatientShell>;
-  if (!sessionQuery.data) {
+  if (!sessionQuery.data || !activeSession) {
     return (
       <PatientShell title="Session">
         <Card><EmptyState title="Session not found" description="Return to the session list and start a new runtime session." /></Card>
@@ -72,14 +116,43 @@ export function PatientSessionPage() {
     );
   }
 
-  const { messages } = sessionQuery.data;
-  const activeSession = sessionQuery.data.session;
-  const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
-  const activePromptSummary = (() => {
-    const lastAssistantMessage = [...patientVisibleMessages].reverse().find((message) => message.role === "assistant" && ["validated", "delivered", "replaced_by_fallback"].includes(message.status));
-    if (lastAssistantMessage) return lastAssistantMessage.content;
-    return "Preparing your next prompt...";
-  })();
+  const toggleAutoRead = () => {
+    const next = !autoRead;
+    setAutoRead(next);
+    window.localStorage.setItem("tbct:auto-read", String(next));
+    if (!next) stop();
+  };
+  const submitInput = (patientInput: PatientInput) => {
+    if (submittingTurnRef.current || activeSession.status !== "waiting_for_input") return;
+    submittingTurnRef.current = true;
+    setIsSubmittingTurn(true);
+    inputMutation.mutate({
+      currentSessionId: sessionId,
+      patientInput,
+      clientTurnId: makeClientTurnId(),
+      expectedSessionVersion: activeSession.version ?? 0,
+    });
+  };
+  const sendRecording = async () => {
+    if (!recorder.audioBlob || isSendingRecording || activeSession.status !== "waiting_for_input") return;
+    setIsSendingRecording(true);
+    try {
+      const form = new FormData();
+      const extension = recorder.audioBlob.type.includes("mp4") ? "m4a" : "webm";
+      form.set("audio", recorder.audioBlob, `patient-recording.${extension}`);
+      form.set("locale", activeSession.locale);
+      const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok || typeof payload.data?.text !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Voice transcription failed.");
+      recorder.clear();
+      submitInput({ kind: "text", value: payload.data.text });
+      toast.success("Voice response transcribed and sent");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Voice response could not be sent.");
+    } finally {
+      setIsSendingRecording(false);
+    }
+  };
 
   return (
     <PatientShell
@@ -100,6 +173,9 @@ export function PatientSessionPage() {
                 <div className="mt-1 text-xs text-text-secondary">The patient view shows only the current session state and approved patient-facing safety guidance.</div>
               </div>
               <div className="flex gap-2">
+                {ttsSupported && <Button variant="secondary" onClick={toggleAutoRead}>{autoRead ? "Auto voice: on" : "Auto voice: off"}</Button>}
+                {recorder.supported && !recorder.isRecording && <Button variant="secondary" onClick={() => void recorder.start()}>Record voice</Button>}
+                {recorder.supported && recorder.isRecording && <Button variant="danger" onClick={recorder.stop}>Stop recording</Button>}
                 {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>Start</Button>}
                 {activeSession.status === "waiting_for_input" && <Button variant="secondary" onClick={() => pauseMutation.mutate()}>Pause</Button>}
                 {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>Resume</Button>}
@@ -108,11 +184,21 @@ export function PatientSessionPage() {
               </div>
             </div>
           </div>
-          <div className="space-y-3 p-4">
-            <div className="rounded-panel border border-border bg-surface-subtle px-4 py-3 text-xs text-text-secondary">
-              <div className="font-semibold text-text-primary">Current prompt</div>
-              <div className="mt-1 whitespace-pre-wrap break-words">{activePromptSummary}</div>
+          {(recorder.audioUrl || recorder.error || recorder.isRecording) && (
+            <div className="border-b border-border bg-surface-subtle px-4 py-3">
+              {recorder.isRecording && <div className="text-xs font-semibold text-critical">Recording locally… Press Stop recording when finished.</div>}
+              {recorder.error && <div className="text-xs text-critical">{recorder.error}</div>}
+              {recorder.audioUrl && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <audio controls src={recorder.audioUrl} className="h-9 max-w-full" aria-label="Recorded voice preview" />
+                  <Button onClick={() => void sendRecording()} disabled={isSendingRecording || activeSession.status !== "waiting_for_input"}>{isSendingRecording ? "Sending voice…" : "Send voice"}</Button>
+                  <Button variant="secondary" onClick={recorder.clear}>Delete recording</Button>
+                  <span className="text-xs text-text-muted">Send voice uploads this recording to Groq for transcription; the app does not retain the audio file.</span>
+                </div>
+              )}
             </div>
+          )}
+          <div className="space-y-3 p-4">
             <AnimatePresence initial={false}>
               {patientVisibleMessages.map((message) => (
                 <motion.div
@@ -125,6 +211,13 @@ export function PatientSessionPage() {
                 >
                   <div className="mb-1 text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role}</div>
                   <div className="whitespace-pre-wrap break-words text-text-primary">{message.content}</div>
+                  {message.role === "assistant" && ttsSupported && (
+                    <div className="mt-2">
+                      <button type="button" className="text-xs font-semibold text-clinical-blue hover:underline" aria-label={speakingMessageId === message.id ? "Stop reading message" : "Read message aloud"} onClick={() => speakingMessageId === message.id ? stop() : speak(message.id, message.content)}>
+                        {speakingMessageId === message.id ? "Stop voice" : "Read aloud"}
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -146,7 +239,7 @@ export function PatientSessionPage() {
               )}
             </AnimatePresence>
             {activeSession.status === "waiting_for_input" && currentNode && !inSafetyHold ? (
-              <PatientInputControls payload={payload} promptItem={currentPromptItem} disabled={inputMutation.isPending} onSubmit={(input) => inputMutation.mutate({ currentSessionId: sessionId, patientInput: input })} />
+              <PatientInputControls payload={payload} promptItem={currentPromptItem} disabled={inputMutation.isPending || isSubmittingTurn} onSubmit={submitInput} />
             ) : activeSession.status === "processing" ? (
               <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} className="text-sm text-text-secondary">
                 We are reviewing your response and preparing the next step.

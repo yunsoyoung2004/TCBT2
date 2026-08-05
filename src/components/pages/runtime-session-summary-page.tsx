@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Card, EmptyState, PageHeader, PageSkeleton } from "@/components/ui/primitives";
@@ -8,7 +8,9 @@ import { generateSessionSummary, getRuntimeSessionSummary } from "@/lib/api/sess
 
 export function RuntimeSessionSummaryPage() {
   const params = useParams<{ sessionId: string }>();
-  const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+  const sessionId = (Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId) ?? segments.at(-2) ?? "";
   const summaryQuery = useQuery({
     queryKey: ["runtime-session-summary", sessionId],
     queryFn: async () => (await getRuntimeSessionSummary(sessionId)) ?? generateSessionSummary(sessionId),

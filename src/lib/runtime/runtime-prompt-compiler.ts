@@ -1,6 +1,7 @@
 import type { CompiledPromptContract, PromptSegment, RuntimeRelease } from "@/types/protocol-runtime";
 import type { PatientProfile, RuntimeMessage, RuntimeSessionState, SessionMemory } from "@/types/runtime-session";
 import type { RuntimeActiveStep } from "@/lib/runtime/runtime-step-resolver";
+import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 
 export type CompileRuntimePromptInput = {
   release: RuntimeRelease;
@@ -69,17 +70,37 @@ function compactRecentMessages(messages: RuntimeMessage[] | undefined) {
     .map((message) => ({ role: message.role, content: truncate(message.content, 600) }));
 }
 
+function ratingComparisonGuidance(fields: Record<string, unknown>, requiredFields: string[]) {
+  const pairs: Array<[string, string]> = [
+    ["automaticThoughtBeliefPercent", "revisedAutomaticThoughtBeliefPercent"],
+    ["coreBeliefBaselinePercent", "originalChargeFinalBeliefPercent"],
+    ["guiltBeliefBaselinePercent", "guiltBeliefFinalPercent"],
+    ["shameIntensityBaselinePercent", "shameIntensityFinalPercent"],
+  ];
+  return pairs.flatMap(([beforeField, afterField]) => {
+    if (!(afterField in fields) && !requiredFields.includes(afterField)) return [];
+    const before = Number(fields[beforeField]);
+    const after = Number(fields[afterField]);
+    if (!Number.isFinite(before) || !Number.isFinite(after)) return [`${beforeField} or ${afterField} is missing: do not claim change.`];
+    return [`Stored comparison: ${beforeField}=${before}, ${afterField}=${after}. ${after < before ? "Describe a decrease accurately." : after > before ? "Describe an increase accurately." : "Explicitly state that the rating stayed the same; do not call this movement or progress."}`];
+  });
+}
+
 function createOutputSchema(input: CompileRuntimePromptInput) {
   return {
     type: "object",
-    required: ["patientMessage", "actionType", "proposedFields", "completionEvidence", "safetySignals", "recommendedTransition"],
+    required: ["patientMessage", "actionType", "proposedFields", "completionEvidence", "detectedLanguage", "completionStatus", "extractedFields", "safetySignals", "recommendedTransition", "nextActionRecommendation"],
     properties: {
       patientMessage: { type: "string", maxLength: 600 },
       actionType: { type: "string", enum: input.activeStep.promptItem.allowedActions },
       proposedFields: { type: "object", required: input.activeStep.promptItem.requiredFields },
       completionEvidence: { type: "array", items: { type: "string" } },
+      detectedLanguage: { type: "string" },
+      completionStatus: { type: "string", enum: ["incomplete", "complete", "needs_clarification", "safety_review", "safety_hold"] },
+      extractedFields: { type: "object" },
       safetySignals: { type: "array", items: { type: "object" } },
       recommendedTransition: { type: "string", enum: ["stay", "advance", "clarify", "safety"] },
+      nextActionRecommendation: { type: "string", enum: ["stay", "advance", "clarify", "safety"] },
     },
   };
 }
@@ -89,19 +110,21 @@ export async function compileRuntimePrompt(input: CompileRuntimePromptInput): Pr
   const memory = compactMemory(input);
   const recentMessages = compactRecentMessages(input.recentMessages);
   const outputSchema = createOutputSchema(input);
+  const activeSessionPolicy = release.policies.sessionPolicies?.[activeStep.node.sessionId];
+  const comparisons = ratingComparisonGuidance(state.fields, activeStep.promptItem.requiredFields);
   const systemSegments: PromptSegment[] = [
-    { priority: 1, label: "global-safety", content: release.policies.globalSafetyRules.join("\n") },
-    { priority: 2, label: "protocol-rules", content: release.policies.protocolRules.join("\n") },
+    { priority: 1, label: "global-safety", content: [...release.policies.globalSafetyRules, ...(activeSessionPolicy?.safetyRules ?? [])].join("\n") },
+    { priority: 2, label: "protocol-rules", content: [...release.policies.protocolRules, ...(activeSessionPolicy?.protocolRules ?? [])].join("\n") },
     { priority: 3, label: "active-speaker-role", content: activeStep.role.systemGuidance },
     { priority: 4, label: "node-objective", content: activeStep.node.objective },
     { priority: 5, label: "active-prompt-guidance", content: activeStep.promptItem.modelGuidance },
+    { priority: 6, label: "required-patient-facing-content", content: (activeStep.promptItem.requiredPatientFacingContent ?? []).join("\n") },
+    { priority: 7, label: "response-contingency", content: ["Acknowledge the patient respectfully, but do not affirm factual, numerical, or protocol interpretations unless supported by current session fields and the active PromptItem.", ...comparisons].join("\n") },
     {
-      priority: 6,
+      priority: 8,
       label: "action-boundaries",
       content: `Allowed actions: ${activeStep.promptItem.allowedActions.join(", ")}. Forbidden actions: ${activeStep.promptItem.forbiddenActions.join(", ")}.`,
     },
-    { priority: 7, label: "patient-session-memory", content: canonicalStringify(memory) },
-    { priority: 8, label: "recent-messages", content: canonicalStringify(recentMessages) },
     { priority: 9, label: "output-schema", content: canonicalStringify(outputSchema) },
   ];
   const runtimeContext = {
@@ -123,11 +146,13 @@ export async function compileRuntimePrompt(input: CompileRuntimePromptInput): Pr
     releaseId: release.id,
     nodeId: activeStep.node.id,
     promptItemId: activeStep.promptItem.id,
+    sessionId: activeStep.node.sessionId,
+    sequenceIndex: activeStep.promptItem.sequenceIndex,
     roleId: activeStep.role.id,
     systemSegments,
     runtimeContext,
     outputSchema,
-    fallbackPatientText: activeStep.promptItem.fallbackPatientText,
+    fallbackPatientText: resolvePromptLocaleText(activeStep.promptItem.id, activeStep.promptItem.fallbackPatientText, input.locale),
     contractHash: "",
   } satisfies CompiledPromptContract;
 

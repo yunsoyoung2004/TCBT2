@@ -24,6 +24,46 @@ export async function updateRuntimeSessionRecord(sessionId: string, patch: Parti
   return next;
 }
 
+export type RuntimePatientTurnClaim =
+  | { claimed: true; session: RuntimeSession }
+  | { claimed: false; session: RuntimeSession };
+
+export async function claimRuntimePatientTurn(input: {
+  sessionId: string;
+  clientTurnId: string;
+  expectedSessionVersion: number;
+  patientMessage: RuntimeMessage;
+}): Promise<RuntimePatientTurnClaim> {
+  const db = getLocalDb();
+  return db.transaction("rw", db.runtimeSessions, db.runtimeMessages, async () => {
+    const current = await db.runtimeSessions.get(input.sessionId);
+    if (!current) throw new Error("Runtime session not found");
+    if (input.patientMessage.runtimeSessionId !== input.sessionId) throw new Error("Patient message session does not match the turn claim");
+    const currentVersion = current.version ?? 0;
+    const canClaim = current.status === "waiting_for_input"
+      && currentVersion === input.expectedSessionVersion
+      && current.pendingTurnId === undefined
+      && current.lastCompletedTurnId !== input.clientTurnId;
+    if (!canClaim) return { claimed: false, session: current };
+
+    const next: RuntimeSession = {
+      ...current,
+      status: "processing",
+      pendingTurnId: input.clientTurnId,
+      version: currentVersion + 1,
+      messageIds: [...new Set([...current.messageIds, input.patientMessage.id])],
+      runtimeContext: {
+        ...current.runtimeContext,
+        lastPatientMessage: input.patientMessage.content,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    await db.runtimeMessages.put(input.patientMessage);
+    await db.runtimeSessions.put(next);
+    return { claimed: true, session: next };
+  });
+}
+
 export async function getRuntimeSessionRecord(sessionId: string) {
   return getLocalDb().runtimeSessions.get(sessionId);
 }
@@ -34,20 +74,22 @@ export async function listRuntimeSessionRecords() {
 
 export async function saveRuntimeMessage(message: RuntimeMessage) {
   const db = getLocalDb();
-  await db.runtimeMessages.put(message);
-  const session = await db.runtimeSessions.get(message.runtimeSessionId);
-  if (session) {
-    await db.runtimeSessions.put({
-      ...session,
-      messageIds: [...new Set([...session.messageIds, message.id])],
-      updatedAt: new Date().toISOString(),
-      runtimeContext: {
-        ...session.runtimeContext,
-        lastPatientMessage: message.role === "patient" ? message.content : session.runtimeContext.lastPatientMessage,
-        lastAssistantMessage: message.role === "assistant" ? message.content : session.runtimeContext.lastAssistantMessage,
-      },
-    });
-  }
+  await db.transaction("rw", db.runtimeMessages, db.runtimeSessions, async () => {
+    await db.runtimeMessages.put(message);
+    const session = await db.runtimeSessions.get(message.runtimeSessionId);
+    if (session) {
+      await db.runtimeSessions.put({
+        ...session,
+        messageIds: [...new Set([...session.messageIds, message.id])],
+        updatedAt: new Date().toISOString(),
+        runtimeContext: {
+          ...session.runtimeContext,
+          lastPatientMessage: message.role === "patient" ? message.content : session.runtimeContext.lastPatientMessage,
+          lastAssistantMessage: message.role === "assistant" ? message.content : session.runtimeContext.lastAssistantMessage,
+        },
+      });
+    }
+  });
   return message;
 }
 
@@ -155,12 +197,14 @@ export async function commitRuntimeAssistantTurn(input: CommitRuntimeAssistantTu
     async () => {
       const current = await db.runtimeSessions.get(input.sessionId);
       if (!current) throw new Error("Runtime session not found");
+      const turnId = typeof input.assistantMessage.metadata?.turnId === "string" ? input.assistantMessage.metadata.turnId : undefined;
       const duplicate = await db.runtimeMessages
         .where("runtimeSessionId")
         .equals(input.sessionId)
         .filter((message) => message.role === "assistant"
-          && message.nodeId === input.assistantMessage.nodeId
-          && message.promptItemId === input.assistantMessage.promptItemId)
+          && (turnId
+            ? message.metadata?.turnId === turnId
+            : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId))
         .first();
       if (duplicate) return { session: current, assistantMessage: duplicate, duplicate: true };
 
@@ -171,6 +215,8 @@ export async function commitRuntimeAssistantTurn(input: CommitRuntimeAssistantTu
       const nextSession: RuntimeSession = {
         ...current,
         ...input.sessionPatch,
+        pendingTurnId: current.pendingTurnId && input.sessionPatch.status !== "processing" ? undefined : input.sessionPatch.pendingTurnId ?? current.pendingTurnId,
+        lastCompletedTurnId: current.pendingTurnId && input.sessionPatch.status !== "processing" ? current.pendingTurnId : input.sessionPatch.lastCompletedTurnId ?? current.lastCompletedTurnId,
         messageIds: [...new Set([...current.messageIds, ...(input.sessionPatch.messageIds ?? []), input.assistantMessage.id])],
         runtimeContext: {
           ...current.runtimeContext,

@@ -15,6 +15,18 @@ export type RuntimeSessionStatus =
   | "terminated"
   | "failed";
 
+export type RuntimeTurnOutcome = "normal" | "clarification" | "safety_override" | "fallback" | "rejected_duplicate";
+export type PromptExecutionStatus = "executed" | "inactive_condition" | "not_reached" | "skipped_error" | "suspended_safety";
+export type RuntimeTurnAssociation = {
+  kind: "assistant_only" | "patient_assistant" | "clarification" | "safety_override";
+  clientTurnId?: string;
+  patientMessageId?: string;
+  assistantMessageId: string;
+  executionTraceId: string;
+  sessionVersionBefore: number;
+  sessionVersionAfter: number;
+};
+
 export type RuntimeMessageRole = "patient" | "assistant" | "system" | "clinician";
 
 export type RuntimeMessageStatus =
@@ -36,6 +48,8 @@ export interface RuntimeContext {
   iterationCounts: Record<string, number>;
   lastPatientMessage?: string;
   lastAssistantMessage?: string;
+  clarificationAttemptCount?: number;
+  lastClarificationReason?: string;
   longitudinalMemory?: {
     treatmentGoals: string[];
     patientPreferences: string[];
@@ -89,8 +103,9 @@ export interface RuntimeSession {
   currentPromptItemId?: string;
   completedPromptItemIds?: string[];
   skippedPromptItemIds?: string[];
+  promptExecutionStatuses?: Record<string, PromptExecutionStatus>;
   runtimeState?: RuntimeSessionState;
-  promptProgressionReason?: "session_started" | "prompt_delivered" | "prompt_completed" | "prompt_skipped" | "node_completed" | "safety_paused";
+  promptProgressionReason?: "session_started" | "prompt_delivered" | "prompt_completed" | "prompt_skipped" | "node_completed" | "clarification_sent" | "safety_paused";
   sourceVersion?: string;
   sourceTextHash?: string;
   startedAt?: string;
@@ -100,6 +115,9 @@ export interface RuntimeSession {
   terminatedAt?: string;
   patientAlias: string;
   locale: string;
+  version?: number;
+  pendingTurnId?: string;
+  lastCompletedTurnId?: string;
   runtimeContext: RuntimeContext;
   messageIds: string[];
   executionLogIds: string[];
@@ -215,12 +233,27 @@ export interface RuntimeValidationEvent {
   createdAt: string;
 }
 
+export interface TurnFidelityResult {
+  activePromptFidelity: "pass" | "partial" | "fail";
+  sequenceFidelity: "pass" | "partial" | "fail";
+  roleFidelity: "pass" | "partial" | "fail";
+  responseContingency: "pass" | "partial" | "fail";
+  languageFidelity: "pass" | "partial" | "fail";
+  safetyFidelity: "pass" | "critical_fail";
+  transitionFidelity: "pass" | "partial" | "fail";
+  exposureSafety: "pass" | "fail";
+  responsiveness: "pass" | "fail";
+  reasons: string[];
+}
+
 export interface RuntimeExecutionTrace {
   id: string;
   runtimeSessionId: string;
   releaseId: string;
   nodeId: string;
   promptItemId: string;
+  sessionId?: string;
+  sequenceIndex?: number;
   roleId: string;
   provider: string;
   model?: string;
@@ -228,7 +261,15 @@ export interface RuntimeExecutionTrace {
   validation: OutputValidationResult;
   fallbackUsed: boolean;
   transitionDecision: string;
+  modelRecommendedTransition?: string;
+  deterministicTransitionEvaluation?: string;
+  committedTransition?: string;
+  committedNextNodeId?: string;
+  committedNextPromptItemId?: string;
+  turnAssociation?: RuntimeTurnAssociation;
+  promptExecutionStatuses?: Record<string, PromptExecutionStatus>;
   stateChanges: Record<string, unknown>;
+  fidelity: TurnFidelityResult;
   timestamp: string;
 }
 
@@ -302,6 +343,7 @@ export interface RuntimeCycleResult {
   reusedSafetyEventId?: string;
   generatedMessage?: RuntimeMessage;
   outputValidation?: OutputValidationResult;
+  turnOutcome?: RuntimeTurnOutcome;
   fallbackUsed: boolean;
   sessionStatus: RuntimeSessionStatus;
   logIds: string[];
@@ -325,7 +367,7 @@ export interface RuntimeSessionView {
   memoryUsageLogs?: MemoryUsageLog[];
 }
 
-export type PatientRuntimeSession = Pick<RuntimeSession, "id" | "patientAlias" | "sessionDefinitionId" | "status" | "currentNodeId" | "currentPromptItemId" | "updatedAt"> & {
+export type PatientRuntimeSession = Pick<RuntimeSession, "id" | "patientAlias" | "sessionDefinitionId" | "status" | "currentNodeId" | "currentPromptItemId" | "updatedAt" | "version" | "locale"> & {
   runtimeContext: Pick<RuntimeContext, "riskLevel">;
 };
 
@@ -334,7 +376,7 @@ export type PatientRuntimeMessage = Pick<RuntimeMessage, "id" | "role" | "conten
 export interface PatientRuntimeSessionView {
   session: PatientRuntimeSession;
   currentNode?: Pick<ClinicalStageNode, "id" | "title">;
-  currentPromptInput?: Pick<PromptItem, "type" | "validation">;
+  currentPromptInput?: Pick<PromptItem, "type" | "validation" | "outputFields">;
   messages: PatientRuntimeMessage[];
   hasSafetyReview: boolean;
 }

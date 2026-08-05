@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Card, EmptyState, PageHeader, PageSkeleton, SectionHeader } from "@/components/ui/primitives";
@@ -8,7 +8,8 @@ import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memo
 
 export function RuntimeParticipantPage() {
   const params = useParams<{ participantId: string }>();
-  const participantId = Array.isArray(params.participantId) ? params.participantId[0] : params.participantId;
+  const pathname = usePathname();
+  const participantId = (Array.isArray(params.participantId) ? params.participantId[0] : params.participantId) ?? pathname.split("/").filter(Boolean).at(-1) ?? "";
   const dashboardQuery = useQuery({ queryKey: ["runtime-participant-dashboard", participantId], queryFn: () => getParticipantLongitudinalDashboard(participantId), enabled: Boolean(participantId) });
   if (dashboardQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
   if (!dashboardQuery.data) return <AppShell><Card className="m-6"><EmptyState title="Participant not found" /></Card></AppShell>;

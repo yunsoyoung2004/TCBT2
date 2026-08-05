@@ -1,0 +1,7 @@
+.env
+.env.*
+.next
+dist
+distbuild
+node_modules
+*.tsbuildinfo

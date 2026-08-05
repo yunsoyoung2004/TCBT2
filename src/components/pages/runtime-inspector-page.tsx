@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Button, Card, EmptyState, PageHeader, PageSkeleton, SectionHeader } from "@/components/ui/primitives";
@@ -9,7 +9,8 @@ import { getRuntimeSession } from "@/lib/api/runtime-session-api";
 
 export function RuntimeInspectorPage() {
   const params = useParams<{ sessionId: string }>();
-  const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
+  const pathname = usePathname();
+  const sessionId = (Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId) ?? pathname.split("/").filter(Boolean).at(-1) ?? "";
   const sessionQuery = useQuery({ queryKey: ["runtime-inspector", sessionId], queryFn: () => getRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   if (sessionQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
   if (!sessionQuery.data) return <AppShell><Card className="m-4 lg:m-6"><EmptyState title="Runtime session not found" /></Card></AppShell>;

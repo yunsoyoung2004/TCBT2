@@ -7,6 +7,25 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
+const LEGACY_SEMANTIC_FIELD_MAP: Record<string, string> = {
+  "tbct-s01-n05-p03-candidate-two-possibility:response": "candidateTwoPossibility",
+};
+
+function normalizeClinicalFields(fields: Record<string, unknown>) {
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    const semanticKey = LEGACY_SEMANTIC_FIELD_MAP[key];
+    if (semanticKey) {
+      if (!(semanticKey in fields)) normalized[semanticKey] = value;
+      continue;
+    }
+    // PromptItem-derived response keys were implementation evidence, not clinical fields.
+    if (/^tbct-s\d+-n\d+-p\d+-.+:response$/i.test(key)) continue;
+    normalized[key] = value;
+  }
+  return normalized;
+}
+
 export function getRuntimeReleaseSourceSnapshot(release: ProtocolReleaseVersion): SourceFidelityReleaseSnapshot {
   const snapshot = release.immutableSnapshot.sourceFidelity;
   if (!snapshot) throw new Error(`Release ${release.id} is missing its immutable source snapshot.`);
@@ -28,7 +47,11 @@ export function loadRuntimeRelease(release: ProtocolReleaseVersion): RuntimeRele
 }
 
 export function normalizeRuntimeSessionState(session: RuntimeSession, release: RuntimeRelease): RuntimeSessionState {
-  if (session.runtimeState?.releaseId === release.id) return clone(session.runtimeState);
+  if (session.runtimeState?.releaseId === release.id) {
+    const state = clone(session.runtimeState);
+    state.fields = normalizeClinicalFields(state.fields);
+    return state;
+  }
   const activeNodeId = session.currentNodeId ?? release.nodes[0]?.id;
   if (!activeNodeId) throw new Error(`Release ${release.id} has no runtime nodes.`);
   const node = release.nodes.find((item) => item.id === activeNodeId) ?? release.nodes[0];
@@ -41,7 +64,7 @@ export function normalizeRuntimeSessionState(session: RuntimeSession, release: R
     activePromptIndex,
     completedNodeIds: [...(session.runtimeState?.completedNodeIds ?? [])],
     completedPromptItemIds: [...(session.completedPromptItemIds ?? [])],
-    fields: { ...session.runtimeContext.fields },
+    fields: normalizeClinicalFields(session.runtimeContext.fields),
     turnCount: session.runtimeState?.turnCount ?? 0,
     nodeIterationCount: session.runtimeState?.nodeIterationCount ?? 0,
   };

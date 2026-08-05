@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "copy:pdfjs": "node scripts/copy-pdfjs.mjs",
-    "build": "set \"NEXT_OUTPUT_DIR=distbuild\" && next build && node scripts/postbuild.mjs",
+    "build": "node scripts/build.mjs",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@tanstack/react-query": "^5.62.8",
+    "@vercel/blob": "^2.6.1",
     "@xyflow/react": "^12.3.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

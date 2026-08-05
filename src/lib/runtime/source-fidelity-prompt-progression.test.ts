@@ -7,6 +7,7 @@ import {
 } from "@/lib/runtime/source-fidelity-prompt-progression";
 import type { ProtocolReleaseVersion } from "@/types/protocol-runtime";
 import type { RuntimeContext } from "@/types/runtime-session";
+import { normalizeRuntimeReleaseFromSourceSnapshot } from "@/lib/runtime/runtime-release-normalizer";
 
 const context: RuntimeContext = {
   fields: {},
@@ -31,6 +32,15 @@ function releaseWithSnapshot(): ProtocolReleaseVersion {
 }
 
 describe("source-fidelity PromptItem progression", () => {
+  it("gives every active PromptItem a patient-facing fallback without generic or internal authoring text", () => {
+    const snapshot = createCanonicalProtocolReleaseSnapshot().sourceFidelity!;
+    const runtime = normalizeRuntimeReleaseFromSourceSnapshot({ releaseId: "test", protocolId: "tbct-br-001", version: "test", publishedAt: "2025-01-01T00:00:00.000Z", snapshot });
+    for (const prompt of runtime.promptItems) {
+      expect(prompt.fallbackPatientText, prompt.id).not.toContain("We can take this one step at a time");
+      expect(prompt.fallbackPatientText).not.toMatch(/^Step\s+\d+\s*:/i);
+      expect(prompt.fallbackPatientText).not.toMatch(/\b(?:ask|invite|guide|instruct) the participant\b/i);
+    }
+  });
   it("resolves a current prompt in canonical node order rather than a mutable catalog order", () => {
     const release = releaseWithSnapshot();
     const nodeId = "tbct-s08-n01-investigation-and-core-belief";

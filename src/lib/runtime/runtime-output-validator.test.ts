@@ -43,4 +43,56 @@ describe("validateRuntimeStructuredOutput", () => {
 
     expect(result.accepted).toBe(true);
   });
+
+  it("rejects a clearly English patient-facing response for a Korean session", () => {
+    const result = validateRuntimeStructuredOutput({
+      patientMessage: "We can take this one step at a time.",
+      actionType: "ask",
+      proposedFields: {},
+      completionEvidence: [],
+      safetySignals: [],
+      recommendedTransition: "stay",
+    }, "ko-KR", context);
+
+    expect(result.accepted).toBe(false);
+    expect(result.issues).toContain("Patient-facing response does not match the session locale");
+  });
+
+  it("rejects a false change claim when before and after ratings are equal", () => {
+    const result = validateRuntimeStructuredOutput({
+      patientMessage: "That is meaningful movement.", actionType: "ask", proposedFields: {},
+      completionEvidence: [], safetySignals: [], recommendedTransition: "stay",
+    }, "en-US", {
+      ...context,
+      requiredFields: ["originalChargeFinalBeliefPercent"],
+      sessionFields: { coreBeliefBaselinePercent: 62, originalChargeFinalBeliefPercent: 62 },
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.issues.join(" ")).toContain("stored equality");
+  });
+
+  it("accepts an accurate unchanged rating statement", () => {
+    const result = validateRuntimeStructuredOutput({
+      patientMessage: "The rating stayed the same at 62.", actionType: "ask", proposedFields: {},
+      completionEvidence: [], safetySignals: [], recommendedTransition: "stay",
+    }, "en-US", {
+      ...context,
+      requiredFields: ["originalChargeFinalBeliefPercent"],
+      sessionFields: { coreBeliefBaselinePercent: 62, originalChargeFinalBeliefPercent: 62 },
+    });
+    expect(result.accepted).toBe(true);
+  });
+
+  it("rejects exact and strong near-duplicate assistant messages", () => {
+    for (const patientMessage of [
+      "What feels most important to look at together right now?",
+      "Right now, what feels most important for us to look at together?",
+    ]) {
+      const result = validateRuntimeStructuredOutput({
+        patientMessage, actionType: "ask", proposedFields: {}, completionEvidence: [], safetySignals: [], recommendedTransition: "stay",
+      }, "en-US", { ...context, recentAssistantMessages: ["What feels most important to look at together right now?"] });
+      expect(result.accepted).toBe(false);
+      expect(result.issues.join(" ")).toMatch(/duplicate/i);
+    }
+  });
 });

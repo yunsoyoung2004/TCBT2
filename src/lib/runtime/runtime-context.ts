@@ -1,6 +1,7 @@
 import type { PatientInput, RuntimeContext, StateExtractionResult } from "@/types/runtime-session";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { assessRuntimePatientInput, requiresSemanticInputAssessment } from "@/lib/runtime/runtime-input-assessment";
+import { parseDeterministicPromptInput } from "@/lib/runtime/runtime-deterministic-input";
 
 function normalizeText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -27,6 +28,33 @@ const NON_ANSWER_TEXT = new Set([
   "oi", "ol\u00E1", "ola", "teste", "sim", "n\u00E3o", "nao", "n\u00E3o sei", "nao sei",
 ]);
 
+const RISK_SIGNAL_PATTERNS: Array<{ signal: string; pattern: RegExp }> = [
+  { signal: "danger", pattern: /\b(?:i am|i'm|we are|we're)\s+(?:in\s+)?immediate danger\b/i },
+  { signal: "harm", pattern: /\b(?:self[ -]?harm|hurt myself|harm myself)\b/i },
+  { signal: "suicide", pattern: /\b(?:suicide|suicidal|suiside|suicde|ending my life|(?:want|going) to die|wanna die|don'?t want to (?:live|be alive)|kill myself|end my life)\b/i },
+  { signal: "unsafe", pattern: /\b(?:i am|i'm|feel|feeling)\s+unsafe\b/i },
+  { signal: "suicidal_ideation_ko", pattern: /(?:\uC8FD\uACE0\s*\uC2F6|\uC0B4\uACE0\s*\uC2F6\uC9C0\s*\uC54A|\uC790\uC0B4)/ },
+  { signal: "self_harm_ko", pattern: /(?:\uC790\uD574|\uB0B4\s*\uBAB8\uC744\s*\uD574\uCE58)/ },
+  { signal: "suicidal_ideation_pt", pattern: /(?:quero\s+morrer|n[aã]o\s+quero\s+mais\s+viver|suic[ií]d)/i },
+  { signal: "self_harm_pt", pattern: /(?:me\s+machucar|me\s+ferir|autoagress)/i },
+  { signal: "suicidal_ideation_fr", pattern: /(?:je\s+veux\s+mourir|je\s+ne\s+veux\s+plus\s+vivre|suicid)/i },
+  { signal: "self_harm_fr", pattern: /(?:me\s+faire\s+du\s+mal|automutil)/i },
+  { signal: "suicidal_ideation_ja", pattern: /(?:\u6B7B\u306B\u305F\u3044|\u3082\u3046\s*\u751F\u304D\u305F\u304F\u306A\u3044|\u81EA\u6BBA)/ },
+  { signal: "self_harm_ja", pattern: /(?:\u81EA\u50B7|\u81EA\u5206\u3092\s*\u50B7\u3064\u3051)/ },
+  { signal: "suicidal_ideation_ko", pattern: /(?:죽고\s*싶|죽고싶|자살(?:하고)?\s*싶|자살하고싶|목숨을\s*끊)/ },
+  { signal: "self_harm_ko", pattern: /(?:자해(?:하고)?\s*싶|나를\s*해치|내\s*몸을\s*해치)/ },
+];
+
+export function detectRuntimeRiskSignals(text: string) {
+  return RISK_SIGNAL_PATTERNS
+    .filter(({ pattern }) => pattern.test(text))
+    .map(({ signal }) => signal);
+}
+
+export function isExplicitPatientRefusal(text: string) {
+  return /\b(?:i\s+(?:do\s+not|don['’]?t)\s+want\s+(?:counsel(?:ing)?|therapy|to\s+continue)|stop\s+(?:the\s+)?session|leave\s+me\s+alone)\b/i.test(text.trim());
+}
+
 function compactText(value: string) {
   return normalizeText(value).replace(/[\s.,!?\u2026'"`~\u00B7\-_/\\()[\]{}]+/g, "");
 }
@@ -42,6 +70,9 @@ function isMeaningfulTextResponse(input: {
 
   const validation = input.promptItem?.validation as { kind?: string; values?: unknown } | null | undefined;
   const normalized = normalizeText(rawText);
+  const activeQuestion = normalizeText(input.promptItem?.fallbackPatientText || input.promptItem?.verbatimText || "");
+  const normalizedWithoutUiNoise = normalized.replace(/\b(?:read|read aloud)\b\s*$/i, "").trim();
+  if (activeQuestion && activeQuestion.length >= 12 && (normalizedWithoutUiNoise === activeQuestion || normalizedWithoutUiNoise.includes(activeQuestion))) return false;
   const compact = compactText(rawText);
   if (!compact || NON_ANSWER_TEXT.has(normalized) || NON_ANSWER_TEXT.has(compact)) return false;
 
@@ -75,21 +106,43 @@ export async function extractRuntimeState(input: {
   const lowered = normalizeText(rawText);
   const payload: Record<string, unknown> = {};
   const validation = input.currentPromptItem?.validation as { kind?: string } | null | undefined;
-  const field = String(input.currentPromptItem?.outputFields[0] ?? payload.field ?? payload.responseField ?? input.currentNode.requiredFields[0] ?? input.currentNode.id);
+  const expectedFields = input.currentPromptItem
+    ? input.currentPromptItem.outputFields
+    : [String(payload.field ?? payload.responseField ?? input.currentNode.requiredFields[0] ?? input.currentNode.id)];
+  const field = String(expectedFields[0] ?? "internalTurnEvidence");
+  if (input.currentContext.lastClarificationReason === "safety_clarification") {
+    if (/^(?:yes|yes,|i do|that is what i mean|\uB124|\uC608|\uADF8\uB7F0 \uB73B)/i.test(lowered)) {
+      return { fields: { ...nextFields, crisisSignal: true }, responseCategory: "affirmative", riskLevel: "high", riskSignals: ["patient_confirmed_safety_concern"], confidence: 1, missingFields: [] };
+    }
+    if (/^(?:no|no,|not that|i mean|\uC544\uB2C8|\uC544\uB2C8\uC694)/i.test(lowered)) {
+      return { fields: nextFields, responseCategory: "negative", riskLevel: "low", riskSignals: [], confidence: 1, missingFields: expectedFields };
+    }
+    return { fields: nextFields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language"], confidence: 0.4, missingFields: expectedFields };
+  }
   const kind = String(validation?.kind ?? payload.kind ?? input.patientInput.kind);
+  const derivedBooleanFields = kind === "rating_or_absent" ? expectedFields.filter((item) => /Recorded$/i.test(item)) : [];
+  const directlyEnteredFields = expectedFields.filter((item) => !derivedBooleanFields.includes(item));
+  const deterministic = /ratings$/i.test(field)
+    ? { handled: false as const }
+    : parseDeterministicPromptInput(input.patientInput, input.currentPromptItem?.validation);
   const percent = parsePercent(input.patientInput.value);
-  const numericLike = kind === "rating" || /belief|intensity|percent/i.test(field);
+  const numericLike = kind === "rating" || /intensity|percent|rating|score|weight/i.test(field);
   const validPercent = typeof percent === "number" && percent >= 0 && percent <= 100;
-  const riskSignals = ["danger", "harm", "stop", "suicide", "unsafe", "ending my life", "plan"].filter((keyword) => lowered.includes(keyword));
+  const riskSignals = detectRuntimeRiskSignals(lowered);
   const riskLevel = riskSignals.length > 0 ? "high" : input.currentContext.riskLevel ?? "low";
-  if (numericLike && !validPercent && !riskSignals.length) {
+  if (riskSignals.length > 0) nextFields.crisisSignal = true;
+  const numericValues = [...rawText.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])).filter((value) => value >= 0 && value <= 100);
+  if (deterministic.handled && !deterministic.valid && !riskSignals.length) {
+    return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
+  }
+  if (numericLike && (numericValues.length < directlyEnteredFields.length || !validPercent) && !riskSignals.length) {
     return {
       fields: input.currentContext.fields,
       responseCategory: "text",
       riskLevel,
       riskSignals,
       confidence: 0.25,
-      missingFields: [field],
+      missingFields: directlyEnteredFields.slice(numericValues.length),
     };
   }
   if (!riskSignals.length && !isMeaningfulTextResponse({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
@@ -99,11 +152,20 @@ export async function extractRuntimeState(input: {
       riskLevel,
       riskSignals,
       confidence: 0.2,
-      missingFields: [field],
+      missingFields: expectedFields.length ? [field] : [],
     };
   }
   if (!riskSignals.length && input.currentPromptItem && requiresSemanticInputAssessment({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
     const assessment = await assessRuntimePatientInput({ patientInput: input.patientInput, promptItem: input.currentPromptItem, locale: input.locale });
+    if (assessment.error && /\b(?:disappear|not wake up|better off without me|better off dead|no reason to live|cannot go on|can't go on|hopeless|desperate)\b/i.test(rawText)) {
+      return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language", "assessment_failure_conservative_clarification"], confidence: 0, missingFields: expectedFields };
+    }
+    if (assessment.safetyLevel === "high" || assessment.safetyLevel === "critical") {
+      return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "high", riskSignals: assessment.safetySignals?.length ? assessment.safetySignals : ["assessment_high_risk"], confidence: assessment.confidence, missingFields: [] };
+    }
+    if (assessment.safetyLevel === "moderate") {
+      return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language", ...(assessment.safetySignals ?? [])], confidence: assessment.confidence, missingFields: expectedFields };
+    }
     if (!assessment.accepted) {
       return {
         fields: input.currentContext.fields,
@@ -111,12 +173,18 @@ export async function extractRuntimeState(input: {
         riskLevel,
         riskSignals,
         confidence: "confidence" in assessment ? assessment.confidence : 0,
-        missingFields: [field],
+        missingFields: expectedFields.length ? [field] : [],
       };
+    }
+    for (const [allowedField, value] of Object.entries(assessment.extractedFields ?? {})) {
+      if (expectedFields.includes(allowedField)) nextFields[allowedField] = value;
     }
   }
 
-  if (field === "initialATBeliefPercent" || field === "conclusionBeliefPercent" || field === "revisedATBeliefPercent" || field === "initialEmotionIntensityPercent" || field === "newEmotionIntensities") {
+  if (numericLike && (directlyEnteredFields.length > 1 || derivedBooleanFields.length > 0)) {
+    directlyEnteredFields.forEach((expectedField, index) => { nextFields[expectedField] = numericValues[index]; });
+    derivedBooleanFields.forEach((expectedField) => { nextFields[expectedField] = true; });
+  } else if (field === "initialATBeliefPercent" || field === "conclusionBeliefPercent" || field === "revisedATBeliefPercent" || field === "initialEmotionIntensityPercent" || field === "newEmotionIntensities") {
     nextFields[field] = validPercent ? percent : input.patientInput.value;
   } else if (field === "evidenceFor" || field === "evidenceAgainst") {
     const current = Array.isArray(input.currentContext.fields[field]) ? (input.currentContext.fields[field] as string[]) : [];
@@ -133,9 +201,21 @@ export async function extractRuntimeState(input: {
     nextFields.workingAutomaticThought = rawText;
   } else if (field === "workingAutomaticThought") {
     nextFields.workingAutomaticThought = rawText;
-  } else {
-    nextFields[field] = input.patientInput.value;
+  } else if (expectedFields.length) {
+    nextFields[field] = deterministic.handled && deterministic.valid ? deterministic.value : input.patientInput.value;
   }
+
+  // Multi-concept text prompts must not copy one value into clinically distinct
+  // fields. Accept explicit `field: value` segments; otherwise keep the first
+  // field and request the missing concepts on the same PromptItem.
+  if (!numericLike && expectedFields.length > 1) {
+    for (const expectedField of expectedFields) {
+      const escaped = expectedField.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = rawText.match(new RegExp(`(?:^|[,;\\n])\\s*${escaped}\\s*:\\s*([^,;\\n]+)`, "i"));
+      if (match?.[1]?.trim()) nextFields[expectedField] = match[1].trim();
+    }
+  }
+  const missingExpectedFields = expectedFields.filter((expectedField) => nextFields[expectedField] === undefined || nextFields[expectedField] === "");
 
   return {
     fields: nextFields,
@@ -146,7 +226,7 @@ export async function extractRuntimeState(input: {
     riskLevel,
     riskSignals,
     confidence: 0.92,
-    missingFields: numericLike && !validPercent && !riskSignals.length ? [field] : [],
+    missingFields: riskSignals.length ? [] : missingExpectedFields,
   };
 }
 

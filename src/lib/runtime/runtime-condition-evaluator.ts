@@ -37,10 +37,11 @@ function evaluateCondition(edge: SourceFidelityEdge, context: RuntimeContext) {
 
 export function selectNextRuntimeEdge(edges: SourceFidelityEdge[], context: RuntimeContext) {
   const ordered = [...edges].sort((a, b) => a.priority - b.priority);
-  const conditional = ordered.filter((edge) => edge.edgeType === "conditional");
-  const matchedConditional = conditional.find((edge) => evaluateCondition(edge, context));
+  const matchedConditional = ordered.find((edge) => edge.condition && evaluateCondition(edge, context));
   if (matchedConditional) return matchedConditional;
-  const fallback = ordered.find((edge) => edge.isFallback || edge.edgeType === "fallback");
+  const fallback = ordered.find((edge) => (edge.isFallback || edge.edgeType === "fallback") && evaluateCondition(edge, context));
   if (fallback) return fallback;
-  return ordered.find((edge) => edge.edgeType === "default" || edge.edgeType === "completion" || edge.edgeType === "safety");
+  // Safety edges are never unconditional fallbacks. They may only be selected
+  // when their explicit condition matched above.
+  return ordered.find((edge) => (edge.edgeType === "default" || edge.edgeType === "completion") && evaluateCondition(edge, context));
 }

@@ -58,13 +58,16 @@ export interface RuntimeTransitionRule {
 
 export interface RuntimePromptItem {
   id: string;
+  sessionId?: string;
   nodeId: string;
   roleId: RuntimeSpeakerRoleId | string;
   scope: PromptScope;
   sequenceIndex: number;
   executionMode: PromptExecutionMode;
   modelGuidance: string;
+  requiredPatientFacingContent?: string[];
   fallbackPatientText: string;
+  clarificationPatientText?: string;
   activationCondition?: ConditionExpression;
   completionCondition: ConditionExpression;
   allowedActions: string[];
@@ -72,6 +75,7 @@ export interface RuntimePromptItem {
   requiredFields: string[];
   validationRules: ValidationRule[];
   maxAttempts: number;
+  maxClarificationAttempts?: number;
   maxIterations?: number;
   requiresPatientInput: boolean;
   outputSchemaVersion: string;
@@ -95,6 +99,7 @@ export interface RuntimeNode {
 export interface PolicyBundle {
   globalSafetyRules: string[];
   protocolRules: string[];
+  sessionPolicies?: Record<string, { safetyRules: string[]; protocolRules: string[] }>;
   forbiddenPatientContent: string[];
   maxPromptCharacters: number;
 }
@@ -123,6 +128,8 @@ export interface CompiledPromptContract {
   releaseId: string;
   nodeId: string;
   promptItemId: string;
+  sessionId?: string;
+  sequenceIndex?: number;
   roleId: string;
   systemSegments: PromptSegment[];
   runtimeContext: Record<string, unknown>;

@@ -5,7 +5,7 @@ import { Button, inputClass } from "@/components/ui/primitives";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
 
-type PatientPromptInput = Pick<PromptItem, "type" | "validation">;
+type PatientPromptInput = Pick<PromptItem, "type" | "validation" | "outputFields">;
 
 export function PatientInputControls({
   payload,
@@ -24,9 +24,14 @@ export function PatientInputControls({
     ? payload.choices.map(String)
     : Array.isArray(validation.choices)
       ? validation.choices.map(String)
+      : Array.isArray(validation.values)
+        ? validation.values.map(String)
       : [];
-  const kind = String((payload?.kind ?? payload?.inputKind ?? promptValidationKind) || "text");
+  const kind = String((payload?.kind ?? payload?.inputKind ?? (promptValidationKind === "enum" ? "single_choice" : promptValidationKind)) || "text");
   const promptKind = String(promptItem?.type ?? "");
+  if (/^paired_ratings/.test(promptValidationKind)) {
+    return <PairedRatingInput disabled={disabled} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
+  }
   if (kind === "single_choice") {
     return (
       <div className="grid gap-2">
@@ -60,6 +65,29 @@ export function PatientInputControls({
     <div className="grid gap-3">
       <TextInput disabled={disabled} placeholder={String(payload?.placeholder ?? "Write your response...")} onSubmit={(value) => onSubmit({ kind: "text", value })} />
     </div>
+  );
+}
+
+function readableFieldLabel(field: string, index: number) {
+  if (/belief/i.test(field)) return "Belief in the charge (%)";
+  if (/emotion|intensity/i.test(field)) return "Emotion intensity (%)";
+  return `Rating ${index + 1} (%)`;
+}
+
+function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?: boolean; min: number; max: number; fields: string[]; onSubmit: (first: number, second: number) => void }) {
+  const initial = Math.round((min + max) / 2);
+  const [first, setFirst] = useState(initial);
+  const [second, setSecond] = useState(initial);
+  return (
+    <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit(first, second); }}>
+      {[[first, setFirst], [second, setSecond]].map(([value, setter], index) => (
+        <label key={index} className="grid gap-1 text-sm text-text-secondary">
+          {readableFieldLabel(fields[index] ?? "", index)}
+          <input type="number" min={min} max={max} value={value as number} disabled={disabled} onChange={(event) => (setter as (value: number) => void)(Math.max(min, Math.min(max, Number(event.target.value))))} className={inputClass} />
+        </label>
+      ))}
+      <Button disabled={disabled}>Submit both ratings</Button>
+    </form>
   );
 }
 

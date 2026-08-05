@@ -1,18 +1,21 @@
-import { commitRuntimeAssistantTurn, saveRuntimeEscalation, saveRuntimeLog, saveRuntimeMessage, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
+import { claimRuntimePatientTurn, commitRuntimeAssistantTurn, saveRuntimeEscalation, saveRuntimeLog, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { cleanupExpiredTriggerSuppressions, findActiveTriggerSuppression, updateTriggerSuppression } from "@/lib/repositories/safety-event-repository";
 import { createRuntimeCheckpoint, getRuntimeSession, setRuntimeSessionStatus } from "@/lib/api/runtime-session-api";
 import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
 import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/session-summary-api";
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
-import { mergeExtractedRuntimeContext, extractRuntimeState } from "@/lib/runtime/runtime-context";
+import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
 import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tracer";
+import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-validator";
 import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
+import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 import { reduceRuntimeState } from "@/lib/runtime/runtime-state-reducer";
-import { resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
+import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
+import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
 import type { ProtocolReleaseVersion } from "@/types/protocol-runtime";
 import type { PatientInput, RuntimeCycleResult, RuntimeMessage, RuntimeSession, RuntimeSessionStatus, SessionExecutionLog } from "@/types/runtime-session";
 import type { SafetyTriggerSuppression } from "@/types/safety-operations";
@@ -57,6 +60,239 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
   return runtimeContext;
 }
 
+function deterministicValidation(finalText: string) {
+  return {
+    accepted: true,
+    corrected: false,
+    rejected: false,
+    issues: [],
+    finalText,
+    fallbackRequired: false,
+  };
+}
+
+const MAX_CLARIFICATION_ATTEMPTS = 3;
+
+async function deliverClarificationTurn(input: {
+  session: RuntimeSession;
+  node: ClinicalStageNode;
+  promptItem: PromptItem;
+  runtimePromptItem: import("@/types/protocol-runtime").RuntimePromptItem;
+  release: ProtocolReleaseVersion;
+  runtimeState: NonNullable<RuntimeSession["runtimeState"]>;
+  patientMessage: RuntimeMessage;
+  reason: string;
+  missingFields?: string[];
+  recentAssistantMessages?: string[];
+}) {
+  const clarificationAttemptCount = (input.session.runtimeContext.clarificationAttemptCount ?? 0) + 1;
+  const missing = new Set(input.missingFields ?? []);
+  const sourceSpecificClarification = input.promptItem.id === "tbct-s08-n01-p01-distressing-situation"
+    ? missing.has("distressingSituation") && !missing.has("automaticThought")
+      ? "Please describe a specific distressing situation and the important facts of what actually happened."
+      : missing.has("automaticThought") && !missing.has("distressingSituation")
+        ? "What automatic thought did that situation trigger?"
+        : "Please identify a specific distressing situation and the automatic thought it triggered. What actually happened, and what went through your mind?"
+    : undefined;
+  const proposedContent = input.reason === "patient_refusal"
+    ? "I understand. We can pause here, and you do not need to continue. You can end the session or resume later only if you choose."
+    : input.reason === "safety_clarification"
+      ? "I want to make sure I understand you correctly. Are you saying that you may be thinking about dying or harming yourself, or do you mean that things feel overwhelming right now?"
+    : sourceSpecificClarification ?? resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.clarificationPatientText ?? input.runtimePromptItem.fallbackPatientText, input.session.locale);
+  const normalizeMessage = (value: string) => value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, " ").trim();
+  const duplicatesRecentQuestion = (input.recentAssistantMessages ?? []).slice(-3).some((message) => normalizeMessage(message) === normalizeMessage(proposedContent));
+  const outputField = input.promptItem.outputFields[0] ?? "";
+  const validation = input.promptItem.validation as { kind?: unknown; values?: unknown; min?: unknown; max?: unknown } | null;
+  const enumValues = Array.isArray(validation?.values) ? validation.values.map(String) : [];
+  const adaptiveClarification = enumValues.length
+    ? `Please choose one of these options: ${enumValues.join(" or ")}.`
+    : validation?.kind === "rating" || /Percent|Rating|Intensity/i.test(outputField)
+      ? `Please enter one number from ${Number(validation?.min ?? 0)} to ${Number(validation?.max ?? 100)}.`
+      : /Situation/i.test(outputField)
+        ? clarificationAttemptCount === 1
+          ? "Could you describe one specific event: where you were, who was involved, and what happened?"
+          : "Please give one brief, concrete moment rather than a general feeling or thought."
+        : /Thought|Belief/i.test(outputField)
+          ? clarificationAttemptCount === 1
+            ? "What exact words went through your mind at that moment?"
+            : "If you put the thought into one short sentence, what would it say?"
+          : /Emotion/i.test(outputField)
+            ? "Could you name one specific emotion you felt, such as anxiety, sadness, anger, shame, or relief?"
+            : /Behavior/i.test(outputField)
+              ? "What did you actually do, or what would the person visibly do next?"
+              : /Reaction/i.test(outputField)
+                ? "Would the other person's reaction be positive or negative?"
+                : /Body|Sensation/i.test(outputField)
+                  ? "What specific physical sensation did you notice in your body?"
+                  : "Could you answer with one brief, specific example that directly addresses the question?";
+  const content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
+  const sessionStatus: RuntimeSessionStatus = input.reason === "patient_refusal" || clarificationAttemptCount >= MAX_CLARIFICATION_ATTEMPTS ? "paused" : "waiting_for_input";
+  const assistantMessage: RuntimeMessage = {
+    id: makeId("RMSG"),
+    runtimeSessionId: input.session.id,
+    role: "assistant",
+    content,
+    status: "validated",
+    nodeId: input.node.id,
+    promptItemId: input.promptItem.id,
+    sourceEvidenceIds: [],
+    createdAt: new Date().toISOString(),
+    deliveredAt: new Date().toISOString(),
+    metadata: { turnId: makeId("TURN"), turnOutcome: "clarification", clarificationReason: input.reason },
+  };
+  const outputValidation = deterministicValidation(content);
+  await commitRuntimeAssistantTurn({
+    sessionId: input.session.id,
+    assistantMessage,
+    providerEvent: {
+      id: makeId("RPE"),
+      runtimeSessionId: input.session.id,
+      provider: "deterministic",
+      model: "runtime-clarification",
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      inputSummary: `clarification:${input.reason}`,
+      outputText: content,
+      createdAt: new Date().toISOString(),
+    },
+    validationEvent: {
+      id: makeId("RVE"),
+      runtimeSessionId: input.session.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      ...outputValidation,
+      createdAt: new Date().toISOString(),
+    },
+    trace: createRuntimeExecutionTrace({
+      runtimeSessionId: input.session.id,
+      releaseId: input.release.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      roleId: input.runtimePromptItem.roleId,
+      provider: "deterministic",
+      model: "runtime-clarification",
+      contractHash: `clarification:${input.session.id}:${input.promptItem.id}`,
+      validation: outputValidation,
+      fallbackUsed: true,
+      transitionDecision: "clarification",
+      stateChanges: { activeNodeId: input.node.id, activePromptItemId: input.promptItem.id, clarificationReason: input.reason },
+      fidelityEvidence: {
+        locale: input.session.locale,
+        patientFacingText: content,
+        activePromptMatches: true,
+        patientInputPresent: true,
+      },
+    }),
+    sessionPatch: {
+      runtimeContext: {
+        ...input.session.runtimeContext,
+        lastPatientMessage: input.patientMessage.content,
+        clarificationAttemptCount,
+        lastClarificationReason: sessionStatus === "paused" ? "maximum_clarification_attempts" : input.reason,
+      },
+      currentNodeId: input.node.id,
+      currentPromptItemId: input.promptItem.id,
+      runtimeState: input.runtimeState,
+      promptProgressionReason: "clarification_sent",
+      status: sessionStatus,
+    },
+  });
+  return { assistantMessage, sessionStatus };
+}
+
+async function deliverSafetyOverrideTurn(input: {
+  session: RuntimeSession;
+  node: ClinicalStageNode;
+  promptItem: PromptItem;
+  runtimePromptItem: import("@/types/protocol-runtime").RuntimePromptItem;
+  release: ProtocolReleaseVersion;
+  runtimeState: NonNullable<RuntimeSession["runtimeState"]>;
+  patientMessage: RuntimeMessage;
+  safetyContext: RuntimeSession["runtimeContext"];
+  safetyResult: import("@/types/runtime-session").SafetyOrchestrationResult;
+}) {
+  const content = input.safetyResult.fixedResponse;
+  if (!content) throw new Error("Safety override requires an approved fixed response.");
+  const nextStatus = input.safetyResult.escalationRequired ? "escalated" : "safety_paused";
+  const assistantMessage: RuntimeMessage = {
+    id: makeId("RMSG"),
+    runtimeSessionId: input.session.id,
+    role: "assistant",
+    content,
+    status: "delivered",
+    nodeId: input.node.id,
+    promptItemId: input.promptItem.id,
+    sourceEvidenceIds: [],
+    createdAt: new Date().toISOString(),
+    deliveredAt: new Date().toISOString(),
+    metadata: { turnId: makeId("TURN"), turnOutcome: "safety_override", patientVisible: true, approvedSafetyRuleId: input.safetyResult.ruleIds[0] },
+  };
+  const validation = deterministicValidation(content);
+  await commitRuntimeAssistantTurn({
+    sessionId: input.session.id,
+    assistantMessage,
+    providerEvent: {
+      id: makeId("RPE"),
+      runtimeSessionId: input.session.id,
+      provider: "deterministic",
+      model: "approved-safety-response",
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      inputSummary: `safety:${input.safetyResult.ruleIds.join(",")}`,
+      outputText: content,
+      createdAt: new Date().toISOString(),
+    },
+    validationEvent: {
+      id: makeId("RVE"),
+      runtimeSessionId: input.session.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      ...validation,
+      createdAt: new Date().toISOString(),
+    },
+    trace: createRuntimeExecutionTrace({
+      runtimeSessionId: input.session.id,
+      releaseId: input.release.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      roleId: input.runtimePromptItem.roleId,
+      provider: "deterministic",
+      model: "approved-safety-response",
+      contractHash: `safety:${input.session.id}:${input.promptItem.id}`,
+      validation,
+      fallbackUsed: false,
+      transitionDecision: "safety_override",
+      stateChanges: {
+        activeNodeId: input.node.id,
+        activePromptItemId: input.promptItem.id,
+        suspendedPromptItemId: input.promptItem.id,
+        safetyRuleIds: input.safetyResult.ruleIds,
+      },
+      fidelityEvidence: {
+        locale: input.session.locale,
+        patientFacingText: content,
+        activePromptMatches: true,
+        patientInputPresent: true,
+        safetyOverrideExpected: true,
+        approvedSafetyLocaleException: !isPatientFacingLocaleConsistent(content, input.session.locale),
+      },
+    }),
+    sessionPatch: {
+      runtimeContext: {
+        ...input.safetyContext,
+        lastPatientMessage: input.patientMessage.content,
+        riskLevel: input.safetyResult.severity === "high" ? "high" : "medium",
+      },
+      currentNodeId: input.node.id,
+      currentPromptItemId: input.promptItem.id,
+      runtimeState: input.runtimeState,
+      promptProgressionReason: "safety_paused",
+      status: nextStatus,
+    },
+  });
+  return assistantMessage;
+}
+
 async function deliverRuntimePrompt(input: {
   session: RuntimeSession;
   node: ClinicalStageNode;
@@ -69,9 +305,35 @@ async function deliverRuntimePrompt(input: {
     recentMessages: input.recentMessages,
   });
   const reduction = delivered.stateReduction;
+  const traceId = makeId("RTX");
+  const clientTurnId = input.session.pendingTurnId;
+  const patientMessage = clientTurnId
+    ? [...input.recentMessages].reverse().find((message) => message.role === "patient" && message.metadata?.clientTurnId === clientTurnId)
+    : undefined;
+  const turnKind = patientMessage ? "patient_assistant" as const : "assistant_only" as const;
+  const sessionVersionBefore = input.session.version ?? 0;
+  const sessionVersionAfter = sessionVersionBefore + 1;
+  const generatedMessage: RuntimeMessage = {
+    ...delivered.generatedMessage,
+    metadata: {
+      ...delivered.generatedMessage.metadata,
+      clientTurnId,
+      patientMessageId: patientMessage?.id,
+      assistantMessageId: delivered.generatedMessage.id,
+      executionTraceId: traceId,
+      sessionVersionBefore,
+      sessionVersionAfter,
+      turnOutcome: turnKind,
+    },
+  };
+  const promptExecutionStatuses = {
+    ...(input.session.promptExecutionStatuses ?? {}),
+    ...Object.fromEntries(reduction.skippedPromptItemIds.map((id) => [id, "inactive_condition" as const])),
+    [input.promptItem.id]: "executed" as const,
+  };
   await commitRuntimeAssistantTurn({
     sessionId: input.session.id,
-    assistantMessage: delivered.generatedMessage,
+    assistantMessage: generatedMessage,
     providerEvent: {
       id: makeId("RPE"),
       runtimeSessionId: input.session.id,
@@ -81,7 +343,8 @@ async function deliverRuntimePrompt(input: {
       promptItemId: input.promptItem.id,
       latencyMs: delivered.providerResult.latencyMs,
       inputSummary: delivered.contract.contractHash,
-      outputText: delivered.generatedMessage.content,
+      outputText: generatedMessage.content,
+      error: delivered.providerResult.error,
       createdAt: new Date().toISOString(),
     },
     validationEvent: {
@@ -93,26 +356,52 @@ async function deliverRuntimePrompt(input: {
       corrected: delivered.validator.corrected,
       rejected: delivered.validator.rejected,
       issues: delivered.validator.issues,
-      finalText: delivered.generatedMessage.content,
+      finalText: generatedMessage.content,
       fallbackRequired: delivered.validator.fallbackRequired,
       createdAt: new Date().toISOString(),
     },
     trace: createRuntimeExecutionTrace({
+      id: traceId,
       runtimeSessionId: input.session.id,
       releaseId: input.release.id,
       nodeId: input.node.id,
       promptItemId: input.promptItem.id,
       roleId: delivered.contract.roleId,
+      sessionId: delivered.contract.sessionId,
+      sequenceIndex: delivered.contract.sequenceIndex,
       provider: delivered.providerResult.provider,
       model: delivered.providerResult.model,
       contractHash: delivered.contract.contractHash,
       validation: delivered.validator,
       fallbackUsed: delivered.fallbackUsed,
       transitionDecision: reduction.transitionDecision,
+      modelRecommendedTransition: delivered.response.recommendedTransition,
+      deterministicTransitionEvaluation: reduction.transitionDecision,
+      committedTransition: reduction.transitionDecision,
+      committedNextNodeId: reduction.state.activeNodeId,
+      committedNextPromptItemId: reduction.state.activePromptItemId,
+      turnAssociation: {
+        kind: turnKind,
+        clientTurnId,
+        patientMessageId: patientMessage?.id,
+        assistantMessageId: generatedMessage.id,
+        executionTraceId: traceId,
+        sessionVersionBefore,
+        sessionVersionAfter,
+      },
+      promptExecutionStatuses,
       stateChanges: {
         activeNodeId: reduction.state.activeNodeId,
         activePromptItemId: reduction.state.activePromptItemId,
         completedPromptItemIds: reduction.state.completedPromptItemIds,
+      },
+      fidelityEvidence: {
+        locale: input.session.locale,
+        patientFacingText: generatedMessage.content,
+        activePromptMatches: delivered.contract.nodeId === input.node.id && delivered.contract.promptItemId === input.promptItem.id,
+        patientInputPresent: Boolean(patientMessage),
+        turnKind,
+        safetyOverrideExpected: input.session.runtimeContext.riskLevel !== "low" && input.session.runtimeContext.riskSignals.length > 0,
       },
     }),
     sessionPatch: {
@@ -121,12 +410,13 @@ async function deliverRuntimePrompt(input: {
       currentPromptItemId: reduction.state.activePromptItemId,
       completedPromptItemIds: reduction.state.completedPromptItemIds,
       skippedPromptItemIds: mergePromptItemIds(input.session.skippedPromptItemIds, reduction.skippedPromptItemIds),
+      promptExecutionStatuses,
       runtimeState: reduction.state,
       promptProgressionReason: reduction.transitionDecision === "next_node" ? "node_completed" : reduction.transitionDecision === "next_prompt" ? "prompt_completed" : "prompt_delivered",
       status: reduction.transitionDecision === "waiting_for_input" ? "waiting_for_input" : "active",
     },
   });
-  return delivered;
+  return { ...delivered, generatedMessage };
 }
 
 function normalizeInputValue(patientInput: PatientInput) {
@@ -291,8 +581,8 @@ export async function terminateRuntimeSession(sessionId: string, reason: string)
   const view = await getRuntimeSession(sessionId);
   if (!view) throw new Error("Runtime session not found");
   if (["completed", "terminated"].includes(view.session.status)) throw new Error("Session cannot be terminated");
-  const nextStatus: RuntimeSessionStatus = view.session.status === "safety_paused" || view.session.status === "escalated" ? "terminated" : "terminated";
-  await updateRuntimeSessionRecord(sessionId, { status: nextStatus, terminatedAt: new Date().toISOString() });
+  assertRuntimeTransition(view.session.status, "terminated");
+  await updateRuntimeSessionRecord(sessionId, { status: "terminated", terminatedAt: new Date().toISOString() });
   await saveRuntimeLog(makeLog(sessionId, "session", "completed", `Session terminated: ${reason}`));
   return createRuntimeCheckpoint(sessionId);
 }
@@ -326,6 +616,25 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
         sessionStatus: "completed",
         logIds: [],
       };
+    }
+    const runtimeNode = runtimeRelease.nodes.find((item) => item.id === runtimeState.activeNodeId);
+    const transition = runtimeNode?.transitionRules
+      .slice()
+      .sort((left, right) => left.priority - right.priority)
+      .find((rule) => evaluateRuntimeCondition(rule.condition, runtimeState));
+    const nextNode = transition && runtimeRelease.nodes.find((item) => item.id === transition.targetNodeId);
+    if (runtimeNode && nextNode) {
+      const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, runtimeNode.promptSequence);
+      const nextState = {
+        ...runtimeState,
+        activeNodeId: nextNode.id,
+        activePromptItemId: nextNode.promptSequence[0],
+        activePromptIndex: 0,
+        completedNodeIds: mergePromptItemIds(runtimeState.completedNodeIds, [runtimeNode.id]),
+        completedPromptItemIds: mergePromptItemIds(runtimeState.completedPromptItemIds, runtimeNode.promptSequence),
+      };
+      await updateRuntimeSessionRecord(sessionId, { currentNodeId: nextNode.id, currentPromptItemId: nextState.activePromptItemId, skippedPromptItemIds, runtimeState: nextState, promptProgressionReason: "prompt_skipped", status: "active" });
+      return executeCurrentNode(sessionId);
     }
     await updateRuntimeSessionRecord(sessionId, { status: "failed" });
     throw new Error("Runtime session has no active deterministic step.");
@@ -466,26 +775,36 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
   throw new Error("Runtime session resolved no active source PromptItem.");
 }
 
-export async function submitPatientInput(sessionId: string, patientInput: PatientInput): Promise<RuntimeCycleResult> {
+export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number } = {}): Promise<RuntimeCycleResult> {
   await cleanupExpiredTriggerSuppressions();
-  const view = await getRuntimeSession(sessionId);
-  if (!view) throw new Error("Runtime session not found");
-  const session = view.session;
-  if (session.status === "completed") throw new Error("Completed session does not accept input");
-  if (session.status === "processing") throw new Error("Session is already processing input");
-  if (session.status !== "waiting_for_input") throw new Error("Session is not waiting for input");
-  const runtimeRelease = loadRuntimeRelease(view.release);
-  const runtimeState = normalizeRuntimeSessionState(session, runtimeRelease);
+  const initialView = await getRuntimeSession(sessionId);
+  if (!initialView) throw new Error("Runtime session not found");
+  const initialSession = initialView.session;
+  if (initialSession.status === "completed") throw new Error("Completed session does not accept input");
+  if (initialSession.status === "processing") {
+    return {
+      sessionId,
+      previousNodeId: initialSession.previousNodeId,
+      currentNodeId: initialSession.currentNodeId ?? "unknown",
+      currentPromptItemId: initialSession.currentPromptItemId,
+      safetyResult: { triggered: false, ruleIds: [], action: "continue", escalationRequired: false },
+      turnOutcome: "rejected_duplicate",
+      fallbackUsed: false,
+      sessionStatus: initialSession.status,
+      logIds: [],
+    };
+  }
+  if (initialSession.status !== "waiting_for_input") throw new Error("Session is not waiting for input");
+  const runtimeRelease = loadRuntimeRelease(initialView.release);
+  const runtimeState = normalizeRuntimeSessionState(initialSession, runtimeRelease);
   const activeStep = resolveActiveRuntimeStep(runtimeRelease, runtimeState);
   if (!activeStep) throw new Error("Runtime session has no active deterministic step.");
-  const currentNode = view.nodes.find((node) => node.id === activeStep.node.id);
+  const currentNode = initialView.nodes.find((node) => node.id === activeStep.node.id);
   if (!currentNode) throw new Error("Current node is missing");
-  const currentPromptItem = view.promptItems.find((promptItem) => promptItem.id === activeStep.promptItem.sourcePromptItemId);
+  const currentPromptItem = initialView.promptItems.find((promptItem) => promptItem.id === activeStep.promptItem.sourcePromptItemId);
   if (!currentPromptItem) throw new Error("Current source PromptItem is missing");
   if (!activeStep.promptItem.requiresPatientInput) throw new Error("Current PromptItem does not accept patient input");
-  const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
-  await updateRuntimeSessionRecord(sessionId, { status: "processing", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
-  const executionSequence = session.executionLogIds.length + 1;
+  const clientTurnId = options.clientTurnId ?? makeId("TURN");
   const patientMessage: RuntimeMessage = {
     id: makeId("RMSG"),
     runtimeSessionId: sessionId,
@@ -496,14 +815,79 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     promptItemId: currentPromptItem.id,
     createdAt: new Date().toISOString(),
     deliveredAt: new Date().toISOString(),
-    metadata: { inputKind: patientInput.kind, promptItemId: currentPromptItem.id },
+    metadata: { inputKind: patientInput.kind, promptItemId: currentPromptItem.id, clientTurnId },
   };
-  await saveRuntimeMessage(patientMessage);
+  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: initialSession.runtimeContext, locale: initialSession.locale });
+  const safetyContext = {
+    ...initialSession.runtimeContext,
+    riskLevel: extracted.riskLevel,
+    riskSignals: extracted.riskSignals,
+    lastPatientMessage: patientMessage.content,
+  };
+  const safetyResult = await runSafetyOrchestrator({ currentNode, extractedState: extracted, runtimeContext: safetyContext });
+  const claim = await claimRuntimePatientTurn({
+    sessionId,
+    clientTurnId,
+    expectedSessionVersion: options.expectedSessionVersion ?? initialSession.version ?? 0,
+    patientMessage,
+  });
+  if (!claim.claimed) {
+    return {
+      sessionId,
+      previousNodeId: claim.session.previousNodeId,
+      currentNodeId: claim.session.currentNodeId ?? "unknown",
+      currentPromptItemId: claim.session.currentPromptItemId,
+      safetyResult: { triggered: false, ruleIds: [], action: "continue", escalationRequired: false },
+      turnOutcome: "rejected_duplicate",
+      fallbackUsed: false,
+      sessionStatus: claim.session.status,
+      logIds: [],
+    };
+  }
+  const view = initialView;
+  const session = claim.session;
+  if (claim.session.pendingTurnId !== clientTurnId) throw new Error("Patient turn claim was not retained");
+  const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
+  await updateRuntimeSessionRecord(sessionId, { status: "processing", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
+  const executionSequence = session.executionLogIds.length + 1;
   await saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient input received", { nodeId: currentNode.id, input: { kind: patientInput.kind } }));
-  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: session.runtimeContext, locale: session.locale });
   await saveRuntimeLog(makeLog(sessionId, "state_extraction", "completed", "State extracted", { nodeId: currentNode.id, output: extracted as unknown as Record<string, unknown> }));
-  if (extracted.missingFields.length) {
-    await updateRuntimeSessionRecord(sessionId, { status: "waiting_for_input", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
+  await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", safetyResult.triggered ? `Safety triggered: ${safetyResult.action}` : "Safety check passed", { nodeId: currentNode.id, output: safetyResult as unknown as Record<string, unknown> }));
+  if (extracted.riskSignals.includes("ambiguous_safety_language") && !safetyResult.triggered) {
+    const clarification = await deliverClarificationTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, release: view.release, runtimeState, patientMessage, reason: "safety_clarification", missingFields: extracted.missingFields, recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content) });
+    await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Ambiguous safety language requires neutral clarification", { nodeId: currentNode.id, output: { signals: extracted.riskSignals } }));
+    await createRuntimeCheckpoint(sessionId);
+    return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: clarification.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: clarification.sessionStatus, logIds: [] };
+  }
+  if (isExplicitPatientRefusal(patientMessage.content) && !safetyResult.triggered) {
+    const refusal = await deliverClarificationTurn({
+      session,
+      node: currentNode,
+      promptItem: currentPromptItem,
+      runtimePromptItem: activeStep.promptItem,
+      release: view.release,
+      runtimeState,
+      patientMessage,
+      reason: "patient_refusal",
+      recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
+    });
+    await saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient declined to continue; session paused without protocol progression", { nodeId: currentNode.id }));
+    await createRuntimeCheckpoint(sessionId);
+    return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: refusal.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: refusal.sessionStatus, logIds: [] };
+  }
+  if (extracted.missingFields.length && !safetyResult.triggered) {
+    const clarification = await deliverClarificationTurn({
+      session,
+      node: currentNode,
+      promptItem: currentPromptItem,
+      runtimePromptItem: activeStep.promptItem,
+      release: view.release,
+      runtimeState,
+      patientMessage,
+      reason: "insufficient_input",
+      missingFields: extracted.missingFields,
+      recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
+    });
     await saveRuntimeLog(makeLog(sessionId, "error", "skipped", "Input validation failed", { nodeId: currentNode.id, output: { missingFields: extracted.missingFields } }));
     await createRuntimeCheckpoint(sessionId);
     return {
@@ -512,16 +896,14 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       currentNodeId: currentNode.id,
       currentPromptItemId: currentPromptItem.id,
       stateExtraction: extracted,
-      safetyResult: { triggered: false, ruleIds: [], action: "continue", escalationRequired: false },
-      fallbackUsed: false,
-      sessionStatus: "waiting_for_input",
+      safetyResult,
+      generatedMessage: clarification.assistantMessage,
+      turnOutcome: clarification.sessionStatus === "paused" ? "fallback" : "clarification",
+      fallbackUsed: true,
+      sessionStatus: clarification.sessionStatus,
       logIds: [],
     };
   }
-  const nextContext = { ...mergeExtractedRuntimeContext(session.runtimeContext, extracted), lastPatientMessage: patientMessage.content };
-  await updateRuntimeSessionRecord(sessionId, { runtimeContext: nextContext });
-  const safetyResult = await runSafetyOrchestrator({ currentNode, extractedState: extracted, runtimeContext: nextContext });
-  await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", safetyResult.triggered ? `Safety triggered: ${safetyResult.action}` : "Safety check passed", { nodeId: currentNode.id, output: safetyResult as unknown as Record<string, unknown> }));
   if (safetyResult.triggered) {
     const inputFingerprint = createSafetyInputFingerprint({
       runtimeSessionId: sessionId,
@@ -543,23 +925,17 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       riskSignalSignature,
       inputFingerprint,
     });
-    let fixedResponseMessageId: string | undefined;
-    if (safetyResult.fixedResponse) {
-      const fixedMessage = {
-        id: makeId("RMSG"),
-        runtimeSessionId: sessionId,
-        role: "system",
-        content: safetyResult.fixedResponse,
-        status: "delivered",
-        nodeId: currentNode.id,
-        promptItemId: currentPromptItem.id,
-        createdAt: new Date().toISOString(),
-        deliveredAt: new Date().toISOString(),
-        metadata: { patientVisible: true },
-      } satisfies RuntimeMessage;
-      await saveRuntimeMessage(fixedMessage);
-      fixedResponseMessageId = fixedMessage.id;
-    }
+    const safetyMessage = await deliverSafetyOverrideTurn({
+      session,
+      node: currentNode,
+      promptItem: currentPromptItem,
+      runtimePromptItem: activeStep.promptItem,
+      release: view.release,
+      runtimeState,
+      patientMessage,
+      safetyContext,
+      safetyResult,
+    });
     const safetyEvent = suppressionDecision.suppressed && activeSuppression
       ? await findOpenSafetyEventByTriggerKey({
         runtimeSessionId: sessionId,
@@ -574,7 +950,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
         executionSequence,
         safetyResult,
         patientMessageId: patientMessage.id,
-        fixedResponseMessageId,
+        fixedResponseMessageId: safetyMessage.id,
       });
     if (suppressionDecision.suppressed && activeSuppression) {
       await consumeOrRecordSuppressionUse(activeSuppression);
@@ -620,12 +996,13 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
         suppressionId: suppressionDecision.suppressionId,
         suppressionReason: suppressionDecision.reason,
         reusedSafetyEventId: suppressionDecision.suppressed ? safetyEvent.id : undefined,
+        generatedMessage: safetyMessage,
+        turnOutcome: "safety_override",
         fallbackUsed: false,
         sessionStatus: "escalated",
         logIds: [],
       };
     }
-    await updateRuntimeSessionRecord(sessionId, { status: "safety_paused" });
     await placeSessionOnSafetyHold(sessionId, safetyEvent.id, "Runtime safety trigger requested hold");
     await createRuntimeCheckpoint(sessionId);
     return {
@@ -638,11 +1015,15 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       suppressionId: suppressionDecision.suppressionId,
       suppressionReason: suppressionDecision.reason,
       reusedSafetyEventId: suppressionDecision.suppressed ? safetyEvent.id : undefined,
+      generatedMessage: safetyMessage,
+      turnOutcome: "safety_override",
       fallbackUsed: false,
       sessionStatus: "safety_paused",
       logIds: [],
     };
   }
+  const nextContext = { ...mergeExtractedRuntimeContext(session.runtimeContext, extracted), lastPatientMessage: patientMessage.content, clarificationAttemptCount: 0, lastClarificationReason: undefined };
+  await updateRuntimeSessionRecord(sessionId, { runtimeContext: nextContext });
   const reduction = reduceRuntimeState({
     release: runtimeRelease,
     currentState: runtimeState,
@@ -725,5 +1106,6 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     nextPromptItemId: cycle.currentPromptItemId,
     stateExtraction: extracted,
     safetyResult,
+    turnOutcome: cycle.fallbackUsed ? "fallback" : "normal",
   };
 }

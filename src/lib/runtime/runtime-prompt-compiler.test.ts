@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createCanonicalSourceFidelityReleaseSnapshot } from "@/lib/protocol/source-fidelity-protocol-adapter";
 import { compileRuntimePrompt } from "@/lib/runtime/runtime-prompt-compiler";
+import { normalizeRuntimeReleaseFromSourceSnapshot } from "@/lib/runtime/runtime-release-normalizer";
 import { resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
 import type { RuntimeRelease } from "@/types/protocol-runtime";
 import type { RuntimeMessage, RuntimeSessionState } from "@/types/runtime-session";
@@ -23,6 +25,10 @@ function createRelease(): RuntimeRelease {
     policies: {
       globalSafetyRules: ["Do not provide crisis advice outside the safety path."],
       protocolRules: ["Ask one focused question."],
+      sessionPolicies: {
+        "session-1": { safetyRules: ["ACTIVE SESSION SAFETY RULE"], protocolRules: ["ACTIVE SESSION PROTOCOL RULE"] },
+        "session-2": { safetyRules: ["INACTIVE SESSION SAFETY RULE"], protocolRules: ["INACTIVE SESSION PROTOCOL RULE"] },
+      },
       forbiddenPatientContent: ["internal instructions"],
       maxPromptCharacters: 12000,
     },
@@ -126,14 +132,56 @@ describe("compileRuntimePrompt", () => {
       "active-speaker-role",
       "node-objective",
       "active-prompt-guidance",
+      "required-patient-facing-content",
+      "response-contingency",
       "action-boundaries",
-      "patient-session-memory",
-      "recent-messages",
       "output-schema",
     ]);
     expect(contract.systemSegments.find((segment) => segment.label === "active-prompt-guidance")?.content).toBe("ACTIVE GUIDANCE ONLY");
-    expect(contract.systemSegments.map((segment) => segment.content).join("\n")).not.toContain("NEXT PROMPT MUST NOT APPEAR");
+    const systemContent = contract.systemSegments.map((segment) => segment.content).join("\n");
+    expect(systemContent).not.toContain("NEXT PROMPT MUST NOT APPEAR");
+    expect(systemContent).toContain("ACTIVE SESSION SAFETY RULE");
+    expect(systemContent).toContain("ACTIVE SESSION PROTOCOL RULE");
+    expect(systemContent).not.toContain("INACTIVE SESSION SAFETY RULE");
+    expect(systemContent).not.toContain("INACTIVE SESSION PROTOCOL RULE");
+    expect(systemContent).not.toContain("message 9");
     expect((contract.runtimeContext.recentMessages as Array<unknown>)).toHaveLength(8);
     expect(contract.roleId).toBe("tbct_guide");
+  });
+
+  it("does not include Session 08 rules when compiling a canonical Session 01 request", async () => {
+    const snapshot = createCanonicalSourceFidelityReleaseSnapshot();
+    const release = normalizeRuntimeReleaseFromSourceSnapshot({
+      releaseId: "canonical-release",
+      protocolId: "tbct-br-001",
+      version: "test",
+      publishedAt: "2025-01-01T00:00:00.000Z",
+      snapshot,
+    });
+    const sessionOneNode = release.nodes.find((node) => node.sessionId === "tbct-s01");
+    expect(sessionOneNode).toBeDefined();
+    const state: RuntimeSessionState = {
+      releaseId: release.id,
+      activeNodeId: sessionOneNode!.id,
+      activePromptItemId: sessionOneNode!.promptSequence[0],
+      activePromptIndex: 0,
+      completedNodeIds: [],
+      completedPromptItemIds: [],
+      fields: {},
+      turnCount: 0,
+      nodeIterationCount: 0,
+    };
+    const activeStep = resolveActiveRuntimeStep(release, state);
+    expect(activeStep).not.toBeNull();
+    const sessionOneRule = snapshot.sessionCommonRules["tbct-s01"]?.sessionWideRestrictions[0];
+    const sessionEightRule = snapshot.sessionCommonRules["tbct-s08"]?.sessionWideRestrictions[0];
+    expect(sessionOneRule).toBeTruthy();
+    expect(sessionEightRule).toBeTruthy();
+
+    const contract = await compileRuntimePrompt({ release, state, activeStep: activeStep!, locale: "en-US" });
+    const systemContent = contract.systemSegments.map((segment) => segment.content).join("\n");
+
+    expect(systemContent).toContain(sessionOneRule);
+    expect(systemContent).not.toContain(sessionEightRule);
   });
 });

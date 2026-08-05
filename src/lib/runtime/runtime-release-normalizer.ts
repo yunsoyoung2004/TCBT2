@@ -97,17 +97,66 @@ const PASSIVE_PROMPT_TYPES = new Set<PromptItem["type"]>([
   "closing",
 ]);
 
-function defaultFallbackPatientText(locale: string) {
+export function defaultFallbackPatientText(locale: string) {
   if (locale.toLowerCase().startsWith("ko")) return "천천히 생각해 보셔도 괜찮습니다. 지금 가장 중요하게 느껴지는 점을 말씀해 주세요.";
   if (locale.toLowerCase().startsWith("pt")) return "Podemos ir com calma. O que parece mais importante para você neste momento?";
   return "We can take this one step at a time. What feels most important to share right now?";
 }
 
+function isLocaleConsistentFallbackText(value: string, locale: string) {
+  if (!locale.toLowerCase().startsWith("ko")) return true;
+  return /[\uAC00-\uD7A3]/.test(value);
+}
+
+const REVIEWED_KOREAN_PROMPT_TEXT: Record<string, string> = {
+  "tbct-s01-n01-p01-warm-acknowledgement": "많은 것을 감당해 오신 것 같아요. 여기 와 주셔서 감사합니다. 이 모든 일을 함께 더 분명하게 살펴보는 데 도움이 되는 것부터 시작하겠습니다.",
+};
+
+export function resolvePromptLocaleText(promptItemId: string, value: string | undefined, locale: string) {
+  if (locale.toLowerCase().startsWith("ko") && REVIEWED_KOREAN_PROMPT_TEXT[promptItemId]) return REVIEWED_KOREAN_PROMPT_TEXT[promptItemId];
+  return resolveLocaleFallbackPatientText(value, locale);
+}
+
+function localizedSourcePromptText(promptItem: PromptItem, locale: string, fallbackCandidate: string | undefined) {
+  if (locale.toLowerCase().startsWith("ko") && REVIEWED_KOREAN_PROMPT_TEXT[promptItem.id]) return REVIEWED_KOREAN_PROMPT_TEXT[promptItem.id];
+  return fallbackCandidate;
+}
+
+export function resolveLocaleFallbackPatientText(value: string | undefined, locale: string) {
+  // A source-specific prompt is safer than a generic question that changes the
+  // clinical task. Locale mismatch remains visible to validation/audit and must
+  // never silently turn into a generic protocol substitute.
+  return isPatientSafeFallbackText(value) ? value!.trim() : defaultFallbackPatientText(locale);
+}
+
 export function isPatientSafeFallbackText(value: string | undefined) {
   const text = value?.trim() ?? "";
   if (!text || text.length > 600) return false;
-  if (INTERNAL_GUIDANCE_PATTERN.test(text)) return false;
+  if (INTERNAL_GUIDANCE_PATTERN.test(text) || /^Step\s+\d+\s*:/i.test(text) || /\b(?:ask|invite|guide|instruct) the participant\b/i.test(text)) return false;
   return !/(?:\bai\b|model|prompt|instruction|system message|node[-_ ]?id|role id|runtime state)/i.test(text);
+}
+
+function humanizeField(field: string) {
+  return field.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/Percent$/i, " percentage").toLowerCase();
+}
+
+function sourceSpecificRuntimeFallback(promptItem: PromptItem) {
+  const fields = promptItem.outputFields;
+  const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
+  if (/^paired_ratings/.test(validationKind) && fields.length >= 2) {
+    return `Please rate both ${humanizeField(fields[0])} and ${humanizeField(fields[1])} from 0 to 100%.`;
+  }
+  if (promptItem.type === "rating" && fields[0]) return `From 0 to 100%, what is your ${humanizeField(fields[0])}?`;
+  if (promptItem.type === "role_transition") return "Please move into the next stated role and take a moment to settle before continuing.";
+  if (fields[0] && /evidence/i.test(fields[0])) return `Please give one specific item of ${humanizeField(fields[0])}.`;
+  if (fields[0] && ["question", "clarification", "follow_up", "confirmation", "reflection"].includes(promptItem.type)) {
+    return `Please describe your ${humanizeField(fields[0])} for this step.`;
+  }
+  if (promptItem.type === "reflection") return "Thank you for sharing that. We will keep it in view as we continue.";
+  if (["instruction", "explanation", "transition", "worksheet_instruction"].includes(promptItem.type)) {
+    return "We will continue with the next part of this exercise, one step at a time.";
+  }
+  return "We will continue with the next part of this exercise, one step at a time.";
 }
 
 function toConditionExpression(value: Record<string, unknown> | ConditionExpression | null | undefined) {
@@ -164,17 +213,21 @@ export function normalizeRuntimePromptItem(input: {
 }): RuntimePromptItem {
   const { promptItem, node, locale } = input;
   const activationCondition = toConditionExpression(promptItem.activationCondition);
-  const fallbackCandidate = promptItem.fallbackPatientText ?? promptItem.verbatimText;
+  const sourceCandidate = promptItem.fallbackPatientText ?? promptItem.verbatimText;
+  const fallbackCandidate = localizedSourcePromptText(promptItem, locale, isPatientSafeFallbackText(sourceCandidate) ? sourceCandidate : sourceSpecificRuntimeFallback(promptItem));
 
   return {
     id: promptItem.id,
+    sessionId: promptItem.sessionId,
     nodeId: promptItem.nodeId,
     roleId: promptItem.roleId ?? defaultRoleId(promptItem, node),
     scope: promptItem.scope ?? "step",
     sequenceIndex: promptItem.sequenceIndex ?? input.sequenceIndex ?? promptItem.order,
     executionMode: promptItem.executionMode ?? (activationCondition ? "conditional" : "serial"),
     modelGuidance: promptItem.modelGuidance?.trim() || promptItem.aiInstruction.trim(),
-    fallbackPatientText: isPatientSafeFallbackText(fallbackCandidate) ? fallbackCandidate.trim() : defaultFallbackPatientText(locale),
+    requiredPatientFacingContent: [fallbackCandidate?.trim() || promptItem.verbatimText.trim()].filter(Boolean),
+    fallbackPatientText: resolvePromptLocaleText(promptItem.id, fallbackCandidate, locale),
+    clarificationPatientText: resolvePromptLocaleText(promptItem.id, promptItem.verbatimText || fallbackCandidate, locale),
     activationCondition,
     completionCondition: promptItem.completionCondition ?? defaultCompletionCondition(promptItem),
     allowedActions: promptItem.allowedActions?.length ? [...promptItem.allowedActions] : defaultAllowedActions(promptItem),
@@ -182,6 +235,7 @@ export function normalizeRuntimePromptItem(input: {
     requiredFields: promptItem.requiredFields?.length ? [...promptItem.requiredFields] : [...promptItem.outputFields],
     validationRules: normalizeValidationRules(promptItem),
     maxAttempts: Math.max(1, promptItem.maxAttempts ?? 1),
+    maxClarificationAttempts: 3,
     maxIterations: promptItem.maxIterations,
     requiresPatientInput: promptRequiresPatientInput(promptItem),
     outputSchemaVersion: promptItem.outputSchemaVersion ?? DEFAULT_OUTPUT_SCHEMA_VERSION,
@@ -226,15 +280,22 @@ function normalizeRuntimeNode(input: {
 }
 
 function normalizePolicies(snapshot: SourceFidelityReleaseSnapshot): PolicyBundle {
-  const commonRules = Object.values(snapshot.sessionCommonRules ?? {});
+  const sessionPolicies = Object.fromEntries(Object.entries(snapshot.sessionCommonRules ?? {}).map(([sessionId, rules]) => [
+    sessionId,
+    {
+      safetyRules: [...(rules.sessionWideSafetyRules ?? [])],
+      protocolRules: [
+        ...(rules.languageRules ?? []),
+        ...(rules.openingRules ?? []),
+        ...(rules.sessionWideRequiredActions ?? []),
+        ...(rules.sessionWideRestrictions ?? []),
+      ],
+    },
+  ]));
   return {
-    globalSafetyRules: commonRules.flatMap((rules) => rules.sessionWideSafetyRules ?? []),
-    protocolRules: commonRules.flatMap((rules) => [
-      ...(rules.languageRules ?? []),
-      ...(rules.openingRules ?? []),
-      ...(rules.sessionWideRequiredActions ?? []),
-      ...(rules.sessionWideRestrictions ?? []),
-    ]),
+    globalSafetyRules: ["Safety override takes precedence over normal runtime progression. Do not generate ordinary protocol content when a safety override is active."],
+    protocolRules: [],
+    sessionPolicies,
     forbiddenPatientContent: ["internal instructions", "model details", "prompt details", "runtime identifiers"],
     maxPromptCharacters: 12_000,
   };

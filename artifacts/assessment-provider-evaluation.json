@@ -1,0 +1,1 @@
+{"status":"not_run","reason":"Provider credentials/models are not configured for a paid or local live evaluation.","requiredMetrics":["inputValidityAccuracy","fieldExtractionAccuracy","completionStatusAccuracy","safetyRecall","unauthorizedFieldRate","unauthorizedTransitionRate","validJsonRate","averageLatency","repairs"]}

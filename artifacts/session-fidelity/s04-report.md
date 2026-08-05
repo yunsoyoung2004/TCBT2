@@ -1,0 +1,48 @@
+# TBCT-S04 fidelity audit
+
+- Release: demo-release
+- Patient turns: 25
+- Program turns: 27
+- PromptItems executed: 25
+- PromptItems skipped: 0
+- Fallbacks: 0
+- Repairs: 0
+- Provider errors: 0
+- Clarifications: 0
+- Safety overrides: 0
+- Final state: completed
+- Result: **PASS**
+
+## Executed PromptItems
+
+- tbct-s04-n01-p01-describe-situation
+- tbct-s04-n03-p01-patient-automatic-thought
+- tbct-s04-n03-p02-patient-thought-belief
+- tbct-s04-n04-p01-patient-emotion
+- tbct-s04-n04-p02-patient-emotion-intensity
+- tbct-s04-n05-p01-patient-behavior
+- tbct-s04-n05-p02-patient-body
+- tbct-s04-n05-p03-confirm-summary
+- tbct-s04-n06-p01-other-person-thought
+- tbct-s04-n07-p01-other-person-emotion
+- tbct-s04-n08-p01-other-person-behavior
+- tbct-s04-n09-p01-notice-cycle
+- tbct-s04-n09-p02-behavior-influences-response
+- tbct-s04-n09-p03-response-influences-participant
+- tbct-s04-n09-p04-cycle-self-perpetuation
+- tbct-s04-n10-p01-outside-control
+- tbct-s04-n10-p02-other-person-control
+- tbct-s04-n10-p03-own-leverage
+- tbct-s04-n11-p01-final-at-belief
+- tbct-s04-n12-p01-own-behavior-action
+- tbct-s04-n12-p03-obstacles
+- tbct-s04-n12-p04-solutions
+- tbct-s04-n12-p05-implementation-timing
+- tbct-s04-n13-p01-final-belief-check
+- tbct-s04-n13-p02-final-emotional-check
+
+## Field extraction
+
+- Expected reachable fields: interpersonalSituation, interpersonalPathway, patientAutomaticThought, patientAutomaticThoughtBeliefPercent, patientEmotion, patientEmotionIntensityPercent, patientBehavior, patientBodySensations, interpersonalSummaryConfirmed, otherPersonLikelyThought, otherPersonLikelyEmotion, otherPersonLikelyBehavior, feedbackLoopRecognition, outsideControl, locusOfControlRecognition, revisedPatientAutomaticThoughtBeliefPercent, plannedActions, actionObstacles, obstacleSolutions, implementationTiming, finalEvaluation, fearedPredictionTestPlan
+- Captured fields: interpersonalSituation, patientAutomaticThought, patientAutomaticThoughtBeliefPercent, patientEmotion, patientEmotionIntensityPercent, patientBehavior, patientBodySensations, interpersonalSummaryConfirmed, otherPersonLikelyThought, otherPersonLikelyEmotion, otherPersonLikelyBehavior, feedbackLoopRecognition, outsideControl, locusOfControlRecognition, revisedPatientAutomaticThoughtBeliefPercent, plannedActions, actionObstacles, obstacleSolutions, implementationTiming, finalEvaluation
+- Missing fields: none

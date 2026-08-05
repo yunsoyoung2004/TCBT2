@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractRuntimeState } from "@/lib/runtime/runtime-context";
+import { extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 
 function makeNode(field: string, kind: string = "text"): ClinicalStageNode {
@@ -55,6 +55,40 @@ function makePrompt(field: string, validation?: Record<string, unknown>): Prompt
 }
 
 describe("runtime context extraction", () => {
+  it("recognizes an explicit refusal without treating it as a safety disclosure", () => {
+    expect(isExplicitPatientRefusal("I don’t want counsel")).toBe(true);
+    expect(isExplicitPatientRefusal("I don't want to continue")).toBe(true);
+  });
+  it("preserves fields extracted from a partially complete multi-field answer", async () => {
+    const promptItem = {
+      ...makePrompt("distressingSituation"),
+      id: "tbct-s08-n01-p01-distressing-situation",
+      outputFields: ["distressingSituation", "automaticThought"],
+      editableText: "Ask for a distressing situation and the automatic thought it triggered.",
+    } satisfies PromptItem;
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value: "During meetings I keep thinking that I'm not good enough and that I'm failing." },
+      currentNode: { ...makeNode("distressingSituation"), requiredFields: ["distressingSituation", "automaticThought"] },
+      currentPromptItem: promptItem,
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      locale: "en-US",
+    });
+
+    expect(result.fields.distressingSituation).toBeDefined();
+    expect(result.missingFields).not.toContain("distressingSituation");
+  });
+  it("derives the recorded flag from one rating_or_absent answer instead of requesting a second number", async () => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "rating", value: "32" },
+      currentNode: { requiredFields: ["shameIntensityBaseline", "shameBaselineRecorded"] } as ClinicalStageNode,
+      currentPromptItem: { outputFields: ["shameIntensityBaseline", "shameBaselineRecorded"], validation: { kind: "rating_or_absent", min: 0, max: 100 } } as unknown as PromptItem,
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      locale: "en-US",
+    });
+    expect(result.fields.shameIntensityBaseline).toBe(32);
+    expect(result.fields.shameBaselineRecorded).toBe(true);
+    expect(result.missingFields).toEqual([]);
+  });
   it("accepts numeric inputs in range and rejects invalid values", async () => {
     const valid = await extractRuntimeState({ patientInput: { kind: "rating", value: "80%" }, currentNode: makeNode("initialATBeliefPercent", "rating"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
     expect(valid.missingFields).toHaveLength(0);
@@ -70,6 +104,72 @@ describe("runtime context extraction", () => {
     expect(result.riskLevel).toBe("high");
     expect(result.riskSignals).toContain("suicide");
     expect(result.missingFields).toHaveLength(0);
+  });
+
+  it.each(["I wanna die", "I want to die", "I don't want to live", "I will kill myself", "Suiside"])("detects direct or commonly misspelled suicide language: %s", async (value) => {
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value }, currentNode: makeNode("candidateOneReaction"), currentPromptItem: { ...makePrompt("candidateOneReaction", { kind: "enum", values: ["positive", "negative"] }) }, currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    expect(result.riskLevel).toBe("high");
+    expect(result.riskSignals).toContain("suicide");
+    expect(result.fields.crisisSignal).toBe(true);
+  });
+
+  it("routes indirect death-related language to neutral safety clarification", async () => {
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value: "Sometimes I wish I could disappear forever." }, currentNode: makeNode("candidateOneThought"), currentPromptItem: makePrompt("candidateOneThought"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    expect(result.riskLevel).toBe("low");
+    expect(result.riskSignals).toContain("ambiguous_safety_language");
+    expect(result.missingFields).toContain("candidateOneThought");
+  });
+
+  it("escalates an affirmative answer to a pending safety clarification", async () => {
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value: "Yes, that is what I mean." }, currentNode: makeNode("candidateOneThought"), currentPromptItem: makePrompt("candidateOneThought"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low", lastClarificationReason: "safety_clarification" } });
+    expect(result.riskLevel).toBe("high");
+    expect(result.riskSignals).toContain("patient_confirmed_safety_concern");
+  });
+
+  it("rejects a copied Program question as patient input", async () => {
+    const prompt = makePrompt("situationThoughtDistinction", { kind: "participant_articulated_distinction" });
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value: `${prompt.verbatimText} Read` }, currentNode: makeNode("situationThoughtDistinction"), currentPromptItem: prompt, currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    expect(result.missingFields).toContain("situationThoughtDistinction");
+  });
+
+  it("does not treat ordinary goal-setting uses of stop as a safety crisis", async () => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value: "I want to stop feeling anxious and stop believing that I am a failure." },
+      currentNode: makeNode("therapyGoals"),
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+    });
+
+    expect(result.riskLevel).toBe("low");
+    expect(result.riskSignals).toEqual([]);
+  });
+
+  it("does not treat an ordinary plan as a safety crisis", async () => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value: "I have a plan to manage my workload this week." },
+      currentNode: makeNode("therapyGoals"),
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+    });
+
+    expect(result.riskLevel).toBe("low");
+    expect(result.riskSignals).toEqual([]);
+  });
+
+  it("detects a direct Korean suicide disclosure before ordinary prompt validation", async () => {
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value: "죽고싶다" }, currentNode: makeNode("situationThoughtDistinction"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+
+    expect(result.riskLevel).toBe("high");
+    expect(result.riskSignals).toContain("suicidal_ideation_ko");
+    expect(result.missingFields).toHaveLength(0);
+  });
+
+  it.each([
+    ["pt", "Eu quero morrer e não quero mais viver."],
+    ["fr", "Je veux mourir. Je ne veux plus vivre."],
+    ["ja", "死にたい。もう生きたくない。"],
+  ])("detects a direct %s suicide disclosure", async (_locale, value) => {
+    const result = await extractRuntimeState({ patientInput: { kind: "text", value }, currentNode: makeNode("therapyGoals"), currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
+    expect(result.riskLevel).toBe("high");
+    expect(result.fields.crisisSignal).toBe(true);
   });
 
   it("detects no-more-evidence phrases", async () => {

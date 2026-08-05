@@ -26,6 +26,7 @@ describe("canonical source-fidelity runtime", () => {
       expect(active?.session.status).toBe("waiting_for_input");
       expect(active?.session.runtimeState?.releaseId).toBe("demo-release");
       expect(active?.currentPromptItem).toBeDefined();
+      expect(active?.messages.find((message) => message.role === "assistant")?.content).toMatch(/[\uAC00-\uD7A3]/);
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;
@@ -41,7 +42,7 @@ describe("canonical source-fidelity runtime", () => {
     expect(session.sessionDefinitionId).toBe("tbct-s08");
   });
 
-  it("keeps the active PromptItem when a patient sends a greeting or gibberish", async () => {
+  it("keeps the active PromptItem and sends a clarification when a patient sends a greeting or gibberish", async () => {
     const previousProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = "mock";
     try {
@@ -58,7 +59,91 @@ describe("canonical source-fidelity runtime", () => {
       expect(after?.session.status).toBe("waiting_for_input");
       expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
       expect(after?.session.completedPromptItemIds).not.toContain(activePromptItemId);
-      expect(after?.messages.at(-1)?.content).toBe("fuiissiidojfosid");
+      const clarificationMessages = after?.messages.filter((message) => message.role === "assistant" && message.metadata?.turnOutcome === "clarification") ?? [];
+      expect(clarificationMessages).toHaveLength(2);
+      expect(clarificationMessages.at(-1)?.promptItemId).toBe(activePromptItemId);
+      expect(clarificationMessages.at(-1)?.content).toBeTruthy();
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("preempts Session 03 progression for a direct Korean suicide disclosure", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s03", locale: "ko-KR" });
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const suspendedPromptItemId = before?.session.currentPromptItemId;
+
+      const result = await submitPatientInput(session.id, { kind: "text", value: "죽고싶다" });
+      const after = await getRuntimeSession(session.id);
+      const safetyMessages = after?.messages.filter((message) => message.role === "assistant" && message.metadata?.turnOutcome === "safety_override") ?? [];
+      const safetyTrace = (await getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray())
+        .find((trace) => trace.transitionDecision === "safety_override");
+
+      expect(result.turnOutcome).toBe("safety_override");
+      expect(after?.session.status).toBe("escalated");
+      expect(after?.session.currentPromptItemId).toBe(suspendedPromptItemId);
+      expect(after?.session.completedPromptItemIds).not.toContain(suspendedPromptItemId);
+      expect(safetyMessages).toHaveLength(1);
+      expect(safetyMessages[0]?.content).toBe("Your immediate safety is the highest priority. We will switch to clinician escalation now.");
+      expect(after?.messages.some((message) => message.role === "assistant" && /Intrapersonal Thought Record/i.test(message.content))).toBe(false);
+      expect(safetyTrace?.fidelity.safetyFidelity).toBe("pass");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("rejects a rapid duplicate submission for the same session version", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const expectedSessionVersion = before?.session.version ?? 0;
+
+      const outcomes = await Promise.all([
+        submitPatientInput(session.id, { kind: "text", value: "hi" }, { clientTurnId: "duplicate-turn", expectedSessionVersion }),
+        submitPatientInput(session.id, { kind: "text", value: "hi" }, { clientTurnId: "duplicate-turn", expectedSessionVersion }),
+      ]);
+      const after = await getRuntimeSession(session.id);
+
+      expect(outcomes.map((outcome) => outcome.turnOutcome).sort()).toEqual(["clarification", "rejected_duplicate"]);
+      expect(after?.messages.filter((message) => message.role === "patient" && message.content === "hi")).toHaveLength(1);
+      expect(after?.messages.filter((message) => message.role === "assistant" && message.metadata?.turnOutcome === "clarification")).toHaveLength(1);
+      expect(after?.session.version).toBe(expectedSessionVersion + 1);
+      expect(after?.session.pendingTurnId).toBeUndefined();
+      expect(after?.session.lastCompletedTurnId).toBe("duplicate-turn");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("pauses an unchanged PromptItem after the maximum clarification attempts", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const activePromptItemId = before?.session.currentPromptItemId;
+
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      const finalResult = await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      const after = await getRuntimeSession(session.id);
+
+      expect(finalResult.turnOutcome).toBe("fallback");
+      expect(after?.session.status).toBe("paused");
+      expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
+      expect(after?.session.runtimeContext.clarificationAttemptCount).toBe(3);
+      expect(after?.session.runtimeContext.lastClarificationReason).toBe("maximum_clarification_attempts");
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;
@@ -161,16 +246,23 @@ describe("canonical source-fidelity runtime", () => {
       await startRuntimeSession(session.id);
       const before = await getRuntimeSession(session.id);
       const answeredPromptId = before?.session.currentPromptItemId;
+      const assistantMessageCountBefore = before?.messages.filter((message) => message.role === "assistant").length ?? 0;
       expect(answeredPromptId).toBeDefined();
 
-      await submitPatientInput(session.id, { kind: "text", value: "This is a current situation, not only an interpretation." });
+      const result = await submitPatientInput(session.id, { kind: "text", value: "This is a current situation, not only an interpretation." });
       const after = await getRuntimeSession(session.id);
       const traces = await getLocalDb().runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray();
+      const assistantMessages = after?.messages.filter((message) => message.role === "assistant") ?? [];
+      const latestAssistantMessage = assistantMessages.at(-1);
 
       expect(after?.session.releaseId).toBe(published.release.id);
       expect(after?.session.completedPromptItemIds).toContain(answeredPromptId);
       expect(after?.session.runtimeState?.activeNodeId).toBe(after?.session.currentNodeId);
       expect(after?.session.runtimeState?.activePromptItemId).toBe(after?.session.currentPromptItemId);
+      expect(result.turnOutcome).toBe("normal");
+      expect(assistantMessages).toHaveLength(assistantMessageCountBefore + 1);
+      expect(latestAssistantMessage?.nodeId).toBe(after?.session.currentNodeId);
+      expect(latestAssistantMessage?.promptItemId).toBe(after?.session.currentPromptItemId);
       expect(traces.length).toBeGreaterThan(0);
       expect(traces.every((trace) => trace.releaseId === published.release.id && Boolean(trace.contractHash))).toBe(true);
     } finally {

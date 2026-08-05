@@ -7,7 +7,10 @@ export async function runSafetyOrchestrator(input: {
   extractedState?: StateExtractionResult;
   runtimeContext: RuntimeContext;
 }) {
-  const linkedRuleIds = input.currentNode.safetyRuleIds;
+  const globalRuleIds = safetyRules
+    .filter((rule) => rule.active && rule.status === "approved" && rule.sessions.includes("All Sessions"))
+    .map((rule) => rule.id);
+  const linkedRuleIds = [...new Set([...globalRuleIds, ...input.currentNode.safetyRuleIds])];
   const linkedRules = safetyRules.filter((rule) => linkedRuleIds.includes(rule.id));
   const riskLevel = input.extractedState?.riskLevel ?? input.runtimeContext.riskLevel ?? "low";
   const triggered = linkedRules.length > 0 && riskLevel !== "low";

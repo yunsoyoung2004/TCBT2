@@ -45,6 +45,7 @@ type PromptSpec = {
   type: PromptItemType;
   source: SourceRange;
   marker?: string;
+  patientText?: string;
   outputFields?: string[];
   validation?: Record<string, unknown> | null;
   activationCondition?: Record<string, unknown> | null;
@@ -338,6 +339,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
         verbatimText: promptText.text,
         editableText: sourceText(prompt.source),
         aiInstruction: shortAiMsg,
+        fallbackPatientText: prompt.patientText,
         activationCondition: prompt.activationCondition ?? null,
         outputFields: prompt.outputFields ?? [],
         validation: prompt.validation ?? null,
@@ -505,7 +507,13 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         restrictions: [sourceText([75, 85])],
         prompts: [
           { slug: "preview-candidates", type: "explanation", source: [75, 85], marker: "I'm going to walk you through three different people", outputFields: ["threePersonPreviewComplete"] },
-          { slug: "set-up-candidates", type: "instruction", source: [82, 85], marker: "Let's pretend that I am not a therapist" },
+          {
+            slug: "set-up-candidates",
+            type: "instruction",
+            source: [82, 85],
+            marker: "Let's pretend that I am not a therapist",
+            patientText: "Let's pretend that I am not a therapist but a businessperson. I have a job opening, and I will give the same compliment to three candidates: ‘I read your résumé, and you seem to be a capable and competent person.’",
+          },
         ],
       },
       {
@@ -519,7 +527,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
           { slug: "candidate-one-emotion", type: "question", source: [86, 92], marker: "Upon hearing this compliment", outputFields: ["candidateOneEmotion"] },
           { slug: "candidate-one-thought", type: "question", source: [86, 92], marker: "For them to feel that way", outputFields: ["candidateOneThought"] },
           { slug: "candidate-one-behavior", type: "question", source: [86, 92], marker: "With that thought and that emotion", outputFields: ["candidateOneBehavior"] },
-          { slug: "candidate-one-reaction", type: "question", source: [86, 92], marker: "Do you think the interviewer's reaction", outputFields: ["candidateOneReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
+          { slug: "candidate-one-reaction", type: "question", source: [86, 92], marker: "Do you think the interviewer's reaction", patientText: "Do you think the interviewer's reaction to that behavior would be positive or negative?", outputFields: ["candidateOneReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
           { slug: "candidate-one-thought-arrow", type: "follow_up", source: [86, 92], marker: "And when the interviewer reacts positively", outputFields: ["candidateOneReturningArrows"] },
           { slug: "candidate-one-emotion-arrow", type: "follow_up", source: [86, 92], marker: "And when that thought gets stronger", outputFields: ["candidateOneReturningArrows"] },
           { slug: "candidate-one-behavior-arrow", type: "follow_up", source: [86, 92], marker: "And when the emotion grows", outputFields: ["candidateOneReturningArrows"] },
@@ -535,7 +543,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         prompts: [
           { slug: "candidate-two-same-situation", type: "question", source: [93, 104], marker: "Now I'd like to put a second person", outputFields: ["candidateTwoSameSituation"] },
           { slug: "candidate-two-emotion", type: "question", source: [93, 104], marker: "Upon hearing this, do you think it's possible", outputFields: ["candidateTwoEmotion"] },
-          { slug: "candidate-two-possibility", type: "clarification", source: [93, 104], marker: "I'm talking about possibility" },
+          { slug: "candidate-two-possibility", type: "clarification", source: [93, 104], marker: "I'm talking about possibility", outputFields: ["candidateTwoPossibility"] },
           { slug: "candidate-two-thought", type: "question", source: [93, 104], marker: "For them to feel sad or discouraged", outputFields: ["candidateTwoThought"] },
           { slug: "candidate-two-behavior", type: "question", source: [93, 104], marker: "With that thought and that sadness", outputFields: ["candidateTwoBehavior"] },
           { slug: "candidate-two-reaction", type: "question", source: [93, 104], marker: "Do you think the interviewer's reaction", outputFields: ["candidateTwoReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
@@ -618,7 +626,14 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         restrictions: [sourceText([160, 222])],
         terminal: true,
         prompts: [
-          { slug: "daily-observation-practice", type: "worksheet_instruction", source: [156, 159], outputFields: ["dailyObservationPractice"], completionEffect: { type: "complete_session" } },
+          {
+            slug: "daily-observation-practice",
+            type: "worksheet_instruction",
+            source: [156, 159],
+            patientText: "Before our next session, please practice noticing your automatic thoughts each day with the cognitive distortions list, using its personal-examples column. In a future session, your therapist will introduce the Intrapersonal Thought Record to help you work with these thoughts more deeply. Thank you for your work today.",
+            outputFields: ["dailyObservationPractice"],
+            completionEffect: { type: "complete_session" },
+          },
         ],
       },
     ],
@@ -984,7 +999,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         requiredFields: ["interpersonalSituation"],
         safetyRuleIds: ["TBCT-S04-CRISIS-SUSPEND"],
         prompts: [
-          { slug: "describe-situation", type: "question", source: [746, 762], marker: "What is happening", outputFields: ["interpersonalSituation"] },
+          { slug: "describe-situation", type: "question", source: [746, 762], marker: "What is happening", patientText: "What is happening in the interpersonal situation you would like to examine?", outputFields: ["interpersonalSituation"] },
         ],
       },
       {
@@ -996,7 +1011,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         nextSlug: "patient-thought-belief",
         restrictions: [sourceText([763, 769])],
         prompts: [
-          { slug: "recognize-pathway", type: "instruction", source: [763, 769], outputFields: ["interpersonalPathway"], validation: { kind: "enum", values: ["standard_conflict", "social_anxiety_feared_evaluation"] } },
+          { slug: "recognize-pathway", type: "instruction", source: [763, 769], patientText: "We will map your perspective and the other person's possible perspective, without assuming that either interpretation is certain.", outputFields: ["interpersonalPathway"], validation: { kind: "enum", values: ["standard_conflict", "social_anxiety_feared_evaluation"] } },
         ],
       },
       {
@@ -1006,8 +1021,8 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [746, 762],
         requiredFields: ["patientAutomaticThought", "patientAutomaticThoughtBeliefPercent"],
         prompts: [
-          { slug: "patient-automatic-thought", type: "question", source: [746, 762], marker: "What is going through your mind", outputFields: ["patientAutomaticThought"] },
-          { slug: "patient-thought-belief", type: "rating", source: [746, 762], marker: "How much do you believe that thought", outputFields: ["patientAutomaticThoughtBeliefPercent"], validation: { kind: "rating", min: 0, max: 100 } },
+          { slug: "patient-automatic-thought", type: "question", source: [746, 762], marker: "What is going through your mind", patientText: "What is going through your mind in that situation?", outputFields: ["patientAutomaticThought"] },
+          { slug: "patient-thought-belief", type: "rating", source: [746, 762], marker: "How much do you believe that thought", patientText: "From 0 to 100%, how much do you believe that thought?", outputFields: ["patientAutomaticThoughtBeliefPercent"], validation: { kind: "rating", min: 0, max: 100 } },
         ],
       },
       {
@@ -1017,8 +1032,8 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [746, 762],
         requiredFields: ["patientEmotion", "patientEmotionIntensityPercent"],
         prompts: [
-          { slug: "patient-emotion", type: "question", source: [746, 762], marker: "Believing that, what do you feel", outputFields: ["patientEmotion"] },
-          { slug: "patient-emotion-intensity", type: "rating", source: [746, 762], marker: "How strong is that feeling", outputFields: ["patientEmotionIntensityPercent"], validation: { kind: "rating", min: 0, max: 100 } },
+          { slug: "patient-emotion", type: "question", source: [746, 762], marker: "Believing that, what do you feel", patientText: "When you believe that thought, what emotion do you feel?", outputFields: ["patientEmotion"] },
+          { slug: "patient-emotion-intensity", type: "rating", source: [746, 762], marker: "How strong is that feeling", patientText: "From 0 to 100%, how strong is that emotion?", outputFields: ["patientEmotionIntensityPercent"], validation: { kind: "rating", min: 0, max: 100 } },
         ],
       },
       {
@@ -1028,9 +1043,9 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [746, 762],
         requiredFields: ["patientBehavior", "patientBodySensations", "interpersonalSummaryConfirmed"],
         prompts: [
-          { slug: "patient-behavior", type: "question", source: [746, 762], marker: "What do you do when you believe", outputFields: ["patientBehavior"] },
-          { slug: "patient-body", type: "question", source: [746, 762], marker: "Do you notice anything in your body", outputFields: ["patientBodySensations"] },
-          { slug: "confirm-summary", type: "confirmation", source: [746, 762], outputFields: ["interpersonalSummaryConfirmed"], validation: { kind: "summary_confirmation" } },
+          { slug: "patient-behavior", type: "question", source: [746, 762], marker: "What do you do when you believe", patientText: "What do you do when you believe that thought and feel that emotion?", outputFields: ["patientBehavior"] },
+          { slug: "patient-body", type: "question", source: [746, 762], marker: "Do you notice anything in your body", patientText: "Do you notice anything happening in your body in that moment?", outputFields: ["patientBodySensations"] },
+          { slug: "confirm-summary", type: "confirmation", source: [746, 762], patientText: "Does that summary of your thought, emotion, behavior, and body response fit your experience?", outputFields: ["interpersonalSummaryConfirmed"], validation: { kind: "summary_confirmation" } },
         ],
       },
       {
@@ -1635,7 +1650,13 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         safetyRuleIds: ["TBCT-S08-CRISIS-STOP"],
         restrictions: [sourceText([1549, 1574])],
         prompts: [
-          { slug: "distressing-situation", type: "question", source: [1578, 1578], outputFields: ["distressingSituation", "automaticThought"] },
+          {
+            slug: "distressing-situation",
+            type: "question",
+            source: [1578, 1578],
+            patientText: "Please identify a distressing situation and the automatic thought it triggered. What actually happened, and what thought went through your mind?",
+            outputFields: ["distressingSituation", "automaticThought"],
+          },
           { slug: "downward-arrow", type: "question", source: [1578, 1578], marker: "If that thought were true", outputFields: ["coreBelief"], validation: { kind: "participant_generated_core_belief" } },
         ],
       },
@@ -1646,9 +1667,9 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         source: [1579, 1579],
         requiredFields: ["coreBeliefBaselinePercent", "baselineEmotion", "baselineEmotionIntensityPercent"],
         prompts: [
-          { slug: "core-belief-rating", type: "rating", source: [1579, 1579], outputFields: ["coreBeliefBaselinePercent"], validation: { kind: "rating", min: 0, max: 100, stateScaleEveryTime: true } },
-          { slug: "baseline-emotion", type: "question", source: [1579, 1579], outputFields: ["baselineEmotion"] },
-          { slug: "baseline-emotion-rating", type: "rating", source: [1579, 1579], outputFields: ["baselineEmotionIntensityPercent"], validation: { kind: "rating", min: 0, max: 100, stateScaleEveryTime: true } },
+          { slug: "core-belief-rating", type: "rating", source: [1579, 1579], patientText: "From 0 to 100%, how much do you believe this core belief right now?", outputFields: ["coreBeliefBaselinePercent"], validation: { kind: "rating", min: 0, max: 100, stateScaleEveryTime: true } },
+          { slug: "baseline-emotion", type: "question", source: [1579, 1579], patientText: "What emotion do you feel when you believe this charge?", outputFields: ["baselineEmotion"] },
+          { slug: "baseline-emotion-rating", type: "rating", source: [1579, 1579], patientText: "From 0 to 100%, how intense is that emotion right now?", outputFields: ["baselineEmotionIntensityPercent"], validation: { kind: "rating", min: 0, max: 100, stateScaleEveryTime: true } },
         ],
       },
       {
@@ -1660,7 +1681,7 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         restrictions: [sourceText([1549, 1574])],
         prompts: [
           { slug: "state-charge", type: "explanation", source: [1580, 1580], marker: "The charge is", outputFields: ["charge"] },
-          { slug: "roles-orientation", type: "instruction", source: [1580, 1580], outputFields: ["courtroomOrientationAcknowledged"], validation: { kind: "courtroom_roles_understood" } },
+          { slug: "roles-orientation", type: "instruction", source: [1580, 1580], patientText: "We will examine this charge in a symbolic internal courtroom. You will move through the roles of defendant, prosecutor, defense attorney, and juror while I guide the process.", outputFields: ["courtroomOrientationAcknowledged"], validation: { kind: "courtroom_roles_understood" } },
         ],
       },
       {
@@ -1671,8 +1692,8 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["defendantRoleReady", "defendantPreProsecutionBeliefPercent", "defendantPreProsecutionEmotionIntensityPercent"],
         restrictions: [sourceText([1549, 1574])],
         prompts: [
-          { slug: "enter-defendant-role", type: "role_transition", source: [1582, 1582], outputFields: ["defendantRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
-          { slug: "defendant-pre-prosecution-ratings", type: "rating", source: [1582, 1582], outputFields: ["defendantPreProsecutionBeliefPercent", "defendantPreProsecutionEmotionIntensityPercent"], validation: { kind: "paired_ratings", min: 0, max: 100, stateScaleEveryTime: true } },
+          { slug: "enter-defendant-role", type: "role_transition", source: [1582, 1582], patientText: "Please move into the defendant's role and take a moment to settle there before we continue.", outputFields: ["defendantRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
+          { slug: "defendant-pre-prosecution-ratings", type: "rating", source: [1582, 1582], patientText: "As the defendant, rate both values from 0 to 100%: how much you believe the charge, and how intense the emotion feels.", outputFields: ["defendantPreProsecutionBeliefPercent", "defendantPreProsecutionEmotionIntensityPercent"], validation: { kind: "paired_ratings", min: 0, max: 100, stateScaleEveryTime: true } },
         ],
       },
       {
