@@ -301,8 +301,18 @@ export async function extractRuntimeState(input: {
         missingFields: expectedFields.length ? [field] : [],
       };
     }
-    for (const [allowedField, value] of Object.entries(assessment.extractedFields ?? {})) {
-      if (expectedFields.includes(allowedField)) nextFields[allowedField] = value;
+    // For a single-field prompt there is nothing to split, so the patient's
+    // own wording is always what gets stored -- the assessment above only
+    // decided accept/reject. Merging its extractedFields here would let the
+    // model's own phrasing silently replace the patient's, which is exactly
+    // the "AI supplies the answer" failure this system is meant to prevent.
+    // Only a genuinely multi-field prompt (e.g. splitting one message into
+    // distressingSituation + automaticThought) needs the model's help
+    // separating clinically distinct concepts.
+    if (expectedFields.length > 1) {
+      for (const [allowedField, value] of Object.entries(assessment.extractedFields ?? {})) {
+        if (expectedFields.includes(allowedField)) nextFields[allowedField] = value;
+      }
     }
   }
 
