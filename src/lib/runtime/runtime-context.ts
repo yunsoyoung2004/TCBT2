@@ -137,6 +137,22 @@ function compactText(value: string) {
   return normalizeText(value).replace(/[\s.,!?\u2026'"`~\u00B7\-_/\\()[\]{}]+/g, "");
 }
 
+/**
+ * S08's courtroom roles (prosecutor, defense, juror) are only meaningful if
+ * the participant speaks about the defendant in the third person, not as
+ * themselves in the first person -- that dissociation is the whole point of
+ * putting the charge on trial. This is a coarse heuristic (first-person
+ * pronouns present, no third-person referent to the defendant), not a full
+ * grammatical parse, so it only fires when the text reads unambiguously as
+ * "I did X" with nothing else.
+ */
+function violatesThirdPersonRequirement(text: string) {
+  const normalized = ` ${normalizeText(text)} `;
+  const firstPerson = /\s(?:i|i'm|i am|i've|i have|i'd|i would|me|my|mine|myself)\s/.test(normalized);
+  const thirdPerson = /\s(?:he|she|they|him|her|his|hers|their|them|the defendant)\s/.test(normalized);
+  return firstPerson && !thirdPerson;
+}
+
 function isMeaningfulTextResponse(input: {
   patientInput: PatientInput;
   promptItem?: PromptItem;
@@ -166,6 +182,7 @@ function isMeaningfulTextResponse(input: {
   if (validation?.kind === "enum" && Array.isArray(validation.values)) {
     return validation.values.some((value) => normalizeText(String(value)) === normalized);
   }
+  if ((validation as { requiresThirdPerson?: boolean } | null)?.requiresThirdPerson && violatesThirdPersonRequirement(rawText)) return false;
 
   return compact.length >= 2 && /[A-Za-z0-9\uAC00-\uD7A3\u00C0-\u00FF]/.test(compact);
 }
@@ -358,6 +375,10 @@ export async function extractRuntimeState(input: {
       nextFields[field] = [...current, rawText].filter(Boolean);
       nextFields[`${field}NoMore`] = false;
       nextFields[`${field}Duplicate`] = false;
+      // The S06 modifier-decomposition follow-up ("Is [core situation]
+      // harder when...") refers back to the first item the participant
+      // named, before the list branches into specific variants.
+      if (field === "symptomItems") nextFields.symptomCoreSituation = (nextFields[field] as string[])[0];
     }
   } else if (field === "automaticThought") {
     nextFields.automaticThought = rawText;

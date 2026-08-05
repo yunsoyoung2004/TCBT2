@@ -5,17 +5,39 @@ import type { PatientInput } from "@/types/runtime-session";
 
 type InputAssessmentResult = { accepted: boolean; confidence: number; reason: "meaningful_response" | "needs_clarification"; extractedFields?: Record<string, unknown>; safetyLevel?: "none" | "low" | "moderate" | "high" | "critical"; safetySignals?: string[]; error?: string };
 
+/**
+ * validation.kind values whose whole clinical point is "did the patient
+ * articulate a specific realization in their own words" rather than "did
+ * they answer something" -- e.g. distinguishing a situation from a thought,
+ * recognizing an interpersonal feedback loop, naming their own leverage
+ * point, or summarizing a step back accurately. The catalog already tags
+ * these prompts this way; before this, the single-field shortcut below
+ * skipped semantic assessment for every one of them, so a generic non-answer
+ * ("one clear example from this week") could satisfy a completion gate that
+ * was specifically meant to check for a real insight.
+ */
+const INSIGHT_VALIDATION_KINDS = new Set([
+  "participant_articulated_distinction",
+  "recognition_required",
+  "own_behavior_leverage_required",
+  "participant_summary_required",
+  "participant_generated_core_belief",
+  "participant_owned_text",
+]);
+
 export function requiresSemanticInputAssessment(input: { patientInput: PatientInput; promptItem?: PromptItem; field: string }) {
   if (input.patientInput.kind !== "text" || typeof input.patientInput.value !== "string" || !input.promptItem) return false;
   if ((input.field === "evidenceFor" || input.field === "evidenceAgainst") && /^(?:none|nothing else|no more|more none|\uC5C6\uC5B4\uC694)$/i.test(input.patientInput.value.trim())) return false;
   if (/\b(?:disappear(?: forever)?|everything to end|all of this to end|not wake up|better off without me|better off dead|no reason to live|say(?:ing)? goodbye|can(?:not|'t) go on|cannot cope|hopeless|desperate)\b/i.test(input.patientInput.value)) return true;
-  // Ordinary single-field free-text questions are recorded verbatim after the
-  // local meaningful-text check. They do not need a cloud model to decide that
-  // "I'm doing well" is a valid candidate thought.
-  if (input.promptItem.outputFields.length <= 1) return false;
   const validationKind = typeof (input.promptItem.validation as { kind?: unknown } | null)?.kind === "string"
     ? String((input.promptItem.validation as { kind: string }).kind)
     : "";
+  // Ordinary single-field free-text questions are recorded verbatim after the
+  // local meaningful-text check. They do not need a cloud model to decide that
+  // "I'm doing well" is a valid candidate thought -- except the insight-style
+  // checkpoints above, where "did they answer something" isn't the same
+  // question as "did they reach the specific realization this step exists for".
+  if (input.promptItem.outputFields.length <= 1) return INSIGHT_VALIDATION_KINDS.has(validationKind);
   return !["boolean", "enum", "rating"].includes(validationKind);
 }
 

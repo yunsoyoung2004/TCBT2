@@ -142,11 +142,19 @@ function commitAssistantTurn(input: {
   const current = sessions.get(input.sessionId);
   if (!current) throw new Error("Runtime session not found");
   const turnId = typeof input.assistantMessage.metadata?.turnId === "string" ? input.assistantMessage.metadata.turnId : undefined;
+  // Mirrors the real store (src/lib/server/runtime-session-store.ts): a
+  // repeat_until PromptItem is delivered more than once for the same
+  // nodeId/promptItemId by design, so prefer clientTurnId to identify a
+  // true duplicate commit and only fall back to nodeId/promptItemId for an
+  // assistant-only delivery with no turn attached at all.
+  const clientTurnId = typeof input.assistantMessage.metadata?.clientTurnId === "string" ? input.assistantMessage.metadata.clientTurnId : undefined;
   const duplicate = [...messages.values()].find((message) => message.runtimeSessionId === input.sessionId
     && message.role === "assistant"
-    && (turnId
-      ? message.metadata?.turnId === turnId
-      : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId));
+    && (clientTurnId
+      ? message.metadata?.clientTurnId === clientTurnId
+      : turnId
+        ? message.metadata?.turnId === turnId
+        : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId));
   if (duplicate) return { session: clone(current), assistantMessage: clone(duplicate), duplicate: true };
 
   if (!messages.has(input.assistantMessage.id)) messages.set(input.assistantMessage.id, clone(input.assistantMessage));

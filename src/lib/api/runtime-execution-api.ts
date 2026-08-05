@@ -684,8 +684,6 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
       // leaving the session unable to accept the patient's next answer.
       const alreadyDelivered = activeStep.promptItem.executionMode !== "repeat_until"
         && view.messages.some((message) => message.promptItemId === promptItem.id && message.role === "assistant");
-      // eslint-disable-next-line no-console
-      console.log(`[DEBUG executeCurrentNode] promptId=${promptItem.id} executionMode=${activeStep.promptItem.executionMode} alreadyDelivered=${alreadyDelivered} sessionPendingBefore=${session.pendingTurnId}`);
       const delivered = !alreadyDelivered
         ? await deliverRuntimePrompt({ session: activeSession, node, promptItem, release: view.release, recentMessages: view.messages })
         : undefined;

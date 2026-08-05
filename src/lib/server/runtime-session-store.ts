@@ -330,15 +330,24 @@ export async function commitRuntimeAssistantTurn(input: CommitRuntimeAssistantTu
     const current = rows[0]?.data;
     if (!current) throw new Error("Runtime session not found");
     const turnId = typeof input.assistantMessage.metadata?.turnId === "string" ? input.assistantMessage.metadata.turnId : undefined;
+    // A repeat_until PromptItem (e.g. "rate the next item") is delivered
+    // more than once for the same nodeId/promptItemId by design, so that
+    // pair alone cannot identify a duplicate commit. clientTurnId uniquely
+    // identifies the patient turn that triggered this specific delivery, so
+    // prefer it; only fall back to nodeId/promptItemId for the odd
+    // assistant-only delivery that has no turn attached at all.
+    const clientTurnId = typeof input.assistantMessage.metadata?.clientTurnId === "string" ? input.assistantMessage.metadata.clientTurnId : undefined;
     const { rows: assistantRows } = await client.query<{ data: RuntimeMessage }>(
       "SELECT data FROM runtime_messages WHERE runtime_session_id = $1 AND role = 'assistant'",
       [input.sessionId],
     );
     const duplicate = assistantRows
       .map((row) => row.data)
-      .find((message) => (turnId
-        ? message.metadata?.turnId === turnId
-        : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId));
+      .find((message) => (clientTurnId
+        ? message.metadata?.clientTurnId === clientTurnId
+        : turnId
+          ? message.metadata?.turnId === turnId
+          : message.nodeId === input.assistantMessage.nodeId && message.promptItemId === input.assistantMessage.promptItemId));
     if (duplicate) return { session: current, assistantMessage: duplicate, duplicate: true };
 
     await client.query(

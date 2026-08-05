@@ -1421,6 +1421,7 @@ const SESSION_05_TO_06_SPECS: SessionSpec[] = [
             slug: "item-score",
             type: "rating",
             source: [1105, 1123],
+            patientText: "In your own words, [item] — using our 0 to 5 color scale, how would you rate it?",
             outputFields: ["symptomItemScores"],
             validation: { kind: "hierarchy_item_score", min: 0, max: 5, exactParticipantWords: true, noRescoreExistingItem: true },
             // Re-asks this same prompt once per listed symptom item instead of
@@ -1492,7 +1493,12 @@ const SESSION_05_TO_06_SPECS: SessionSpec[] = [
         requiredFields: ["safetyBehaviors", "underlyingAssumption", "circuitTwo", "circuitTwoSummary"],
         restrictions: [sourceText([1184, 1206])],
         prompts: [
-          { slug: "introduce-safety-behaviors", type: "explanation", source: [1184, 1206], marker: "There are behaviors you repeat", outputFields: ["safetyBehaviors"] },
+          // "question", not "explanation": the curated text for this prompt
+          // ends by asking "What safety behavior do you notice?" -- an
+          // "explanation" type prompt completes on delivery regardless of
+          // patient input, so safetyBehaviors was structurally guaranteed to
+          // stay empty.
+          { slug: "introduce-safety-behaviors", type: "question", source: [1184, 1206], marker: "There are behaviors you repeat", outputFields: ["safetyBehaviors"] },
           { slug: "patient-formulates-ua", type: "question", source: [1184, 1206], marker: "Because if you", outputFields: ["underlyingAssumption"], validation: { kind: "participant_formulated_conditional", requiredPattern: "if_then", level: 2, noCoreBelief: true } },
           { slug: "render-circuit-two", type: "worksheet_instruction", source: [1184, 1206], marker: "Underlying Assumption", outputFields: ["circuitTwo"], validation: { kind: "exact_circuit_structure" } },
           { slug: "place-on-diagram", type: "question", source: [1184, 1206], marker: "Where would you put that sentence", outputFields: ["circuitTwo"] },
@@ -1911,10 +1917,29 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         prompts: [
           { slug: "enter-jury-role", type: "role_transition", source: [1609, 1616], outputFields: ["juryOrientation"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true, privateJuryRoom: true } },
           { slug: "juror-role", type: "question", source: [1609, 1616], marker: "What is the role of a juror", outputFields: ["juryOrientation"] },
-          // "question": the jury's review must come from the participant, not
-          // complete the instant the assistant describes what to review.
-          { slug: "review-four-blocks", type: "question", source: [1609, 1616], outputFields: ["juryReview"], validation: { kind: "review_all_evidence_blocks", blocks: ["prosecution", "defense", "prosecution_rebuttal", "defense_surrebuttal"], oneItemAtATime: true } },
+          // "question" + repeat_until: the jury must actually review each of
+          // the four evidence blocks in turn (minItems:4) instead of
+          // completing on one generic reflection.
+          {
+            slug: "review-four-blocks",
+            type: "question",
+            source: [1609, 1616],
+            outputFields: ["juryReview"],
+            validation: { kind: "array", minItems: 4, maxItems: 4, blocks: ["prosecution", "defense", "prosecution_rebuttal", "defense_surrebuttal"], oneItemAtATime: true },
+            executionMode: "repeat_until",
+            maxIterations: 4,
+            completionCondition: { kind: "field", field: "juryReviewCount", operator: "greater_than", value: 3 },
+          },
           { slug: "participant-verdict", type: "question", source: [1609, 1616], marker: "verdict: guilty or not guilty", outputFields: ["verdict"], validation: { kind: "enum", values: ["guilty", "not_guilty"], participantGenerated: true, assistantMustNotSupply: true, challengeGuiltyThroughEvidenceReview: true } },
+          {
+            slug: "guilty-verdict-recheck",
+            type: "clarification",
+            source: [1609, 1616],
+            patientText: "Before that verdict is announced, look back once more at the defense evidence and the defense's responses to the prosecution. Considering all four blocks again, do you still find the defendant guilty, or does this second look change the verdict?",
+            activationCondition: { field: "verdict", operator: "equals", value: "guilty" },
+            outputFields: ["verdict"],
+            validation: { kind: "enum", values: ["guilty", "not_guilty"], participantGenerated: true, assistantMustNotSupply: true },
+          },
         ],
       },
       {

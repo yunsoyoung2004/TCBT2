@@ -1,4 +1,4 @@
-import { isPatientSafeFallbackText, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
+import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { RuntimeContext } from "@/types/runtime-session";
 
@@ -92,6 +92,24 @@ function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext)
     const defense = firstText(fields.defenseEvidence ?? fields.evidenceAgainst) ?? "the defense evidence";
     return `The prosecution said: “${prosecution}” The defense said: “${defense}” From the defense role, what does that mean about the defendant?`;
   }
+  if (promptItem.id === "tbct-s06-n10-p03-render-circuit-two") {
+    const situation = firstText(fields.currentSymptomItemText) ?? firstText(fields.symptomCoreSituation) ?? "the situation you described";
+    const assumption = firstText(fields.underlyingAssumption) ?? "your underlying assumption";
+    const behavior = firstText(fields.safetyBehaviors) ?? "the safety behavior you noticed";
+    return `Here is your Circuit 2 loop, in your own words: “${situation}” leads to the thought “${assumption}”, which brings on anxious feelings, which leads to “${behavior}”. That safety behavior briefly relieves the anxiety but prevents you from learning the feared outcome would not have happened anyway, so the loop repeats the next time you're in that situation. Does that match what happens for you?`;
+  }
+  if (promptItem.id === "tbct-s08-n14-p03-review-four-blocks") {
+    const blocks = [
+      { label: "the prosecution's evidence", detail: firstText(fields.prosecutionEvidence) },
+      { label: "the defense's evidence", detail: firstText(fields.defenseEvidence) },
+      { label: "the prosecution's rebuttals", detail: firstText(fields.prosecutionRebuttals) },
+      { label: "the defense's responses (the surrebuttals)", detail: firstText(fields.defenseSurrebuttals) },
+    ];
+    const reviewed = Array.isArray(fields.juryReview) ? fields.juryReview.length : 0;
+    const current = blocks[Math.min(reviewed, blocks.length - 1)];
+    const detailHint = current.detail ? ` (“${current.detail}”)` : "";
+    return `As jurors, review ${current.label}${detailHint} on its own. What stands out to you about it?`;
+  }
   return APPROVED_PATIENT_TEXT[promptItem.id];
 }
 
@@ -100,6 +118,7 @@ const BRACKET_PLACEHOLDER_SOURCES: Array<{ pattern: RegExp; fieldCandidates: str
   { pattern: /\[core situation[^\]]*\]/gi, fieldCandidates: ["symptomCoreSituation", "coreSituation"], naturalFallback: "that situation" },
   { pattern: /\[problem[^\]]*\]/gi, fieldCandidates: ["currentProblemText"], naturalFallback: "that problem" },
   { pattern: /\[goal[^\]]*\]/gi, fieldCandidates: ["currentGoalText"], naturalFallback: "that goal" },
+  { pattern: /\[item[^\]]*\]/gi, fieldCandidates: ["currentSymptomItemText"], naturalFallback: "that item" },
   { pattern: /\[emotion named at q3a\]/gi, fieldCandidates: ["primaryEmotion"], naturalFallback: "the emotion you named earlier" },
 ];
 
@@ -122,11 +141,17 @@ export function resolveStaticPatientMessage(promptItem: PromptItem, locale: stri
   const approved = contextualPatientText(promptItem, context);
   if (approved) return { patientMessage: resolveBracketPlaceholders(resolvePromptLocaleText(promptItem.id, approved, locale), context), source: "approved_static", llmCalled: false };
   // fallbackPatientText on a canonical PromptItem is already reviewed patient
-  // content. Reuse the same instruction-leak/length/internal-vocabulary check
-  // used when the release was built, so a stray meta-instruction can never
-  // pass straight through as something the patient reads.
+  // content by the time the release is built (see
+  // runtime-release-normalizer.ts's sourceSpecificRuntimeFallback, which is
+  // where instruction-shaped text gets caught and rewritten into a real
+  // question). Re-running the full strict check here would also reject
+  // already-approved wording that merely starts with an ordinary verb, so
+  // this only blocks the narrow, unambiguous "this is a pasted internal
+  // document" shapes -- headers, code fences, and instruction-style bullets.
   const fallback = promptItem.fallbackPatientText?.trim() ?? "";
-  if (fallback && isPatientSafeFallbackText(fallback)) {
+  const obviousInternalDocument = /^(?:---\s*)?(?:#{1,6}\s*)?(?:interaction style|role and purpose|safety and clinical guardrails|important guidelines)\b/i.test(fallback)
+    || /^(?:```|[-*]\s+(?:use|do not|never|always|close by)\b)/i.test(fallback);
+  if (fallback && !obviousInternalDocument) {
     const localized = resolvePromptLocaleText(promptItem.id, fallback, locale);
     const patientMessage = localized.includes("천천히 생각해 보셔도 괜찮습니다")
       ? fallback
