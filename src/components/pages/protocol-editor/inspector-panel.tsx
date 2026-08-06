@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Copy, Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Field, SectionHeader, SourceReferenceChip, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
+import { Trash2 } from "lucide-react";
+import { Badge, Button, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
 import { statusTransition } from "@/lib/motion/motion-variants";
 import { useT } from "@/lib/i18n/context";
 import { summarizeCondition } from "./types";
@@ -53,11 +53,9 @@ export function InspectorPanel(props: InspectorPanelProps) {
   const { t } = useT();
   const {
     draft, onDraftChange, immutableSourceView, sessionPrompts, selectedPromptItem, onSelectPromptItem,
-    onRestoreVerbatim, onToggleStatus, onMovePromptItem, onUpdatePromptItem,
+    onUpdatePromptItem,
     sessionCommonRules, onSaveSessionCommonRules, nextStepOptions, compiledPreviewText,
-    validationRun, fieldErrors, onSave, onPreview, saving, previewing, onDuplicate, onDelete,
-    availableEvidence, selectedEvidenceId, onSelectedEvidenceIdChange, onAttachEvidence, attachingEvidence,
-    safetyRules, onAttachSafetyRule, focusSourceEvidence,
+    validationRun, fieldErrors, onSave, onPreview, saving, previewing, onDelete,
   } = props;
 
   if (!draft) {
@@ -120,18 +118,16 @@ export function InspectorPanel(props: InspectorPanelProps) {
                           onChange={(event) => onUpdatePromptItem(promptItem.id, { modelGuidance: event.target.value })}
                         />
                       </Field>
-                      <Field label={t("protocolEditor.showWhen")}>
-                        <ConditionSummary condition={promptItem.activationCondition} />
-                      </Field>
-                      <Field label={t("protocolEditor.expectedResponse")}>
-                        <ExpectedResponseSummary validation={promptItem.validation} />
-                      </Field>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => onRestoreVerbatim(promptItem.id)}>{t("protocolEditor.restoreOriginal")}</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => onToggleStatus(promptItem.id)}>{promptItem.status === "active" ? t("protocolEditor.disable") : t("protocolEditor.enable")}</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => onMovePromptItem(promptItem.id, -1)}>{t("protocolEditor.moveUp")}</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => onMovePromptItem(promptItem.id, 1)}>{t("protocolEditor.moveDown")}</Button>
-                      </div>
+                      {promptItem.activationCondition && (
+                        <Field label={t("protocolEditor.showWhen")}>
+                          <ConditionSummary condition={promptItem.activationCondition} />
+                        </Field>
+                      )}
+                      {promptItem.validation && (
+                        <Field label={t("protocolEditor.expectedResponse")}>
+                          <ExpectedResponseSummary validation={promptItem.validation} />
+                        </Field>
+                      )}
                     </div>
                   )}
                 </div>
@@ -158,49 +154,9 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </Field>
         )}
 
-        <Field label={t("protocolEditor.sourceEvidence")}>
-          <div id="protocol-source-evidence-field" className={focusSourceEvidence ? "rounded-panel border border-critical/40 bg-critical/10 p-2" : ""}>
-            <div className="flex flex-wrap gap-2">
-              {draft.data.sourceEvidenceIds.length
-                ? draft.data.sourceEvidenceIds.map((id, index) => (
-                    <SourceReferenceChip key={id} label={availableEvidence.find((item) => item.id === id)?.sourceLocator ?? `${t("protocolEditor.sourceEvidence")} ${index + 1}`} />
-                  ))
-                : <SourceReferenceChip label={t("protocolEditor.noEvidenceLinked")} />}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <select className={inputClass} value={selectedEvidenceId} onChange={(event) => onSelectedEvidenceIdChange(event.target.value)}>
-                <option value="">{t("protocolEditor.chooseEvidence")}</option>
-                {availableEvidence.map((item) => <option key={item.id} value={item.id}>{item.sourceLocator}</option>)}
-              </select>
-              <Button variant="secondary" onClick={onAttachEvidence} disabled={immutableSourceView || !selectedEvidenceId || attachingEvidence}>{t("protocolEditor.attachEvidence")}</Button>
-            </div>
-          </div>
-        </Field>
-
-        <Field label={t("protocolEditor.safetyRules")}>
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              {draft.data.safetyRuleIds.length
-                ? draft.data.safetyRuleIds.map((id) => (
-                    <SourceReferenceChip key={id} label={safetyRules.find((rule) => rule.id === id)?.title ?? t("protocolEditor.requiredSafetyStep")} />
-                  ))
-                : <SourceReferenceChip label={t("protocolEditor.noSafetyRuleLinked")} />}
-            </div>
-            <select
-              className={inputClass}
-              defaultValue=""
-              disabled={immutableSourceView}
-              onChange={(event) => {
-                if (!event.target.value) return;
-                onAttachSafetyRule(event.target.value);
-                event.currentTarget.value = "";
-              }}
-            >
-              <option value="">{t("protocolEditor.attachSafetyRule")}</option>
-              {safetyRules.map((rule) => <option key={rule.id} value={rule.id}>{rule.title}</option>)}
-            </select>
-          </div>
-        </Field>
+        {draft.data.safetyRuleIds.length > 0 && (
+          <Badge tone="critical">{t("protocolEditor.requiredSafetyStep")}</Badge>
+        )}
 
         {fieldErrors.closingPath && (
           <div className="rounded-panel border border-critical/40 bg-critical/10 p-3 text-sm text-critical">{fieldErrors.closingPath}</div>
@@ -226,9 +182,8 @@ export function InspectorPanel(props: InspectorPanelProps) {
         <div className="grid gap-2 sm:grid-cols-2">
           <Button disabled={immutableSourceView} loading={saving} onClick={onSave}>{t("protocolEditor.saveChanges")}</Button>
           <Button variant="secondary" loading={previewing} onClick={onPreview}>{t("protocolEditor.preview")}</Button>
-          <Button variant="secondary" disabled={immutableSourceView} onClick={onDuplicate}><Copy className="h-4 w-4" />{t("protocolEditor.duplicate")}</Button>
-          <Button variant="danger" disabled={immutableSourceView} onClick={onDelete}><Trash2 className="h-4 w-4" />{t("protocolEditor.deleteStep")}</Button>
         </div>
+        <Button variant="danger" className="w-full" disabled={immutableSourceView} onClick={onDelete}><Trash2 className="h-4 w-4" />{t("protocolEditor.deleteStep")}</Button>
 
         <details className="rounded-panel border border-border bg-surface-subtle p-3">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{t("protocolEditor.sessionCommonRules")}</summary>
