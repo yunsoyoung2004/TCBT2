@@ -161,7 +161,11 @@ export function InspectorPanel(props: InspectorPanelProps) {
         <Field label={t("protocolEditor.sourceEvidence")}>
           <div id="protocol-source-evidence-field" className={focusSourceEvidence ? "rounded-panel border border-critical/40 bg-critical/10 p-2" : ""}>
             <div className="flex flex-wrap gap-2">
-              {draft.data.sourceEvidenceIds.length ? draft.data.sourceEvidenceIds.map((id) => <SourceReferenceChip key={id} label={id} />) : <SourceReferenceChip label={t("protocolEditor.noEvidenceLinked")} />}
+              {draft.data.sourceEvidenceIds.length
+                ? draft.data.sourceEvidenceIds.map((id, index) => (
+                    <SourceReferenceChip key={id} label={availableEvidence.find((item) => item.id === id)?.sourceLocator ?? `${t("protocolEditor.sourceEvidence")} ${index + 1}`} />
+                  ))
+                : <SourceReferenceChip label={t("protocolEditor.noEvidenceLinked")} />}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <select className={inputClass} value={selectedEvidenceId} onChange={(event) => onSelectedEvidenceIdChange(event.target.value)}>
@@ -176,7 +180,11 @@ export function InspectorPanel(props: InspectorPanelProps) {
         <Field label={t("protocolEditor.safetyRules")}>
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              {draft.data.safetyRuleIds.length ? draft.data.safetyRuleIds.map((id) => <SourceReferenceChip key={id} label={id} />) : <SourceReferenceChip label={t("protocolEditor.noSafetyRuleLinked")} />}
+              {draft.data.safetyRuleIds.length
+                ? draft.data.safetyRuleIds.map((id) => (
+                    <SourceReferenceChip key={id} label={safetyRules.find((rule) => rule.id === id)?.title ?? t("protocolEditor.requiredSafetyStep")} />
+                  ))
+                : <SourceReferenceChip label={t("protocolEditor.noSafetyRuleLinked")} />}
             </div>
             <select
               className={inputClass}
@@ -245,9 +253,26 @@ function ConditionSummary({ condition }: { condition: object | null }) {
   return <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">{summary}</div>;
 }
 
+/** Plain-language summary of a validation/expected-response spec — never dumps raw keys like "kind". */
+function summarizeExpectedResponse(validation: Record<string, unknown> | null, t: ReturnType<typeof useT>["t"]): string | null {
+  if (!validation) return null;
+  const kind = validation.kind as string | undefined;
+  if (kind === "safety_check") return t("protocolEditor.expectedResponseKind.safetyCheck");
+  if (kind === "rating") {
+    const min = validation.min as number | undefined;
+    const max = validation.max as number | undefined;
+    return t("protocolEditor.expectedResponseKind.rating", { min: min ?? 0, max: max ?? 100 });
+  }
+  if (kind === "free_text" || kind === "text") return t("protocolEditor.expectedResponseKind.freeText");
+  return null;
+}
+
 function ExpectedResponseSummary({ validation }: { validation: object | null }) {
   const { t } = useT();
-  const entries = validation ? Object.entries(validation as Record<string, unknown>) : [];
+  const record = (validation ?? null) as Record<string, unknown> | null;
+  const summary = summarizeExpectedResponse(record, t);
+  if (summary) return <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">{summary}</div>;
+  const entries = record ? Object.entries(record).filter(([key]) => key !== "kind") : [];
   if (!entries.length) return <div className="text-sm text-text-secondary">{t("common.unknown")}</div>;
   return (
     <div className="grid gap-1 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-primary">

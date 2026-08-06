@@ -36,6 +36,11 @@ const en = {
     clinicianGuidance: "Clinician Guidance",
     showWhen: "Show when",
     expectedResponse: "Expected response",
+    expectedResponseKind: {
+      safetyCheck: "A safety check-in response from the participant",
+      rating: "A number between {min} and {max}",
+      freeText: "An open-ended written response",
+    },
     nextStep: "After response / Next step",
     saveChanges: "Save changes",
     preview: "Preview",

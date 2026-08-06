@@ -54,11 +54,12 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: "Settings", href: "/settings", icon: Settings, audience: "internal" },
 ];
 
-// Only the "clinician" demo role sees the reduced standard navigation; every
-// other demo role (research coordinator, supervisor, safety reviewer, research
-// analyst) keeps the full internal navigation for their own work.
-function isClinicianAudience(role: string) {
-  return role === "clinician";
+// The standard clinician workspace always shows only the reduced navigation,
+// regardless of which demo actor is active — there is no role-based toggle
+// back to the full internal menu. Internal/engineering routes stay in the
+// codebase and reachable by direct URL, they are just never listed here.
+function isClinicianAudience(_role: string) {
+  return true;
 }
 
 function isActive(pathname: string, href: string) {

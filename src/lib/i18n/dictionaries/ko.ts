@@ -36,6 +36,11 @@ const ko = {
     clinicianGuidance: "임상 지침",
     showWhen: "표시 조건",
     expectedResponse: "예상 응답",
+    expectedResponseKind: {
+      safetyCheck: "환자의 안전 상태를 확인하는 응답",
+      rating: "{min}에서 {max} 사이의 숫자 응답",
+      freeText: "자유롭게 서술하는 응답",
+    },
     nextStep: "응답 이후 / 다음 단계",
     saveChanges: "변경사항 저장",
     preview: "미리보기",

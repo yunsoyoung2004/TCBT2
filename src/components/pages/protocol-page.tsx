@@ -424,21 +424,16 @@ export function ProtocolPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Protocol Authoring IDE"
         title={t("protocolEditor.pageTitle")}
         description={t("protocolEditor.pageDescription")}
         meta={
           <>
-            <Badge tone="primary">TBCT-BR-001</Badge>
-            <Badge tone="neutral">{selectedSessionMeta?.id ?? selectedSessionId}</Badge>
-            <Badge tone="neutral">{graphQuery.data?.definition?.status ?? "draft"}</Badge>
-            {issueId && <Badge tone="warning">Issue {issueId}</Badge>}
+            <Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>
             <SaveStatus state={saveState} />
           </>
         }
         actions={
           <>
-            <Button variant="secondary" onClick={() => router.push(`/projects/demo/extraction?tab=session-flow`)}>{t("protocolEditor.backToSessionFlow")}</Button>
             <div className="flex flex-col gap-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t("protocolEditor.session")}</div>
               <select
