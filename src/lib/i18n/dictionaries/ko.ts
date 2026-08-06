@@ -152,12 +152,6 @@ const ko = {
       unknownStep: "알 수 없는 단계",
       viewInspector: "인스펙터에서 보기",
     },
-    inspector: {
-      title: "질문 및 지시사항",
-      participantFacingText: "참여자에게 보일 질문",
-      clinicianGuidance: "의료진 가이드",
-      noPromptItem: "이 대화와 연결된 질문 항목을 찾을 수 없습니다.",
-    },
     note: {
       label: "메모",
       placeholder: "이 참여자에 대한 임상의 전용 메모를 입력하세요…",

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname, useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
@@ -27,8 +27,6 @@ import { getRuntimeSession, listCanonicalTestSessions, listRuntimeSessions } fro
 import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import { addClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
-import { loadPromptItems } from "@/lib/session-catalog";
-import type { PromptItem } from "@/lib/session-catalog";
 import {
   findSessionTitle,
   findStepTitle,
@@ -70,6 +68,7 @@ export function PatientMonitoringDetailPage() {
   const { t } = useT();
   const params = useParams<{ participantId?: string | string[] }>();
   const pathname = usePathname();
+  const router = useRouter();
   const participantId =
     (Array.isArray(params?.participantId) ? params.participantId[0] : params?.participantId) ??
     pathname.split("/").filter(Boolean).at(-1) ??
@@ -81,7 +80,6 @@ export function PatientMonitoringDetailPage() {
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
   const [activeTab, setActiveTab] = useState<"audit" | "profile">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [inspectedEntry, setInspectedEntry] = useState<TimelineEntry | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
 
   const participantQuery = useQuery({
@@ -256,12 +254,6 @@ export function PatientMonitoringDetailPage() {
     });
   }, [canonicalSessionsQuery.data, summary.sessions, safetyQuery.data, participantId]);
 
-  const inspectedPromptItem = useMemo<PromptItem | null>(() => {
-    if (!inspectedEntry?.promptItemId) return null;
-    const items = loadPromptItems(inspectedEntry.sessionDefinitionId, inspectedEntry.nodeId);
-    return items.find((item) => item.id === inspectedEntry.promptItemId) ?? null;
-  }, [inspectedEntry]);
-
   if (participantQuery.isLoading) {
     return (
       <AppShell>
@@ -370,14 +362,15 @@ export function PatientMonitoringDetailPage() {
                     const isNewMessage = entry.kind === "message"
                       && historicalMessageIdsRef.current?.sessionId === effectiveSessionId
                       && !historicalMessageIdsRef.current.ids.has(entry.id);
-                    const canInspect = entry.kind === "message" && Boolean(entry.promptItemId);
+                    const canInspect = entry.kind === "message" && Boolean(effectiveSessionId);
+                    const openInspector = () => router.push(`/runtime/sessions/${effectiveSessionId}`);
                     return (
                       <div
                         key={entry.id}
                         role={canInspect ? "button" : undefined}
                         tabIndex={canInspect ? 0 : undefined}
-                        onClick={canInspect ? () => setInspectedEntry(entry) : undefined}
-                        onKeyDown={canInspect ? (event) => { if (event.key === "Enter") setInspectedEntry(entry); } : undefined}
+                        onClick={canInspect ? openInspector : undefined}
+                        onKeyDown={canInspect ? (event) => { if (event.key === "Enter") openInspector(); } : undefined}
                         className={`rounded-panel border px-4 py-3 ${canInspect ? "cursor-pointer hover:border-clinical-blue" : ""} ${
                           entry.kind === "lifecycle"
                             ? "border-border bg-surface-subtle"
@@ -506,31 +499,6 @@ export function PatientMonitoringDetailPage() {
               {t("patientDetail.note.submit")}
             </Button>
           </div>
-        </div>
-      </Modal>
-
-      <Modal open={Boolean(inspectedEntry)} onClose={() => setInspectedEntry(null)} title={t("patientDetail.inspector.title")} description={inspectedEntry?.stepTitle}>
-        <div className="space-y-3 p-5">
-          {inspectedPromptItem ? (
-            <>
-              <Field label={t("patientDetail.inspector.participantFacingText")}>
-                <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">{inspectedPromptItem.editableText}</div>
-              </Field>
-              <Field label={t("patientDetail.inspector.clinicianGuidance")}>
-                <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">
-                  {inspectedPromptItem.modelGuidance ?? inspectedPromptItem.aiInstruction}
-                </div>
-              </Field>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                <Badge tone={inspectedPromptItem.status === "active" ? "success" : "neutral"}>{inspectedPromptItem.status}</Badge>
-                <Badge tone={inspectedPromptItem.editableText === inspectedPromptItem.verbatimText ? "neutral" : "primary"}>
-                  {inspectedPromptItem.editableText === inspectedPromptItem.verbatimText ? t("protocolEditor.unedited") : t("protocolEditor.editedFromSource")}
-                </Badge>
-              </div>
-            </>
-          ) : (
-            <EmptyState title={t("patientDetail.inspector.noPromptItem")} />
-          )}
         </div>
       </Modal>
     </AppShell>
