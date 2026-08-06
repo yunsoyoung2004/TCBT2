@@ -1,11 +1,46 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Button, Card, EmptyState, PageHeader, PageSkeleton, SectionHeader } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, PageSkeleton, SectionHeader } from "@/components/ui/primitives";
 import { getRuntimeSession } from "@/lib/api/runtime-session-api";
+import type { RuntimeMessage, SessionExecutionLog } from "@/types/runtime-session";
+
+type StepStatus = "completed" | "current" | "notStarted";
+
+const STEP_TONE: Record<StepStatus, string> = {
+  completed: "border-success bg-success-light/50",
+  current: "border-clinical-blue bg-clinical-blue-light/60",
+  notStarted: "border-border bg-surface-subtle",
+};
+
+const STEP_BADGE_TONE: Record<StepStatus, "success" | "primary" | "neutral"> = {
+  completed: "success",
+  current: "primary",
+  notStarted: "neutral",
+};
+
+const STEP_LABEL: Record<StepStatus, string> = {
+  completed: "완료",
+  current: "진행중",
+  notStarted: "시작 전",
+};
+
+// Consecutive messages that share a nodeId are one "turn" -- the same node can
+// be revisited (e.g. a clarification loop), so this is a run-length grouping
+// over chronological order, not a group per unique node.
+type TurnGroup = { nodeId?: string; nodeTitle: string; messages: RuntimeMessage[] };
+
+function groupMessagesByNode(messages: RuntimeMessage[], nodeTitleFor: (nodeId?: string) => string): TurnGroup[] {
+  const groups: TurnGroup[] = [];
+  for (const message of messages) {
+    const last = groups.at(-1);
+    if (last && last.nodeId === message.nodeId) last.messages.push(message);
+    else groups.push({ nodeId: message.nodeId, nodeTitle: nodeTitleFor(message.nodeId), messages: [message] });
+  }
+  return groups;
+}
 
 export function RuntimeInspectorPage() {
   const params = useParams<{ sessionId: string }>();
@@ -14,8 +49,25 @@ export function RuntimeInspectorPage() {
   const sessionQuery = useQuery({ queryKey: ["runtime-inspector", sessionId], queryFn: () => getRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   if (sessionQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
   if (!sessionQuery.data) return <AppShell><Card className="m-4 lg:m-6"><EmptyState title="Runtime session not found" /></Card></AppShell>;
-  const { session, participant, messages, logs, escalations, checkpoints, providerEvents, validationEvents, nodes, edges, memoryRetrievalRuns, memoryUsageLogs } = sessionQuery.data;
-  const currentNode = nodes.find((node) => node.id === session.currentNodeId);
+  const { session, messages, logs, escalations, providerEvents, validationEvents, nodes, edges, memoryRetrievalRuns, memoryUsageLogs } = sessionQuery.data;
+
+  // The release can hold nodes for every session in the program -- only this
+  // session's steps belong on the progress path.
+  const sessionNodes = nodes.filter((node) => node.sessionId === session.sessionDefinitionId);
+  const currentIndex = sessionNodes.findIndex((node) => node.id === session.currentNodeId);
+  const stepStatus = (index: number): StepStatus => {
+    if (session.status === "completed") return "completed";
+    if (currentIndex === -1) return "notStarted";
+    if (index < currentIndex) return "completed";
+    if (index === currentIndex) return "current";
+    return "notStarted";
+  };
+  const nodeTitleFor = (nodeId?: string) => sessionNodes.find((node) => node.id === nodeId)?.title ?? "Unassigned step";
+
+  const sessionLevelLogs = logs.filter((log) => log.stage === "session");
+  const logsForNode = (nodeId?: string): SessionExecutionLog[] => logs.filter((log) => log.stage !== "session" && log.nodeId === nodeId);
+  const turnGroups = groupMessagesByNode(messages, nodeTitleFor);
+
   return (
     <AppShell>
       <PageHeader
@@ -23,49 +75,75 @@ export function RuntimeInspectorPage() {
         title={`Runtime Session ${session.patientAlias}`}
         description="Runtime state, provider events, output validation, memory retrieval, and execution log are shown from the same local runtime data."
         meta={<><Badge tone="primary">{session.status}</Badge><Badge tone="neutral">{session.protocolVersion}</Badge><Badge tone="warning">{session.sessionDefinitionId}</Badge></>}
-        actions={
-          <>
-            <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">Open patient session</Button></Link>
-            <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Open summary</Button></Link>
-            {participant && <Link href={`/runtime/participants/${participant.id}`}><Button variant="secondary">Participant dashboard</Button></Link>}
-          </>
-        }
       />
       <div className="space-y-4 p-4 lg:p-6">
-        <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-          <Card className="p-4">
-            <SectionHeader title="Overview" description="Current runtime status and continuity state." />
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Metric label="Current node" value={currentNode?.title ?? "Unknown"} />
-              <Metric label="Participant" value={participant?.alias ?? session.participantId} />
-              <Metric label="Messages" value={`${messages.length}`} />
-              <Metric label="Memory runs" value={`${memoryRetrievalRuns?.length ?? 0}`} />
-            </div>
-          </Card>
-          <Card className="p-4">
-            <SectionHeader title="Current State" description="Runtime context snapshot including injected memory namespace." />
-            <pre className="mt-4 overflow-auto rounded-panel border border-border bg-surface-subtle p-3 text-xs text-text-secondary">{JSON.stringify(session.runtimeContext, null, 2)}</pre>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-          <Card className="overflow-hidden">
-            <SectionHeader title="Conversation" description="Patient-visible messages in the same Program and You layout as the session." />
-            <div className="space-y-3 bg-surface-subtle/40 p-4">
-              {messages.map((message) => (
-                <div key={message.id} className={`max-w-[88%] rounded-panel border px-4 py-3 [&>div:first-child]:hidden ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : message.role === "clinician" ? "border-success bg-success-light/50" : "border-border bg-surface"}`}>
-                  <div className="text-xs font-semibold text-text-muted">{message.role} · {message.status}</div>
-                  <div className="text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role === "clinician" ? "Clinician" : "System"}</div>
-                  <div className="mt-2 whitespace-pre-wrap break-words text-sm text-text-primary">{message.content}</div>
-                  <div className="mt-2 text-[10px] text-text-muted">{new Date(message.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</div>
+        <Card className="p-4">
+          <SectionHeader title="Protocol Path" description="How far through this session the patient has progressed, step by step." />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {sessionNodes.map((node, index) => {
+              const status = stepStatus(index);
+              const visitCount = messages.filter((message) => message.nodeId === node.id && message.role === "patient").length;
+              return (
+                <div key={node.id} className={`rounded-panel border p-3 ${STEP_TONE[status]}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm font-semibold text-text-primary">{node.title}</div>
+                    <Badge tone={STEP_BADGE_TONE[status]}>{STEP_LABEL[status]}</Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-text-secondary">{node.type}</div>
+                  <div className="mt-2 text-[11px] text-text-muted">{visitCount > 0 ? `${visitCount}번 응답함` : "아직 응답 없음"}</div>
+                  <div className="mt-2 text-[11px] text-text-muted">
+                    Next: {edges.filter((edge) => edge.source === node.id).map((edge) => edge.target).join(", ") || "end"}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </Card>
-          <Card className="overflow-hidden">
-            <SectionHeader title="Execution Log" description="Runtime cycle log." />
-            <div className="space-y-2 p-4">
-              {logs.map((log) => (
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <SectionHeader title="Conversation & Execution Log" description="Each turn's patient-visible message lined up against the runtime steps it triggered." />
+          <div className="divide-y divide-border">
+            {turnGroups.map((group, groupIndex) => {
+              const groupLogs = logsForNode(group.nodeId);
+              const hasBoth = group.messages.length > 0 && groupLogs.length > 0;
+              return (
+                <div key={`${group.nodeId ?? "unassigned"}-${groupIndex}`} className="grid grid-cols-[1fr_24px_1fr] gap-0">
+                  <div className="space-y-2 bg-surface-subtle/40 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">{group.nodeTitle}</div>
+                    {group.messages.map((message) => (
+                      <div key={message.id} className={`max-w-[95%] rounded-panel border px-3 py-2 ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : message.role === "clinician" ? "border-success bg-success-light/50" : "border-border bg-surface"}`}>
+                        <div className="text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role === "clinician" ? "Clinician" : "System"}</div>
+                        <div className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary">{message.content}</div>
+                        <div className="mt-1 text-[10px] text-text-muted">{new Date(message.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="relative flex justify-center bg-surface">
+                    {hasBoth && <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-clinical-blue/40" />}
+                    {hasBoth && <div className="relative top-6 h-2 w-2 rounded-full bg-clinical-blue" />}
+                  </div>
+                  <div className="space-y-2 p-4">
+                    {groupLogs.length ? groupLogs.map((log) => (
+                      <div key={log.id} className="rounded-panel border border-border p-3">
+                        <div className="text-xs font-semibold text-text-muted">{log.stage} · {log.status}</div>
+                        <div className="mt-1 text-sm text-text-primary">{log.summary}</div>
+                      </div>
+                    )) : (
+                      <div className="text-xs text-text-secondary">No execution log for this step.</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {!turnGroups.length && <EmptyState title="No conversation recorded yet." />}
+          </div>
+        </Card>
+
+        {sessionLevelLogs.length > 0 && (
+          <Card className="p-4">
+            <SectionHeader title="Session Events" description="Session-level lifecycle log (pause, resume, completion) -- not tied to a specific step." />
+            <div className="mt-4 space-y-2">
+              {sessionLevelLogs.map((log) => (
                 <div key={log.id} className="rounded-panel border border-border p-3">
                   <div className="text-xs font-semibold text-text-muted">{log.stage} · {log.status}</div>
                   <div className="mt-1 text-sm text-text-primary">{log.summary}</div>
@@ -73,7 +151,7 @@ export function RuntimeInspectorPage() {
               ))}
             </div>
           </Card>
-        </div>
+        )}
 
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
           <Card className="p-4">
@@ -126,22 +204,6 @@ export function RuntimeInspectorPage() {
             </div>
           </Card>
         </div>
-
-        <Card className="p-4">
-          <SectionHeader title="Protocol Path" description="Current release snapshot path basis." />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {nodes.map((node) => (
-              <div key={node.id} className={`rounded-panel border p-3 ${session.currentNodeId === node.id ? "border-clinical-blue bg-clinical-blue-light/60" : "border-border"}`}>
-                <div className="text-sm font-semibold text-text-primary">{node.title}</div>
-                <div className="mt-1 text-xs text-text-secondary">{node.type}</div>
-                <div className="mt-2 text-[11px] text-text-muted">
-                  Next: {edges.filter((edge) => edge.source === node.id).map((edge) => edge.target).join(", ") || "end"}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 text-xs text-text-secondary">Checkpoints: {checkpoints.length}</div>
-        </Card>
       </div>
     </AppShell>
   );
