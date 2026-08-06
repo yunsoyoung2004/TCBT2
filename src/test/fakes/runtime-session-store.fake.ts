@@ -185,6 +185,17 @@ export async function dispatchFakeRuntimeStoreOp(op: RuntimeStoreOp): Promise<un
       return found ? clone(found) : undefined;
     }
     case "listSessions": return [...sessions.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(clone);
+    case "deleteSession": {
+      sessions.delete(op.sessionId);
+      for (const [id, message] of messages) if (message.runtimeSessionId === op.sessionId) messages.delete(id);
+      for (const [id, log] of logs) if (log.runtimeSessionId === op.sessionId) logs.delete(id);
+      for (const [id, checkpoint] of checkpoints) if (checkpoint.runtimeSessionId === op.sessionId) checkpoints.delete(id);
+      for (const [id, escalation] of escalations) if (escalation.runtimeSessionId === op.sessionId) escalations.delete(id);
+      for (const [id, event] of providerEvents) if (event.runtimeSessionId === op.sessionId) providerEvents.delete(id);
+      for (const [id, event] of validationEvents) if (event.runtimeSessionId === op.sessionId) validationEvents.delete(id);
+      for (const [id, trace] of executionTraces) if (trace.runtimeSessionId === op.sessionId) executionTraces.delete(id);
+      return undefined;
+    }
     case "saveMessage": return clone(saveMessage(op.message));
     case "listMessages": return [...messages.values()].filter((m) => m.runtimeSessionId === op.runtimeSessionId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(clone);
     case "saveLog": return clone(saveLog(op.log));

@@ -59,6 +59,10 @@ export async function listRuntimeSessionRecords() {
   return callStore<RuntimeSession[]>({ op: "listSessions" });
 }
 
+export async function deleteRuntimeSessionRecord(sessionId: string) {
+  await callStore<void>({ op: "deleteSession", sessionId });
+}
+
 export async function saveRuntimeMessage(message: RuntimeMessage) {
   await callStore<RuntimeMessage>({ op: "saveMessage", message });
   return message;

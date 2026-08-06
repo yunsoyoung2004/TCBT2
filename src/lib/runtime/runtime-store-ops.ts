@@ -38,6 +38,7 @@ export type RuntimeStoreOp =
   | { op: "claimPatientTurn"; sessionId: string; clientTurnId: string; expectedSessionVersion: number; patientMessage: RuntimeMessage }
   | { op: "getSession"; sessionId: string }
   | { op: "listSessions" }
+  | { op: "deleteSession"; sessionId: string }
   | { op: "saveMessage"; message: RuntimeMessage }
   | { op: "listMessages"; runtimeSessionId: string }
   | { op: "saveLog"; log: SessionExecutionLog }

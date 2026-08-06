@@ -127,6 +127,20 @@ export async function listRuntimeSessionRecords(): Promise<RuntimeSession[]> {
   return rows.map((row) => row.data);
 }
 
+/** Permanently removes a runtime session and every row that references it. Irreversible. */
+export async function deleteRuntimeSessionRecord(sessionId: string) {
+  await withTransaction(async (client) => {
+    await client.query("DELETE FROM runtime_messages WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_session_logs WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_checkpoints WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_escalations WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_provider_events WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_validation_events WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_execution_traces WHERE runtime_session_id = $1", [sessionId]);
+    await client.query("DELETE FROM runtime_sessions WHERE id = $1", [sessionId]);
+  });
+}
+
 export async function saveRuntimeMessage(message: RuntimeMessage) {
   await withTransaction(async (client) => {
     await client.query(
@@ -399,6 +413,7 @@ export async function dispatchRuntimeStoreOp(op: RuntimeStoreOp): Promise<unknow
     case "claimPatientTurn": return claimRuntimePatientTurn(op);
     case "getSession": return getRuntimeSessionRecord(op.sessionId);
     case "listSessions": return listRuntimeSessionRecords();
+    case "deleteSession": return deleteRuntimeSessionRecord(op.sessionId);
     case "saveMessage": return saveRuntimeMessage(op.message);
     case "listMessages": return listRuntimeMessages(op.runtimeSessionId);
     case "saveLog": return saveRuntimeLog(op.log);

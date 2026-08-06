@@ -15,6 +15,7 @@ import { isCanonicalProtocolId } from "@/lib/protocol/source-fidelity-protocol-a
 import { getRuntimeReleaseSourceSnapshot, loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
 import {
   createRuntimeSessionRecord,
+  deleteRuntimeSessionRecord,
   getLatestRuntimeCheckpoint,
   getRuntimeSessionRecord,
   listRuntimeCheckpoints,
@@ -275,6 +276,11 @@ export async function getPatientRuntimeSession(sessionId: string): Promise<Patie
 
 export async function listRuntimeSessions() {
   return listRuntimeSessionRecords();
+}
+
+/** Permanently deletes a runtime session and its messages/logs/checkpoints. Irreversible. */
+export async function deleteRuntimeSession(sessionId: string) {
+  await deleteRuntimeSessionRecord(sessionId);
 }
 
 export async function setRuntimeSessionStatus(sessionId: string, nextStatus: RuntimeSession["status"], patch: Partial<RuntimeSession> = {}) {
