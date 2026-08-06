@@ -1,0 +1,167 @@
+// Domain types for the session worksheet layer (sql/006_worksheets.sql).
+// RuntimeContext.fields (src/types/runtime-session.ts) remains the
+// canonical clinical field state; everything here is a typed projection of
+// it, never an independent write target. See
+// src/lib/worksheet/worksheet-projection.ts for the write-path contract.
+
+export type WorksheetFieldStatus =
+  | "empty"
+  | "active"
+  | "draft_extracted"
+  | "shown_to_participant"
+  | "participant_confirmed"
+  | "participant_edited"
+  | "not_applicable"
+  | "clinician_review_required"
+  | "locked";
+
+export type WorksheetFieldProvenance =
+  | "participant_verbatim"
+  | "participant_confirmed_summary"
+  | "system_calculated"
+  | "clinician_entered"
+  | "unconfirmed_extraction";
+
+export type WorksheetValueType =
+  | "text"
+  | "long_text"
+  | "integer"
+  | "percentage"
+  | "rating_0_5"
+  | "boolean"
+  | "choice"
+  | "text_list"
+  | "structured_list"
+  | "role_turns"
+  | "evaluation_matrix"
+  | "action_plan";
+
+export interface WorksheetFieldValue {
+  fieldId: string;
+  value: unknown;
+  displayValue?: string;
+  participantVerbatim?: string;
+  sourceTurnId?: string;
+  status: WorksheetFieldStatus;
+  provenance: WorksheetFieldProvenance;
+  confidence?: number;
+  participantOwned: boolean;
+  assistantMustNotSupply: boolean;
+  confirmedAt?: string;
+  updatedAt: string;
+}
+
+export type WorksheetDisplayMode = "verbatim" | "confirmed_summary" | "number" | "list" | "derived";
+
+/** Statically authored -- one entry per canonical runtime field this
+ * session's worksheet renders. canonicalFieldKey must be a real
+ * PromptItem.outputFields[0] value from source-fidelity-catalog.ts; the
+ * registry never invents a field name. */
+export interface WorksheetBinding {
+  sessionDefinitionId: string;
+  canonicalFieldKey: string;
+  worksheetFieldKey: string;
+  visualElementId: string;
+  valueType: WorksheetValueType;
+  participantOwned: boolean;
+  assistantMustNotSupply: boolean;
+  confirmationRequired: boolean;
+  displayMode: WorksheetDisplayMode;
+  label: string;
+  sourceSection?: string;
+  displayOrder: number;
+}
+
+export interface WorksheetFieldDefinitionRecord {
+  id: string;
+  templateVersionId: string;
+  canonicalFieldKey: string;
+  worksheetFieldKey: string;
+  valueType: WorksheetValueType;
+  participantOwned: boolean;
+  assistantMustNotSupply: boolean;
+  confirmationRequired: boolean;
+  visualElementId: string;
+  displayOrder: number;
+  sourceSection?: string;
+}
+
+export interface WorksheetTemplateVersionRecord {
+  id: string;
+  templateId: string;
+  version: number;
+  sourceTextHash: string;
+  status: "draft" | "published" | "deprecated";
+  createdAt: string;
+}
+
+export interface WorksheetInstanceRecord {
+  id: string;
+  runtimeSessionId: string;
+  templateVersionId: string;
+  status: "in_progress" | "completed" | "abandoned";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorksheetFieldValueRecord {
+  id: string;
+  instanceId: string;
+  fieldDefinitionId: string;
+  status: WorksheetFieldStatus;
+  provenance: WorksheetFieldProvenance;
+  confidence?: number;
+  sourceTurnId?: string;
+  confirmedAt?: string;
+  updatedAt: string;
+  value: unknown;
+  displayValue?: string;
+  participantVerbatim?: string;
+}
+
+export interface WorksheetCollectionItemRecord {
+  id: string;
+  fieldValueId: string;
+  position: number;
+  status: WorksheetFieldStatus;
+  provenance: WorksheetFieldProvenance;
+  sourceTurnId?: string;
+  createdAt: string;
+  value: unknown;
+  displayValue?: string;
+}
+
+export interface WorksheetFieldRevisionRecord {
+  id: string;
+  fieldValueId: string;
+  status: WorksheetFieldStatus;
+  provenance: WorksheetFieldProvenance;
+  sourceTurnId?: string;
+  createdAt: string;
+  snapshot: unknown;
+}
+
+export interface WorksheetEventRecord {
+  id: string;
+  instanceId: string;
+  eventType: "field_shown" | "field_confirmed" | "field_edited" | "instance_completed" | "instance_created";
+  createdAt: string;
+  data: Record<string, unknown>;
+}
+
+/** The read model the UI actually consumes: one row per bound field, its
+ * current projected value (if any), and the definition metadata needed to
+ * render it -- assembled server-side by worksheet-projection.ts so the
+ * client never has to join definitions to values itself. */
+export interface WorksheetFieldView {
+  definition: WorksheetFieldDefinitionRecord;
+  binding: WorksheetBinding;
+  value: WorksheetFieldValueRecord | null;
+  collectionItems?: WorksheetCollectionItemRecord[];
+}
+
+export interface WorksheetView {
+  instance: WorksheetInstanceRecord;
+  templateVersion: WorksheetTemplateVersionRecord;
+  fields: WorksheetFieldView[];
+}

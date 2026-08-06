@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { PatientInputControls } from "@/components/runtime/patient-input-controls";
 import { StreamingText, TypingIndicator } from "@/components/runtime/streaming-text";
+import { WorksheetPane } from "@/components/runtime/worksheet-pane";
+import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
@@ -146,7 +148,7 @@ export function PatientSessionPage() {
         <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>Completion</Button>
       }
     >
-      <div className="mx-auto max-w-3xl">
+      <div className={hasWorksheetBindings(activeSession.sessionDefinitionId) ? "mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1.1fr_1fr]" : "mx-auto max-w-3xl"}>
         <Card className="overflow-hidden">
           <div className="border-b border-border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -254,6 +256,13 @@ export function PatientSessionPage() {
             )}
           </div>
         </Card>
+        {hasWorksheetBindings(activeSession.sessionDefinitionId) && (
+          <WorksheetPane
+            runtimeSessionId={activeSession.id}
+            sessionDefinitionId={activeSession.sessionDefinitionId}
+            activeCanonicalFieldKey={currentPromptItem?.outputFields?.[0]}
+          />
+        )}
       </div>
     </PatientShell>
   );

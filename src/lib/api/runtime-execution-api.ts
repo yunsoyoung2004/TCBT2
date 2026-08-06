@@ -10,6 +10,7 @@ import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator
 import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tracer";
 import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-validator";
 import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
+import { projectRuntimeFieldsToWorksheet } from "@/lib/worksheet/worksheet-projection";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
 import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
@@ -857,6 +858,11 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     metadata: { inputKind: patientInput.kind, promptItemId: currentPromptItem.id, clientTurnId },
   };
   const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: initialSession.runtimeContext, locale: initialSession.locale });
+  // Worksheet projection is a best-effort read-side mirror of the canonical
+  // extracted fields (src/lib/worksheet/worksheet-projection.ts) -- never
+  // allowed to block or fail a real turn, and a no-op for sessions with no
+  // registered worksheet bindings.
+  projectRuntimeFieldsToWorksheet({ runtimeSessionId: sessionId, sessionDefinitionId: initialSession.sessionDefinitionId, fields: extracted.fields, sourceTurnId: patientMessage.id }).catch(() => {});
   const safetyContext = {
     ...initialSession.runtimeContext,
     riskLevel: extracted.riskLevel,
