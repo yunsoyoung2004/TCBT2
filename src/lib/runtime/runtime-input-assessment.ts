@@ -3,7 +3,7 @@ import { assessmentResultSchema, type AssessmentRequest } from "@/lib/assessment
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
 
-type InputAssessmentResult = { accepted: boolean; confidence: number; reason: "meaningful_response" | "needs_clarification"; extractedFields?: Record<string, unknown>; safetyLevel?: "none" | "low" | "moderate" | "high" | "critical"; safetySignals?: string[]; error?: string };
+type InputAssessmentResult = { accepted: boolean; confidence: number; reason: "meaningful_response" | "needs_clarification"; extractedFields?: Record<string, unknown>; safetyLevel?: "none" | "low" | "moderate" | "high" | "critical"; safetySignals?: string[]; intent?: "answer" | "clarification_request" | "refusal" | "topic_shift" | "distress_disclosure" | "other"; error?: string };
 
 /**
  * validation.kind values whose whole clinical point is "did the patient
@@ -53,7 +53,14 @@ export async function assessRuntimePatientInput(input: { patientInput: PatientIn
     // Previously, needs_clarification discarded every extracted field and caused
     // the same generic prompt to be repeated.
     const accepted = result.inputValid && result.relevance !== "irrelevant";
-    return { accepted, confidence: result.relevance === "relevant" ? 0.9 : 0.6, reason: accepted ? "meaningful_response" : "needs_clarification", extractedFields: result.extractedFields, safetyLevel: result.safetyLevel, safetySignals: result.safetySignals };
+    // Surface the model's classified intent (this is what already lets it
+    // recognize "the patient wants to stop" or "the patient is disclosing
+    // distress" in whatever language the session runs in, via the same
+    // locale-aware assessment used for every other field) -- previously this
+    // was computed by the model but discarded here, so callers had no way to
+    // act on a refusal/distress-disclosure intent that wasn't also caught by
+    // the English-only isExplicitPatientRefusal keyword check.
+    return { accepted, confidence: result.relevance === "relevant" ? 0.9 : 0.6, reason: accepted ? "meaningful_response" : "needs_clarification", extractedFields: result.extractedFields, safetyLevel: result.safetyLevel, safetySignals: result.safetySignals, intent: result.intent };
   } catch (error) {
     return { accepted: false, confidence: 0, reason: "needs_clarification", error: error instanceof Error ? error.message : "Input assessment failed" };
   }

@@ -129,8 +129,33 @@ export function detectRuntimeRiskSignals(text: string) {
     .map(({ signal }) => signal);
 }
 
+// Explicit refusal / decline-to-continue detection, one pattern per locale
+// this app runs patient sessions in (mirrors the language coverage of
+// RISK_SIGNAL_PATTERNS above). This is distinct from the safety_check stage,
+// which looks for crisis/self-harm content -- a patient can decline to
+// continue without any risk signal present, and previously that case fell
+// through to normal state extraction/node resolution because only English
+// phrasing was recognized here, silently ignoring e.g. a Korean-speaking
+// patient saying "세션을 진행하고 싶지 않아요" (I don't want to continue the session).
+const REFUSAL_PATTERNS: RegExp[] = [
+  // English
+  /\b(?:i\s+(?:do\s+not|don['’]?t)\s+want\s+(?:counsel(?:ing)?|therapy|to\s+continue)|stop\s+(?:the\s+)?session|leave\s+me\s+alone)\b/i,
+  // Korean: "~하고 싶지 않아요/않습니다", "그만(하고 싶어요/할래요/하고 싶다)", "안 할래요/하기 싫어요"
+  /(?:세션|치료|상담|진행)(?:을|를)?\s*(?:진행\s*)?(?:하고\s*싶지\s*않|하기\s*싫)/,
+  /그만(?:\s*하고\s*싶|하고\s*싶|할래|두고\s*싶|진행)/,
+  /(?:세션|치료|상담)\s*(?:그만|안\s*할래|받고\s*싶지\s*않)/,
+  /나\s*좀\s*내버려\s*(?:둬|두세요|주세요)/,
+  // Portuguese
+  /(?:n[aã]o\s+quero\s+(?:continuar|mais\s+terapia|mais\s+aconselhamento)|pare\s+(?:a\s+)?sess[aã]o|me\s+deixe?\s+em\s+paz)/i,
+  // French
+  /(?:je\s+ne\s+veux\s+(?:pas\s+continuer|plus\s+de\s+th[ée]rapie)|arr[êe]tez?\s+(?:la\s+)?session|laissez[- ]moi\s+tranquille)/i,
+  // Japanese
+  /(?:続けたくない|セッションをやめたい|もうやめたい|一人にして)/,
+];
+
 export function isExplicitPatientRefusal(text: string) {
-  return /\b(?:i\s+(?:do\s+not|don['’]?t)\s+want\s+(?:counsel(?:ing)?|therapy|to\s+continue)|stop\s+(?:the\s+)?session|leave\s+me\s+alone)\b/i.test(text.trim());
+  const trimmed = text.trim();
+  return REFUSAL_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 function compactText(value: string) {
@@ -290,6 +315,14 @@ export async function extractRuntimeState(input: {
     }
     if (assessment.safetyLevel === "moderate") {
       return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language", ...(assessment.safetySignals ?? [])], confidence: assessment.confidence, missingFields: expectedFields };
+    }
+    // Model-classified refusal, in whatever language the session runs in --
+    // catches phrasing the static isExplicitPatientRefusal keyword list
+    // (English-only fast path, checked unconditionally by the caller) will
+    // never cover. Reported as a risk signal so runtime-execution-api.ts can
+    // route it into the same "patient declined to continue" pause branch.
+    if (assessment.intent === "refusal") {
+      return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals: [...riskSignals, "patient_refusal_semantic"], confidence: assessment.confidence, missingFields: expectedFields.length ? [field] : [] };
     }
     if (!assessment.accepted) {
       return {

@@ -881,7 +881,8 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     await createRuntimeCheckpoint(sessionId);
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: clarification.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: clarification.sessionStatus, logIds: [] };
   }
-  if (isExplicitPatientRefusal(patientMessage.content) && !safetyResult.triggered) {
+  const isSemanticRefusal = extracted.riskSignals.includes("patient_refusal_semantic");
+  if ((isExplicitPatientRefusal(patientMessage.content) || isSemanticRefusal) && !safetyResult.triggered) {
     const refusal = await deliverClarificationTurn({
       session,
       node: currentNode,

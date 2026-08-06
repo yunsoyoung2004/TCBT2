@@ -59,6 +59,15 @@ describe("runtime context extraction", () => {
     expect(isExplicitPatientRefusal("I don’t want counsel")).toBe(true);
     expect(isExplicitPatientRefusal("I don't want to continue")).toBe(true);
   });
+  it("recognizes an explicit refusal stated in Korean", () => {
+    expect(isExplicitPatientRefusal("세션을 진행하고 싶지 않아요")).toBe(true);
+    expect(isExplicitPatientRefusal("세션을 진행하고 싶지 않아요?")).toBe(true);
+    expect(isExplicitPatientRefusal("세시 시험을 진행하고 싶지 않아요")).toBe(true);
+    expect(isExplicitPatientRefusal("그만하고 싶어요")).toBe(true);
+    expect(isExplicitPatientRefusal("치료받고 싶지 않아요")).toBe(true);
+    expect(isExplicitPatientRefusal("나 좀 내버려 둬")).toBe(true);
+    expect(isExplicitPatientRefusal("네, 그런 거 같습니다")).toBe(false);
+  });
   it("preserves fields extracted from a partially complete multi-field answer", async () => {
     const promptItem = {
       ...makePrompt("distressingSituation"),
