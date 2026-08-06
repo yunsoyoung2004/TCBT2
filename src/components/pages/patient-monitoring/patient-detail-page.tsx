@@ -108,11 +108,12 @@ export function PatientMonitoringDetailPage() {
     queryKey: ["patient-monitoring-safety-events", participantId],
     queryFn: getSafetyEvents,
     enabled: Boolean(participantId),
+    refetchInterval: 5000,
   });
 
   const canonicalSessionsQuery = useQuery({ queryKey: ["patient-monitoring-canonical-sessions"], queryFn: listCanonicalTestSessions });
 
-  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
+  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
 
   const summary = useMemo(
     () => summarizeParticipant(participantId, allRuntimeSessionsQuery.data ?? [], safetyQuery.data ?? [], participant?.updatedAt),

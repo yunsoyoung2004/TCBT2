@@ -36,8 +36,8 @@ function formatTimestamp(value?: string) {
 export function PatientListPage() {
   const { t } = useT();
   const participantsQuery = useQuery({ queryKey: ["patient-monitoring-participants"], queryFn: listRuntimeParticipants });
-  const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
-  const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents });
+  const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
+  const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents, refetchInterval: 5000 });
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | MonitoringStatus>("all");
