@@ -1,26 +1,39 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { PARTICIPANT_STORE_ENDPOINT, type ParticipantStoreOp } from "@/lib/runtime/participant-store-ops";
 import type { GoalTrackingRecord, HomeworkTrackingRecord, LongitudinalMemory, MemoryCandidate, MemoryRetrievalResult, MemoryUsageLog } from "@/types/longitudinal-memory";
 
-export async function listLongitudinalMemories(participantId: string) {
-  return getLocalDb().longitudinalMemories.where("participantId").equals(participantId).sortBy("updatedAt");
+// Longitudinal memories (including clinician_note entries, i.e. clinician
+// notes added from Patient Monitoring) now live in Neon Postgres alongside
+// the participant roster (src/lib/server/participant-store.ts) -- so a note
+// added by a clinician is visible from any browser/session, not just the
+// one it was written in. Memory candidates, goal/homework tracking, and
+// usage logs are not yet part of this migration and remain local-only.
+async function callStore<T>(op: ParticipantStoreOp): Promise<T> {
+  const response = await fetch(PARTICIPANT_STORE_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(op),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.ok) throw new Error(body?.error ?? "Participant store operation failed.");
+  return body.result as T;
 }
 
-export async function getLongitudinalMemory(memoryId: string) {
-  return getLocalDb().longitudinalMemories.get(memoryId);
+export async function listLongitudinalMemories(participantId: string): Promise<LongitudinalMemory[]> {
+  return callStore<LongitudinalMemory[]>({ op: "listMemories", participantId });
+}
+
+export async function getLongitudinalMemory(memoryId: string): Promise<LongitudinalMemory | undefined> {
+  return callStore<LongitudinalMemory | undefined>({ op: "getMemory", memoryId });
 }
 
 export async function saveLongitudinalMemory(memory: LongitudinalMemory) {
-  await getLocalDb().longitudinalMemories.put(memory);
+  await callStore<LongitudinalMemory>({ op: "saveMemory", memory });
   return memory;
 }
 
 export async function updateLongitudinalMemory(memoryId: string, patch: Partial<LongitudinalMemory>) {
-  const db = getLocalDb();
-  const current = await db.longitudinalMemories.get(memoryId);
-  if (!current) throw new Error("Memory not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.longitudinalMemories.put(next);
-  return next;
+  return callStore<LongitudinalMemory>({ op: "updateMemory", memoryId, patch });
 }
 
 export async function listMemoryCandidates(participantId?: string) {
