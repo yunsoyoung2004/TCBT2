@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
+import { StreamingText } from "@/components/runtime/streaming-text";
+import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import {
   Badge,
   Button,
@@ -68,6 +70,7 @@ export function PatientMonitoringDetailPage() {
     "";
 
   const queryClient = useQueryClient();
+  const reducedMotion = useReducedMotionPreference();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
   const [activeTab, setActiveTab] = useState<"audit" | "profile">("audit");
@@ -88,7 +91,12 @@ export function PatientMonitoringDetailPage() {
     queryKey: ["patient-monitoring-session-view-detail", effectiveSessionId],
     queryFn: () => getRuntimeSession(effectiveSessionId),
     enabled: Boolean(effectiveSessionId),
+    refetchInterval: 5000,
   });
+
+  // Messages already on screen the first time a session loads (or is switched to)
+  // are shown statically; only ones that arrive afterwards stream in.
+  const historicalMessageIdsRef = useRef<{ sessionId: string; ids: Set<string> } | null>(null);
 
   const memoriesQuery = useQuery({
     queryKey: ["patient-monitoring-memories", participantId],
@@ -208,6 +216,14 @@ export function PatientMonitoringDetailPage() {
     return entries.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [sessionViewQuery.data?.messages, clinicianNotes, effectiveSessionId, nodes, session, t]);
 
+  useEffect(() => {
+    const messageIds = timeline.filter((entry) => entry.kind === "message").map((entry) => entry.id);
+    if (!messageIds.length) return;
+    if (historicalMessageIdsRef.current?.sessionId !== effectiveSessionId) {
+      historicalMessageIdsRef.current = { sessionId: effectiveSessionId, ids: new Set(messageIds) };
+    }
+  }, [effectiveSessionId, timeline]);
+
   const filteredTimeline = useMemo(() => {
     if (auditFilter === "all") return timeline;
     if (auditFilter === "notes") return timeline.filter((entry) => entry.kind === "note" || entry.kind === "lifecycle");
@@ -326,27 +342,37 @@ export function PatientMonitoringDetailPage() {
                 ) : filteredTimeline.length === 0 ? (
                   <EmptyState title={t("patientDetail.audit.noEntries")} />
                 ) : (
-                  filteredTimeline.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`rounded-panel border px-4 py-3 ${
-                        entry.kind === "lifecycle"
-                          ? "border-border bg-surface-subtle"
-                          : entry.speaker === "patient"
-                            ? "border-clinical-blue-light bg-clinical-blue-light/50"
-                            : entry.speaker === "clinician"
-                              ? "border-success bg-success-light/40"
-                              : "border-border bg-surface"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-muted">
-                        <span>{speakerLabel(entry.speaker)}</span>
-                        <span>{formatTimestamp(entry.createdAt)}</span>
+                  filteredTimeline.map((entry) => {
+                    const isNewMessage = entry.kind === "message"
+                      && historicalMessageIdsRef.current?.sessionId === effectiveSessionId
+                      && !historicalMessageIdsRef.current.ids.has(entry.id);
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`rounded-panel border px-4 py-3 ${
+                          entry.kind === "lifecycle"
+                            ? "border-border bg-surface-subtle"
+                            : entry.speaker === "patient"
+                              ? "border-clinical-blue-light bg-clinical-blue-light/50"
+                              : entry.speaker === "clinician"
+                                ? "border-success bg-success-light/40"
+                                : "border-border bg-surface"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-text-muted">
+                          <span>{speakerLabel(entry.speaker)}</span>
+                          <span>{formatTimestamp(entry.createdAt)}</span>
+                        </div>
+                        {entry.stepTitle && <div className="mt-1 text-[11px] text-text-muted">{entry.stepTitle}</div>}
+                        <StreamingText
+                          streamKey={entry.id}
+                          text={entry.content}
+                          active={!reducedMotion && isNewMessage}
+                          className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary"
+                        />
                       </div>
-                      {entry.stepTitle && <div className="mt-1 text-[11px] text-text-muted">{entry.stepTitle}</div>}
-                      <div className="mt-1 text-sm text-text-primary">{entry.content}</div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>
