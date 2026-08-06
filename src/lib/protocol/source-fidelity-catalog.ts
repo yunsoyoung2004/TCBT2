@@ -344,7 +344,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
         order: promptIndex + 1,
         type: prompt.type,
         verbatimText: promptText.text,
-        editableText: sourceText(prompt.source),
+        editableText: promptText.text || sourceText(prompt.source),
         aiInstruction: shortAiMsg,
         fallbackPatientText: prompt.patientText,
         markerHint: prompt.marker,
