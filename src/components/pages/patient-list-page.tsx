@@ -6,10 +6,12 @@ import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
+import { useT } from "@/lib/i18n/context";
 
 type ListedSession = Awaited<ReturnType<typeof listRuntimeSessions>>[number];
 
 export function PatientListPage() {
+  const { t } = useT();
   const sessionsQuery = useQuery({ queryKey: ["runtime-sessions"], queryFn: listRuntimeSessions });
   const participantQuery = useQuery({ queryKey: ["runtime-participant-demo"], queryFn: getOrCreateDemoParticipant });
   const participant = participantQuery.data;
@@ -32,17 +34,17 @@ export function PatientListPage() {
     .filter((session) => !/^tbct-s0[1-8]$/.test(session.sessionDefinitionId))
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
-  if (sessionsQuery.isLoading || participantQuery.isLoading) return <PatientShell title="Sessions"><PageSkeleton /></PatientShell>;
+  if (sessionsQuery.isLoading || participantQuery.isLoading) return <PatientShell title={t("patientPortal.title")}><PageSkeleton /></PatientShell>;
   return (
     <PatientShell
-      title="Sessions"
+      title={t("patientPortal.title")}
       sessionLabel={participant?.alias}
       progressLabel={participant?.locale}
       actions={
         <>
-          <Link href="/projects/demo/patient/profile"><Button variant="secondary">Profile</Button></Link>
-          <Link href="/projects/demo/patient/memory"><Button variant="secondary">Memory</Button></Link>
-          <Link href="/projects/demo/patient/sessions/new"><Button>New session</Button></Link>
+          <Link href="/projects/demo/patient/profile"><Button variant="secondary">{t("patientPortal.profile")}</Button></Link>
+          <Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientPortal.memory")}</Button></Link>
+          <Link href="/projects/demo/patient/sessions/new"><Button>{t("patientPortal.newSession")}</Button></Link>
         </>
       }
     >
@@ -50,29 +52,30 @@ export function PatientListPage() {
         <Card className="overflow-hidden p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-blue">Patient portal</div>
-              <h2 className="mt-2 text-2xl font-semibold text-text-primary">Your current sessions</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-secondary">Sessions are grouped from S01 to S08. Each group shows its own open and completed runs.</p>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-blue">{t("patientPortal.eyebrow")}</div>
+              <h2 className="mt-2 text-2xl font-semibold text-text-primary">{t("patientPortal.heading")}</h2>
+              <p className="mt-2 max-w-2xl text-sm text-text-secondary">{t("patientPortal.description")}</p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
-              <StatChip label="Total" value={String(stats.total)} />
-              <StatChip label="Active" value={String(stats.active)} />
-              <StatChip label="Waiting" value={String(stats.waiting)} />
-              <StatChip label="Complete" value={String(stats.complete)} />
+              <StatChip label={t("patientPortal.stats.total")} value={String(stats.total)} />
+              <StatChip label={t("patientPortal.stats.active")} value={String(stats.active)} />
+              <StatChip label={t("patientPortal.stats.waiting")} value={String(stats.waiting)} />
+              <StatChip label={t("patientPortal.stats.complete")} value={String(stats.complete)} />
             </div>
           </div>
         </Card>
-        {!sessions.length && <Card><EmptyState title="No runtime sessions" description="Start a session from a published release." /></Card>}
+        {!sessions.length && <Card><EmptyState title={t("patientPortal.noSessions.title")} description={t("patientPortal.noSessions.description")} /></Card>}
         <div className="space-y-5">
-          {sessionGroups.map((group) => <SessionGroup key={group.definitionId} number={group.number} title={`Session ${group.number}`} definitionId={group.definitionId} sessions={group.items} />)}
-          {otherSessions.length > 0 && <SessionGroup title="Other sessions" definitionId="Other" sessions={otherSessions} />}
+          {sessionGroups.map((group) => <SessionGroup key={group.definitionId} number={group.number} title={t("patientPortal.group.session", { number: group.number })} definitionId={group.definitionId} sessions={group.items} />)}
+          {otherSessions.length > 0 && <SessionGroup title={t("patientPortal.group.other")} definitionId="Other" sessions={otherSessions} />}
         </div>
       </div>
     </PatientShell>
   );
 }
 
-function SessionGroup({ title, definitionId, sessions, number }: { title: string; definitionId: string; sessions: ListedSession[]; number?: number }) {
+function SessionGroup({ title, definitionId, sessions }: { title: string; definitionId: string; sessions: ListedSession[]; number?: number }) {
+  const { t } = useT();
   const completed = sessions.filter((session) => session.status === "completed").length;
   const open = sessions.length - completed;
   return (
@@ -83,13 +86,13 @@ function SessionGroup({ title, definitionId, sessions, number }: { title: string
           <div className="mt-1 text-xs text-text-muted">{definitionId}</div>
         </div>
         <div className="flex gap-2">
-          <Badge tone="neutral">Total {sessions.length}</Badge>
-          <Badge tone={open ? "warning" : "neutral"}>Open {open}</Badge>
-          <Badge tone={completed ? "success" : "neutral"}>Complete {completed}</Badge>
+          <Badge tone="neutral">{t("patientPortal.group.total", { count: sessions.length })}</Badge>
+          <Badge tone={open ? "warning" : "neutral"}>{t("patientPortal.group.open", { count: open })}</Badge>
+          <Badge tone={completed ? "success" : "neutral"}>{t("patientPortal.group.complete", { count: completed })}</Badge>
         </div>
       </div>
       {sessions.length === 0 ? (
-        <div className="px-5 py-5 text-sm text-text-muted">No sessions created yet.</div>
+        <div className="px-5 py-5 text-sm text-text-muted">{t("patientPortal.group.empty")}</div>
       ) : (
         <div className="divide-y divide-border">
           {sessions.map((session) => <SessionRow key={session.id} session={session} />)}
@@ -100,6 +103,7 @@ function SessionGroup({ title, definitionId, sessions, number }: { title: string
 }
 
 function SessionRow({ session }: { session: ListedSession }) {
+  const { t } = useT();
   const tone = session.status === "completed" ? "success" : session.status === "escalated" || session.status === "safety_paused" ? "critical" : session.status === "waiting_for_input" ? "warning" : "primary";
   return (
     <div className="p-5">
@@ -112,15 +116,15 @@ function SessionRow({ session }: { session: ListedSession }) {
           <div className="flex flex-wrap gap-2">
             <Badge tone={tone}>{session.status}</Badge>
             <Badge tone="neutral">{session.locale}</Badge>
-            <Badge tone="neutral">Updated {new Date(session.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</Badge>
+            <Badge tone="neutral">{t("patientPortal.row.updated")} {new Date(session.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</Badge>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {/* Inspector (raw runtime state/logs/provider events) is a clinician-only
               diagnostic view -- see the clinician's Patient Monitoring screen. Patients
               can only manage/continue their own session and view its summary. */}
-          <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">Open</Button></Link>
-          <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Summary</Button></Link>
+          <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">{t("patientPortal.row.open")}</Button></Link>
+          <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">{t("patientPortal.row.summary")}</Button></Link>
         </div>
       </div>
     </div>
