@@ -68,6 +68,17 @@ export function RuntimeInspectorPage() {
   const logsForNode = (nodeId?: string): SessionExecutionLog[] => logs.filter((log) => log.stage !== "session" && log.nodeId === nodeId);
   const turnGroups = groupMessagesByNode(messages, nodeTitleFor);
 
+  // Session-level lifecycle logs (pause/resume/completion) aren't tied to a
+  // step, so they don't belong in the Conversation/Execution-Log pairing --
+  // but dropping them into a separate, timeless box loses when they happened.
+  // Interleave them into the same timeline instead, at their real
+  // chronological position, styled as a thin divider rather than a card.
+  type TimelineRow = { kind: "turn"; at: string; group: TurnGroup } | { kind: "sessionEvent"; at: string; log: SessionExecutionLog };
+  const timelineRows: TimelineRow[] = [
+    ...turnGroups.map((group): TimelineRow => ({ kind: "turn", at: group.messages[0].createdAt, group })),
+    ...sessionLevelLogs.map((log): TimelineRow => ({ kind: "sessionEvent", at: log.timestamp, log })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
   return (
     <AppShell>
       <PageHeader
@@ -103,11 +114,25 @@ export function RuntimeInspectorPage() {
         <Card className="overflow-hidden">
           <SectionHeader title="Conversation & Execution Log" description="Each turn's patient-visible message lined up against the runtime steps it triggered." />
           <div className="divide-y divide-border">
-            {turnGroups.map((group, groupIndex) => {
+            {timelineRows.map((row, rowIndex) => {
+              if (row.kind === "sessionEvent") {
+                // Not a step-scoped card -- a thin, differently-colored divider
+                // dropped into the same timeline at its real point in time, so
+                // when it happened relative to the conversation stays clear.
+                return (
+                  <div key={row.log.id} className="flex items-center gap-3 bg-warning-light/20 px-4 py-2">
+                    <div className="h-px flex-1 bg-warning" />
+                    <div className="whitespace-nowrap text-[11px] font-semibold text-text-secondary">{row.log.summary}</div>
+                    <div className="whitespace-nowrap text-[10px] text-text-muted">{new Date(row.log.timestamp).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</div>
+                    <div className="h-px flex-1 bg-warning" />
+                  </div>
+                );
+              }
+              const group = row.group;
               const groupLogs = logsForNode(group.nodeId);
               const hasBoth = group.messages.length > 0 && groupLogs.length > 0;
               return (
-                <div key={`${group.nodeId ?? "unassigned"}-${groupIndex}`} className="grid grid-cols-[1fr_24px_1fr] gap-0">
+                <div key={`${group.nodeId ?? "unassigned"}-${rowIndex}`} className="grid grid-cols-[1fr_24px_1fr] gap-0">
                   <div className="space-y-2 bg-surface-subtle/40 p-4">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">{group.nodeTitle}</div>
                     {group.messages.map((message) => (
@@ -135,23 +160,9 @@ export function RuntimeInspectorPage() {
                 </div>
               );
             })}
-            {!turnGroups.length && <EmptyState title="No conversation recorded yet." />}
+            {!timelineRows.length && <EmptyState title="No conversation recorded yet." />}
           </div>
         </Card>
-
-        {sessionLevelLogs.length > 0 && (
-          <Card className="p-4">
-            <SectionHeader title="Session Events" description="Session-level lifecycle log (pause, resume, completion) -- not tied to a specific step." />
-            <div className="mt-4 space-y-2">
-              {sessionLevelLogs.map((log) => (
-                <div key={log.id} className="rounded-panel border border-border p-3">
-                  <div className="text-xs font-semibold text-text-muted">{log.stage} · {log.status}</div>
-                  <div className="mt-1 text-sm text-text-primary">{log.summary}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
           <Card className="p-4">
