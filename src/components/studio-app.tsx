@@ -11,7 +11,6 @@ const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page"
 const ProtocolPage = dynamic(() => import("@/components/pages/protocol-page").then((mod) => mod.ProtocolPage), { ssr: false });
 const SafetyPage = dynamic(() => import("@/components/pages/safety-page").then((mod) => mod.SafetyPage), { ssr: false });
 const ValidationPage = dynamic(() => import("@/components/pages/validation-page").then((mod) => mod.ValidationPage), { ssr: false });
-const VersionsPage = dynamic(() => import("@/components/pages/versions-page").then((mod) => mod.VersionsPage), { ssr: false });
 const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mod) => mod.AuditPage), { ssr: false });
 const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((mod) => mod.SettingsPage), { ssr: false });
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
@@ -20,7 +19,6 @@ const PatientSessionPage = dynamic(() => import("@/components/pages/patient-sess
 const PatientSessionCompletePage = dynamic(() => import("@/components/pages/patient-session-complete-page").then((mod) => mod.PatientSessionCompletePage), { ssr: false });
 const PatientProfilePage = dynamic(() => import("@/components/pages/patient-profile-page").then((mod) => mod.PatientProfilePage), { ssr: false });
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
-const PatientAuditConversationPage = dynamic(() => import("@/components/pages/patient-audit-conversation-page").then((mod) => mod.PatientAuditConversationPage), { ssr: false });
 const RuntimeInspectorPage = dynamic(() => import("@/components/pages/runtime-inspector-page").then((mod) => mod.RuntimeInspectorPage), { ssr: false });
 const RuntimeEscalationsPage = dynamic(() => import("@/components/pages/runtime-escalations-page").then((mod) => mod.RuntimeEscalationsPage), { ssr: false });
 const RuntimeParticipantPage = dynamic(() => import("@/components/pages/runtime-participant-page").then((mod) => mod.RuntimeParticipantPage), { ssr: false });
@@ -56,7 +54,6 @@ type StudioRoute = {
 };
 
 const studioRoutes: StudioRoute[] = [
-  { matches: (pathname) => pathname.includes("/patient/audits/"), Page: PatientAuditConversationPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage },
   { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage },
   { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage },
@@ -97,7 +94,6 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname.includes("/canvas"), Page: ProtocolPage },
   { matches: (pathname) => pathname.includes("/safety"), Page: SafetyPage },
   { matches: (pathname) => pathname.includes("/validation"), Page: ValidationPage },
-  { matches: (pathname) => pathname.includes("/versions") || pathname.includes("/release"), Page: VersionsPage },
   { matches: (pathname) => pathname.startsWith("/audit"), Page: AuditPage },
   { matches: (pathname) => pathname.startsWith("/settings"), Page: SettingsPage },
 ];

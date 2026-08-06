@@ -1,204 +1,192 @@
-import { getLocalDb } from "@/lib/db/tbct-local-db";
-import type { ClinicianHandoffRecord, HumanInterventionRecord, RuntimeClinician, SafetyEvent, SafetyFollowUpTask, SafetyNotification, SafetyReport, SafetyStatusTransition, SafetyTriageRecord, SafetyTriggerSuppression, SessionResumeRequest } from "@/types/safety-operations";
+import { SAFETY_STORE_ENDPOINT } from "@/lib/runtime/safety-store-ops";
+import type { SafetyStoreOp } from "@/lib/runtime/safety-store-ops";
+import type {
+  ClinicianHandoffRecord,
+  HumanInterventionRecord,
+  RuntimeClinician,
+  SafetyEvent,
+  SafetyFollowUpTask,
+  SafetyNotification,
+  SafetyReport,
+  SafetyStatusTransition,
+  SafetyTriageRecord,
+  SafetyTriggerSuppression,
+  SessionResumeRequest,
+} from "@/types/safety-operations";
+
+// Thin fetch client over src/app/api/safety/store/route.ts. The clinician
+// safety-monitoring domain (safety events, transitions, triage,
+// interventions, follow-ups, clinicians, notifications, reports, handoffs,
+// resume requests, trigger suppressions) now lives in Neon Postgres, not
+// local IndexedDB -- every function here keeps its original name and
+// signature so call sites across the app (src/lib/api/safety-operations-api.ts
+// for clinician screens, src/lib/api/runtime-execution-api.ts for the
+// patient-facing runtime) are unaffected.
+async function callStore<T>(op: SafetyStoreOp): Promise<T> {
+  const response = await fetch(SAFETY_STORE_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(op),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.ok) throw new Error(body?.error ?? "Safety store operation failed.");
+  return body.result as T;
+}
 
 export async function listSafetyEvents() {
-  return getLocalDb().safetyEvents.orderBy("createdAt").reverse().toArray();
+  return callStore<SafetyEvent[]>({ op: "listSafetyEvents" });
 }
 
 export async function getSafetyEvent(eventId: string) {
-  return getLocalDb().safetyEvents.get(eventId);
+  return callStore<SafetyEvent | undefined>({ op: "getSafetyEvent", eventId });
 }
 
 export async function saveSafetyEvent(event: SafetyEvent) {
-  await getLocalDb().safetyEvents.put(event);
+  await callStore<SafetyEvent>({ op: "saveSafetyEvent", event });
   return event;
 }
 
 export async function updateSafetyEvent(eventId: string, patch: Partial<SafetyEvent>) {
-  const db = getLocalDb();
-  const current = await db.safetyEvents.get(eventId);
-  if (!current) throw new Error("Safety event not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.safetyEvents.put(next);
-  return next;
+  return callStore<SafetyEvent>({ op: "updateSafetyEvent", eventId, patch });
 }
 
 export async function saveSafetyTransition(transition: SafetyStatusTransition) {
-  await getLocalDb().safetyStatusTransitions.put(transition);
+  await callStore<SafetyStatusTransition>({ op: "saveSafetyTransition", transition });
   return transition;
 }
 
 export async function listSafetyTransitions(safetyEventId: string) {
-  return getLocalDb().safetyStatusTransitions.where("safetyEventId").equals(safetyEventId).sortBy("createdAt");
+  return callStore<SafetyStatusTransition[]>({ op: "listSafetyTransitions", safetyEventId });
 }
 
 export async function saveSafetyTriageRecord(record: SafetyTriageRecord) {
-  await getLocalDb().safetyTriageRecords.put(record);
+  await callStore<SafetyTriageRecord>({ op: "saveSafetyTriageRecord", record });
   return record;
 }
 
 export async function listSafetyTriageRecords(safetyEventId: string) {
-  return getLocalDb().safetyTriageRecords.where("safetyEventId").equals(safetyEventId).sortBy("createdAt");
+  return callStore<SafetyTriageRecord[]>({ op: "listSafetyTriageRecords", safetyEventId });
 }
 
 export async function saveInterventionRecord(record: HumanInterventionRecord) {
-  await getLocalDb().humanInterventionRecords.put(record);
+  await callStore<HumanInterventionRecord>({ op: "saveInterventionRecord", record });
   return record;
 }
 
 export async function updateInterventionRecord(interventionId: string, patch: Partial<HumanInterventionRecord>) {
-  const db = getLocalDb();
-  const current = await db.humanInterventionRecords.get(interventionId);
-  if (!current) throw new Error("Intervention record not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.humanInterventionRecords.put(next);
-  return next;
+  return callStore<HumanInterventionRecord>({ op: "updateInterventionRecord", interventionId, patch });
+}
+
+export async function getInterventionRecord(interventionId: string) {
+  return callStore<HumanInterventionRecord | undefined>({ op: "getInterventionRecord", interventionId });
 }
 
 export async function listInterventionRecords(safetyEventId: string) {
-  return getLocalDb().humanInterventionRecords.where("safetyEventId").equals(safetyEventId).sortBy("createdAt");
+  return callStore<HumanInterventionRecord[]>({ op: "listInterventionRecords", safetyEventId });
 }
 
 export async function saveFollowUpTask(task: SafetyFollowUpTask) {
-  await getLocalDb().safetyFollowUpTasks.put(task);
+  await callStore<SafetyFollowUpTask>({ op: "saveFollowUpTask", task });
   return task;
 }
 
 export async function updateFollowUpTask(taskId: string, patch: Partial<SafetyFollowUpTask>) {
-  const db = getLocalDb();
-  const current = await db.safetyFollowUpTasks.get(taskId);
-  if (!current) throw new Error("Follow-up task not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.safetyFollowUpTasks.put(next);
-  return next;
+  return callStore<SafetyFollowUpTask>({ op: "updateFollowUpTask", taskId, patch });
 }
 
 export async function listFollowUpTasks() {
-  return getLocalDb().safetyFollowUpTasks.orderBy("updatedAt").reverse().toArray();
+  return callStore<SafetyFollowUpTask[]>({ op: "listFollowUpTasks" });
 }
 
 export async function listClinicians() {
-  return getLocalDb().runtimeClinicians.toArray();
+  return callStore<RuntimeClinician[]>({ op: "listClinicians" });
 }
 
 export async function getClinician(clinicianId: string) {
-  return getLocalDb().runtimeClinicians.get(clinicianId);
+  return callStore<RuntimeClinician | undefined>({ op: "getClinician", clinicianId });
 }
 
 export async function updateClinician(clinicianId: string, patch: Partial<RuntimeClinician>) {
-  const db = getLocalDb();
-  const current = await db.runtimeClinicians.get(clinicianId);
-  if (!current) throw new Error("Clinician not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.runtimeClinicians.put(next);
-  return next;
+  return callStore<RuntimeClinician>({ op: "updateClinician", clinicianId, patch });
 }
 
 export async function saveNotification(notification: SafetyNotification) {
-  await getLocalDb().safetyNotifications.put(notification);
+  await callStore<SafetyNotification>({ op: "saveNotification", notification });
   return notification;
 }
 
 export async function updateNotification(notificationId: string, patch: Partial<SafetyNotification>) {
-  const db = getLocalDb();
-  const current = await db.safetyNotifications.get(notificationId);
-  if (!current) throw new Error("Notification not found");
-  const next = { ...current, ...patch };
-  await db.safetyNotifications.put(next);
-  return next;
+  return callStore<SafetyNotification>({ op: "updateNotification", notificationId, patch });
 }
 
 export async function listNotifications() {
-  return getLocalDb().safetyNotifications.orderBy("createdAt").reverse().toArray();
+  return callStore<SafetyNotification[]>({ op: "listNotifications" });
 }
 
 export async function saveSafetyReport(report: SafetyReport) {
-  await getLocalDb().safetyReports.put(report);
+  await callStore<SafetyReport>({ op: "saveSafetyReport", report });
   return report;
 }
 
 export async function getSafetyReport(reportId: string) {
-  return getLocalDb().safetyReports.get(reportId);
+  return callStore<SafetyReport | undefined>({ op: "getSafetyReport", reportId });
 }
 
 export async function listSafetyReports() {
-  return getLocalDb().safetyReports.orderBy("createdAt").reverse().toArray();
+  return callStore<SafetyReport[]>({ op: "listSafetyReports" });
 }
 
 export async function saveClinicianHandoff(record: ClinicianHandoffRecord) {
-  await getLocalDb().clinicianHandoffRecords.put(record);
+  await callStore<ClinicianHandoffRecord>({ op: "saveClinicianHandoff", record });
   return record;
 }
 
+export async function getClinicianHandoff(recordId: string) {
+  return callStore<ClinicianHandoffRecord | undefined>({ op: "getClinicianHandoff", recordId });
+}
+
 export async function updateClinicianHandoff(recordId: string, patch: Partial<ClinicianHandoffRecord>) {
-  const db = getLocalDb();
-  const current = await db.clinicianHandoffRecords.get(recordId);
-  if (!current) throw new Error("Handoff not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.clinicianHandoffRecords.put(next);
-  return next;
+  return callStore<ClinicianHandoffRecord>({ op: "updateClinicianHandoff", recordId, patch });
 }
 
 export async function listClinicianHandoffs(safetyEventId: string) {
-  return getLocalDb().clinicianHandoffRecords.where("safetyEventId").equals(safetyEventId).sortBy("createdAt");
+  return callStore<ClinicianHandoffRecord[]>({ op: "listClinicianHandoffs", safetyEventId });
 }
 
 export async function listPendingClinicianHandoffs(clinicianId: string) {
-  return getLocalDb().clinicianHandoffRecords.where("toClinicianId").equals(clinicianId).filter((item) => item.status === "pending").toArray();
+  return callStore<ClinicianHandoffRecord[]>({ op: "listPendingClinicianHandoffs", clinicianId });
 }
 
 export async function saveResumeRequest(request: SessionResumeRequest) {
-  await getLocalDb().sessionResumeRequests.put(request);
+  await callStore<SessionResumeRequest>({ op: "saveResumeRequest", request });
   return request;
 }
 
 export async function updateResumeRequest(requestId: string, patch: Partial<SessionResumeRequest>) {
-  const db = getLocalDb();
-  const current = await db.sessionResumeRequests.get(requestId);
-  if (!current) throw new Error("Resume request not found");
-  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.sessionResumeRequests.put(next);
-  return next;
+  return callStore<SessionResumeRequest>({ op: "updateResumeRequest", requestId, patch });
 }
 
 export async function listResumeRequests(safetyEventId: string) {
-  return getLocalDb().sessionResumeRequests.where("safetyEventId").equals(safetyEventId).sortBy("createdAt");
+  return callStore<SessionResumeRequest[]>({ op: "listResumeRequests", safetyEventId });
 }
 
 export async function getPendingResumeRequest(safetyEventId: string) {
-  return getLocalDb().sessionResumeRequests.where("safetyEventId").equals(safetyEventId).filter((item) => item.status === "pending").first();
+  return callStore<SessionResumeRequest | undefined>({ op: "getPendingResumeRequest", safetyEventId });
 }
 
 export async function saveTriggerSuppression(record: SafetyTriggerSuppression) {
-  await getLocalDb().safetyTriggerSuppressions.put(record);
+  await callStore<SafetyTriggerSuppression>({ op: "saveTriggerSuppression", record });
   return record;
 }
 
 export async function findActiveTriggerSuppression(input: { runtimeSessionId: string; sourceNodeId?: string; safetyRuleId?: string; inputFingerprint?: string }) {
-  const now = Date.now();
-  return (
-    (await getLocalDb().safetyTriggerSuppressions
-      .where("runtimeSessionId")
-      .equals(input.runtimeSessionId)
-      .filter((item) => item.sourceNodeId === input.sourceNodeId && item.safetyRuleId === input.safetyRuleId && item.inputFingerprint === input.inputFingerprint && new Date(item.expiresAt).getTime() > now)
-      .first()) ?? null
-  );
+  return callStore<SafetyTriggerSuppression | null>({ op: "findActiveTriggerSuppression", input });
 }
 
 export async function updateTriggerSuppression(recordId: string, patch: Partial<SafetyTriggerSuppression>) {
-  const db = getLocalDb();
-  const current = await db.safetyTriggerSuppressions.get(recordId);
-  if (!current) throw new Error("Safety trigger suppression not found");
-  const next = { ...current, ...patch };
-  await db.safetyTriggerSuppressions.put(next);
-  return next;
+  return callStore<SafetyTriggerSuppression>({ op: "updateTriggerSuppression", recordId, patch });
 }
 
 export async function cleanupExpiredTriggerSuppressions(referenceTime = new Date().toISOString()) {
-  const db = getLocalDb();
-  const expired = await db.safetyTriggerSuppressions.filter((item) => item.expiresAt < referenceTime).toArray();
-  if (expired.length) {
-    await db.safetyTriggerSuppressions.bulkDelete(expired.map((item) => item.id));
-  }
-  return expired.length;
+  return callStore<number>({ op: "cleanupExpiredTriggerSuppressions", referenceTime });
 }

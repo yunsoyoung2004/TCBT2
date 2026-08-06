@@ -128,9 +128,9 @@ export function DashboardPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Protocol Command Center"
+        eyebrow="Protocol Overview"
         title="TBCT Protocol Studio"
-        description="A focused operational view for readiness, blockers, and the next best action."
+        description="A focused operational view of the single canonical protocol's current status and next best action."
         meta={
           <>
             <Badge tone="primary">{summary.projectName}</Badge>
@@ -185,8 +185,8 @@ export function DashboardPage() {
 
         <Card>
           <SectionHeader
-            title="Protocol Readiness"
-            description="Five-stage readiness including the current bottleneck"
+            title="Protocol Status"
+            description="Current status across the main authoring areas"
           />
           <div className="grid gap-4 p-4 xl:grid-cols-5">
             {readiness.map((stage) => (
@@ -481,7 +481,7 @@ function BottleneckPanel({
 function DeploymentBlockersPanel({ issues }: { issues: ValidationIssue[] }) {
   return (
     <Card>
-      <SectionHeader title="Deployment Blockers" description="Critical validation issues blocking release" action={<Link href="/projects/demo/protocols/tbct-br-001/validation"><Button size="sm" variant="secondary">Open in Validation Center</Button></Link>} />
+      <SectionHeader title="Open Issues" description="Critical validation issues to resolve" action={<Link href="/projects/demo/protocols/tbct-br-001/validation"><Button size="sm" variant="secondary">Open in Validation Center</Button></Link>} />
       <div className="space-y-3 p-4">
         {issues.map((issue) => (
           <Link key={issue.id} href={`/projects/demo/protocols/tbct-br-001/validation?issue=${issue.id}`} className="block rounded-panel border border-critical-light bg-critical-light/30 p-3 hover:bg-critical-light/50">
@@ -495,7 +495,7 @@ function DeploymentBlockersPanel({ issues }: { issues: ValidationIssue[] }) {
             </div>
           </Link>
         ))}
-        {issues.length === 0 && <EmptyState title="No release-blocking issues" description="No critical severity issue is currently detected." />}
+        {issues.length === 0 && <EmptyState title="No critical issues" description="No critical severity issue is currently detected." />}
       </div>
     </Card>
   );

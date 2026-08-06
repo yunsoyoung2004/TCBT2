@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, inputClass } from "@/components/ui/primitives";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
+import { useSpeechRecognition } from "@/lib/speech/use-speech-recognition";
 
 type PatientPromptInput = Pick<PromptItem, "type" | "validation" | "outputFields">;
 
@@ -12,11 +13,15 @@ export function PatientInputControls({
   promptItem,
   disabled,
   onSubmit,
+  locale,
+  onBeforeMic,
 }: {
   payload?: Record<string, unknown>;
   promptItem?: PatientPromptInput;
   disabled?: boolean;
   onSubmit: (input: PatientInput) => void;
+  locale?: string;
+  onBeforeMic?: () => void;
 }) {
   const validation = promptItem?.validation ?? {};
   const promptValidationKind = typeof validation.kind === "string" ? validation.kind : "";
@@ -63,7 +68,13 @@ export function PatientInputControls({
   }
   return (
     <div className="grid gap-3">
-      <TextInput disabled={disabled} placeholder={String(payload?.placeholder ?? "Write your response...")} onSubmit={(value) => onSubmit({ kind: "text", value })} />
+      <TextInput
+        disabled={disabled}
+        placeholder={String(payload?.placeholder ?? "Write or speak your response...")}
+        locale={locale}
+        onBeforeMic={onBeforeMic}
+        onSubmit={(value) => onSubmit({ kind: "text", value })}
+      />
     </div>
   );
 }
@@ -91,20 +102,69 @@ function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?
   );
 }
 
-function TextInput({ disabled, placeholder, onSubmit }: { disabled?: boolean; placeholder: string; onSubmit: (value: string) => void }) {
+function TextInput({
+  disabled,
+  placeholder,
+  locale,
+  onBeforeMic,
+  onSubmit,
+}: {
+  disabled?: boolean;
+  placeholder: string;
+  locale?: string;
+  onBeforeMic?: () => void;
+  onSubmit: (value: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const speech = useSpeechRecognition(locale ?? "en-US");
+
+  const submitValue = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    onSubmit(trimmed);
+    setValue("");
+  };
+
+  const handleMicClick = () => {
+    if (speech.listening) {
+      speech.stop();
+      return;
+    }
+    // Voice input takes priority: interrupt any playback before we start listening.
+    onBeforeMic?.();
+    speech.start((text, isFinal) => {
+      setValue(text);
+      if (isFinal) submitValue(text);
+    });
+  };
+
   return (
     <form
       className="flex gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const value = String(form.get("message") ?? "").trim();
-        if (!value) return;
-        onSubmit(value);
-        event.currentTarget.reset();
+        submitValue(value);
       }}
     >
-      <input name="message" className={inputClass} placeholder={placeholder} disabled={disabled} />
+      <input
+        name="message"
+        className={inputClass}
+        placeholder={placeholder}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+      />
+      {speech.supported && (
+        <Button
+          type="button"
+          variant={speech.listening ? "danger" : "secondary"}
+          disabled={disabled}
+          aria-label={speech.listening ? "Stop listening" : "Speak your response"}
+          onClick={handleMicClick}
+        >
+          {speech.listening ? "⏺" : "🎤"}
+        </Button>
+      )}
       <Button disabled={disabled}>Send</Button>
     </form>
   );

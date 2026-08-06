@@ -1,4 +1,5 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { saveAuditEntry } from "@/lib/repositories/audit-log-repository";
 import type { AuditEntry } from "@/types";
 import type {
   ProtocolDefinition,
@@ -43,7 +44,7 @@ export async function saveProtocolImport(
     await db.protocolSessions.put(session);
     await db.protocolGraphNodes.bulkPut(nodes);
     await db.protocolGraphEdges.bulkPut(edges);
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -60,7 +61,7 @@ export async function createProtocolNodeRecord(node: ProtocolGraphNode, audit: A
       updatedAt: new Date().toISOString(),
     });
   }
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function createProtocolEdgeRecord(edge: ProtocolGraphEdge, audit: AuditEntry) {
@@ -74,7 +75,7 @@ export async function createProtocolEdgeRecord(edge: ProtocolGraphEdge, audit: A
       updatedAt: new Date().toISOString(),
     });
   }
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function updateProtocolNode(nodeId: string, patch: Partial<ProtocolGraphNode>, audit: AuditEntry) {
@@ -83,7 +84,7 @@ export async function updateProtocolNode(nodeId: string, patch: Partial<Protocol
   if (!current) throw new Error("Protocol node not found");
   const next = { ...current, ...patch, data: { ...current.data, ...patch.data, metadata: { ...current.data.metadata, updatedAt: new Date().toISOString() } } };
   await db.protocolGraphNodes.put(next);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
   return next;
 }
 
@@ -93,7 +94,7 @@ export async function updateProtocolEdge(edgeId: string, patch: Partial<Protocol
   if (!current) throw new Error("Protocol edge not found");
   const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
   await db.protocolGraphEdges.put(next);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
   return next;
 }
 
@@ -125,7 +126,7 @@ export async function deleteProtocolNodeRecord(nodeId: string, audit: AuditEntry
         updatedAt: new Date().toISOString(),
       });
     }
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -138,13 +139,13 @@ export async function deleteProtocolEdgeRecord(edgeId: string, audit: AuditEntry
   if (session) {
     await db.protocolSessions.put({ ...session, edgeIds: session.edgeIds.filter((id) => id !== edgeId), updatedAt: new Date().toISOString() });
   }
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function saveValidationRun(run: ProtocolValidationRun, audit: AuditEntry) {
   const db = getLocalDb();
   await db.protocolValidationRuns.put(run);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function getValidationRun(protocolId: string) {
@@ -154,7 +155,7 @@ export async function getValidationRun(protocolId: string) {
 export async function saveRuntimeExecutionLog(log: RuntimeExecutionLog, audit: AuditEntry) {
   const db = getLocalDb();
   await db.runtimeExecutionLogs.put(log);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function saveReleasePackage(pkg: ProtocolReleasePackage, release: ProtocolReleaseVersion, audit: AuditEntry) {
@@ -166,7 +167,7 @@ export async function saveReleasePackage(pkg: ProtocolReleasePackage, release: P
     if (definition) {
       await db.protocolDefinitions.put({ ...definition, currentVersion: release.version, status: "published", updatedAt: new Date().toISOString() });
     }
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 

@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ClipboardCheck,
-  FileClock,
   FileStack,
   FlaskConical,
   HelpCircle,
@@ -42,7 +41,6 @@ const groups = [
     items: [
       { label: "Safety Rules", href: "/projects/demo/protocols/tbct-br-001/safety", icon: ShieldCheck },
       { label: "Validation", href: "/projects/demo/protocols/tbct-br-001/validation", icon: CheckCircle2 },
-      { label: "Versions & Releases", href: "/projects/demo/protocols/tbct-br-001/versions", icon: FileClock },
       { label: "Audit Log", href: "/audit", icon: ClipboardCheck },
     ],
   },

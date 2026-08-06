@@ -16,7 +16,7 @@ export function RuntimeSafetyEventsPage() {
         {!query.data?.length && <Card><EmptyState title="No safety events" /></Card>}
         {query.data?.map((item) => (
           <Link key={item.id} href={`/runtime/safety/events/${item.id}`} className="block">
-            <Card className="p-4">
+            <Card className="p-4 transition hover:border-primary/60">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap gap-2">
@@ -25,9 +25,9 @@ export function RuntimeSafetyEventsPage() {
                     <Badge tone="primary">{item.status}</Badge>
                   </div>
                   <div className="mt-2 text-sm font-semibold text-text-primary">{item.triggerSummary}</div>
-                  <div className="mt-1 text-xs text-text-secondary">{item.runtimeSessionId} · {item.participantId}</div>
+                  <div className="mt-1 text-xs text-text-secondary">{item.runtimeSessionId} · {item.participantId} · {new Date(item.createdAt).toLocaleString()}</div>
                 </div>
-                <div className="text-xs text-text-secondary">{item.assignedClinicianId ?? "Unassigned"}</div>
+                <Badge tone={item.assignedClinicianId ? "neutral" : "warning"}>{item.assignedClinicianId ?? "Unassigned"}</Badge>
               </div>
             </Card>
           </Link>
