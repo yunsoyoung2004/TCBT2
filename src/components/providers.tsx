@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
+import { LocaleProvider } from "@/lib/i18n/context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -10,8 +11,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }));
   return (
     <QueryClientProvider client={client}>
-      {children}
-      <Toaster richColors position="bottom-right" toastOptions={{ style:{ borderRadius:8 } }} />
+      <LocaleProvider>
+        {children}
+        <Toaster richColors position="bottom-right" toastOptions={{ style:{ borderRadius:8 } }} />
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

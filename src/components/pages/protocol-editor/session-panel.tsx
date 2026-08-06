@@ -1,0 +1,97 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge, Card, SectionHeader } from "@/components/ui/primitives";
+import { fadeUp } from "@/lib/motion/motion-variants";
+import { useT } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import { getClinicianStepLabels, type FlowNode } from "./types";
+
+interface SessionPanelProps {
+  sessionTitle: string;
+  nodes: FlowNode[];
+  selectedStepId: string;
+  onSelect: (stepId: string) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  reducedMotion: boolean;
+}
+
+const labelTone: Record<string, "primary" | "warning" | "neutral" | "critical"> = {
+  required: "primary",
+  safety: "critical",
+  conditional: "neutral",
+  repeated: "neutral",
+};
+
+export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, collapsed, onToggleCollapsed, reducedMotion }: SessionPanelProps) {
+  const { t } = useT();
+
+  if (collapsed) {
+    return (
+      <Card className="flex w-[56px] shrink-0 flex-col items-center overflow-hidden py-3">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label={t("protocolEditor.expandPanel")}
+          className="rounded-panel border border-border p-2 text-text-secondary hover:bg-surface-subtle"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="min-w-[240px] max-w-[340px] shrink-0 overflow-hidden xl:w-[280px]">
+      <SectionHeader
+        title={t("protocolEditor.sessionExplorer")}
+        description={t("protocolEditor.sessionSteps")}
+        action={
+          <div className="flex items-center gap-2">
+            <Badge tone="neutral">{sessionTitle}</Badge>
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-label={t("protocolEditor.collapsePanel")}
+              className="rounded-panel border border-border p-1.5 text-text-secondary hover:bg-surface-subtle"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        }
+      />
+      <div className="max-h-[calc(100vh-330px)] space-y-2 overflow-auto p-3">
+        {nodes.map((flowNode) => {
+          const step = flowNode.data.step;
+          const labels = getClinicianStepLabels(step);
+          return (
+            <motion.button
+              key={step.id}
+              layout={!reducedMotion}
+              variants={reducedMotion ? undefined : fadeUp}
+              initial={reducedMotion ? false : "initial"}
+              animate={reducedMotion ? undefined : "animate"}
+              onClick={() => onSelect(step.id)}
+              className={cn(
+                "w-full rounded-panel border p-3 text-left",
+                selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border hover:bg-surface-subtle",
+              )}
+            >
+              <div className="text-sm font-semibold text-text-primary">{step.data.title}</div>
+              {labels.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {labels.map((label) => (
+                    <Badge key={label} tone={labelTone[label]}>{t(`stepLabel.${label}`)}</Badge>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 text-xs text-text-secondary">{step.data.clinicalIntent}</div>
+            </motion.button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}

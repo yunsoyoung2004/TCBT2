@@ -14,6 +14,8 @@ const ValidationPage = dynamic(() => import("@/components/pages/validation-page"
 const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mod) => mod.AuditPage), { ssr: false });
 const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((mod) => mod.SettingsPage), { ssr: false });
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
+const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
+const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
 const PatientNewSessionPage = dynamic(() => import("@/components/pages/patient-new-session-page").then((mod) => mod.PatientNewSessionPage), { ssr: false });
 const PatientSessionPage = dynamic(() => import("@/components/pages/patient-session-page").then((mod) => mod.PatientSessionPage), { ssr: false });
 const PatientSessionCompletePage = dynamic(() => import("@/components/pages/patient-session-complete-page").then((mod) => mod.PatientSessionCompletePage), { ssr: false });
@@ -54,6 +56,10 @@ type StudioRoute = {
 };
 
 const studioRoutes: StudioRoute[] = [
+  // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
+  // before the generic "/patient" (singular, patient-portal) matchers below.
+  { matches: (pathname) => /^\/patients\/[^/]+\/?$/.test(pathname), Page: PatientMonitoringDetailPage },
+  { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage },
   { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage },
   { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage },

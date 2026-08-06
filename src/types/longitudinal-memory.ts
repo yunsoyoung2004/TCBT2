@@ -46,6 +46,9 @@ export interface RuntimeParticipant {
   status: "active" | "paused" | "withdrawn" | "completed" | "archived";
   runtimeSessionIds: string[];
   longitudinalRecordId: string;
+  /** Optional clinician-facing profile fields — not fabricated when absent, render as "—". */
+  enrollmentDate?: string;
+  assignedClinician?: string;
   consent: {
     memoryStorageAllowed: boolean;
     crossSessionUseAllowed: boolean;

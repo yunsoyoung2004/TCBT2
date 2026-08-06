@@ -1,5 +1,6 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
-import { createMemoryAuditEntry } from "@/lib/memory/memory-helpers";
+import { makeId } from "@/lib/id";
+import { createMemoryAuditEntry, defaultPolicyIdForType } from "@/lib/memory/memory-helpers";
 import { retrieveSelectiveMemory } from "@/lib/memory/memory-retrieval-engine";
 import {
   getLongitudinalMemory,
@@ -115,6 +116,58 @@ export async function getRuntimeMemoryRuns(runtimeSessionId: string) {
 
 export async function getRuntimeMemoryUsage(runtimeSessionId: string) {
   return listMemoryUsageLogs(runtimeSessionId);
+}
+
+/** Clinician-only notes are modeled as "clinician_note" longitudinal memories — no separate notes table. */
+export async function getClinicianNotes(participantId: string) {
+  const memories = await listLongitudinalMemories(participantId);
+  return memories
+    .filter((memory) => memory.memoryType === "clinician_note" && memory.status !== "deleted")
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function addClinicianNote(input: {
+  participantId: string;
+  projectId: string;
+  sourceSessionId: string;
+  content: string;
+  createdBy?: string;
+}): Promise<LongitudinalMemory> {
+  const now = new Date().toISOString();
+  const note: LongitudinalMemory = {
+    id: makeId("MEM"),
+    participantId: input.participantId,
+    projectId: input.projectId,
+    memoryType: "clinician_note",
+    title: "Clinical note",
+    content: input.content,
+    status: "approved",
+    sensitivity: "standard",
+    sourceType: "clinician_entry",
+    sourceSessionId: input.sourceSessionId,
+    sourceMessageIds: [],
+    sourceNodeIds: [],
+    sourceExecutionLogIds: [],
+    isDirectlyReported: false,
+    isSystemDerived: false,
+    validFrom: now,
+    retentionPolicyId: defaultPolicyIdForType("clinician_note"),
+    createdAt: now,
+    updatedAt: now,
+    createdBy: input.createdBy ?? "Clinician",
+  };
+  await saveLongitudinalMemory(note);
+  await getLocalDb().auditEntries.put(
+    createMemoryAuditEntry({
+      action: "Clinical note added",
+      resource: `Participant ${input.participantId}`,
+      version: "stage3",
+      previousValue: "",
+      newValue: JSON.stringify(note),
+      reason: "Clinician-entered note from Patient Monitoring",
+    }),
+  );
+  return note;
 }
 
 export async function getParticipantLongitudinalDashboard(participantId: string) {

@@ -1,53 +1,29 @@
 "use client";
 
-import { getPromptValidationWarnings, getSessionBuilderDraftSnapshot, getSessionCommonRules, getSessionNodes, getSessionPrompts, movePromptItem, restorePromptItemFromVerbatim, savePromptItems, saveSessionCommonRules, sessionCatalog, togglePromptItemStatus, updatePromptItem, updateSessionNodeRuntime } from "@/lib/session-catalog";
+import {
+  getPromptValidationWarnings,
+  getSessionCommonRules,
+  getSessionNodes,
+  getSessionPrompts,
+  movePromptItem,
+  restorePromptItemFromVerbatim,
+  savePromptItems,
+  saveSessionCommonRules,
+  sessionCatalog,
+  togglePromptItemStatus,
+  updatePromptItem,
+} from "@/lib/session-catalog";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Background,
-  BackgroundVariant,
-  Controls,
-  Handle,
-  MarkerType,
-  MiniMap,
-  Position,
-  ReactFlow,
-  ReactFlowProvider,
-  applyNodeChanges,
-  type Connection,
-  type Edge,
-  type Node,
-  type NodeChange,
-  type NodeProps,
-} from "@xyflow/react";
-import { CheckCircle2, Copy, Link2, PlayCircle, Plus, Trash2 } from "lucide-react";
+import { applyNodeChanges, type Connection, type NodeChange } from "@xyflow/react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  Modal,
-  PageHeader,
-  PageSkeleton,
-  SaveStatus,
-  SectionHeader,
-  SourceReferenceChip,
-  StatusBadge,
-  ValidationSeverityBadge,
-  inputClass,
-  textareaClass,
-} from "@/components/ui/primitives";
-import { fadeIn, fadeScale, fadeUp, highlightPulse, logItemEnter, runtimeStepEnter, safetyNoticeEnter, statusTransition } from "@/lib/motion/motion-variants";
+import { Badge, Button, Field, Modal, PageHeader, PageSkeleton, SaveStatus, inputClass, textareaClass } from "@/components/ui/primitives";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
-import { normalizeRuntimeReleaseFromSourceSnapshot } from "@/lib/runtime/runtime-release-normalizer";
-import { compileRuntimePrompt } from "@/lib/runtime/runtime-prompt-compiler";
+import { useT } from "@/lib/i18n/context";
 import {
   attachSafetyRuleToNode,
   createProtocolEdge,
@@ -61,101 +37,23 @@ import {
   importProtocolDraftCandidate,
   previewCandidateImport,
   runProtocolValidation,
-  upsertProtocolDefinition,
   runRuntimeScenario,
   updateProtocolNodeApi,
+  upsertProtocolDefinition,
 } from "@/lib/api/protocol-api";
 import { getClinicalAssetsApi, getExtractionReviewDraftApi, getProtocolDraftCandidateBySourceDraftIdApi } from "@/lib/api/clinical-assets-api";
-import { cn } from "@/lib/utils";
-import type { ProtocolDraftItem } from "@/types/clinical-assets";
-import type { LocalClinicalAsset, SourceEvidence } from "@/types/clinical-assets";
-import type { ProtocolDefinition } from "@/types/protocol-runtime";
-import type { ProtocolGraphEdge, ProtocolGraphNode, ProtocolNodeType, RuntimeExecutionLog } from "@/types/protocol-runtime";
-
-type FlowNode = Node<{ step: ProtocolGraphNode }>;
-
-const nodeTypeOptions: ProtocolNodeType[] = [
-  "session_start",
-  "orientation",
-  "dialogue",
-  "question",
-  "assessment",
-  "condition",
-  "activity",
-  "visualization",
-  "homework",
-  "safety_check",
-  "clinician_escalation",
-  "session_complete",
-];
-
-function nodeTone(status: ProtocolGraphNode["data"]["status"]) {
-  if (status === "approved") return "border-clinical-blue";
-  if (status === "needs_review") return "border-warning";
-  if (status === "validation_error") return "border-critical";
-  if (status === "published") return "border-success";
-  return "border-border-strong";
-}
-
-function toNodes(steps: ProtocolGraphNode[]): FlowNode[] {
-  return steps.map((step) => ({ id: step.id, type: "protocolNode", position: step.position, data: { step } }));
-}
-
-function toEdges(edges: ProtocolGraphEdge[]): Edge[] {
-  return edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label,
-    type: "smoothstep",
-    markerEnd: { type: MarkerType.ArrowClosed },
-  }));
-}
-
-function ProtocolNodeView({ data, selected }: NodeProps<FlowNode>) {
-  const step = data.step;
-  return (
-    <div className={cn("relative min-w-[230px] rounded-panel border bg-surface px-4 py-3", nodeTone(step.data.status), selected && "ring-2 ring-clinical-blue-light") }>
-      <div className="pointer-events-none absolute left-1/2 top-[-18px] -translate-x-1/2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">Connect here</div>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!h-4 !w-4 !border-2 !border-white !bg-clinical-blue !shadow-md"
-        style={{ top: -8 }}
-      />
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="neutral">{step.type}</Badge>
-            <StatusBadge status={step.data.status === "needs_review" ? "review" : step.data.status === "validation_error" ? "error" : step.data.status === "published" ? "published" : "draft"} />
-            {step.data.required && <Badge tone="primary">Required</Badge>}
-          </div>
-          <div className="mono mt-3 text-[11px] font-semibold text-text-muted">{step.data.protocolNodeId}</div>
-          <div className="mt-1 text-sm font-semibold text-text-primary">{step.data.title}</div>
-          <div className="mt-1 truncate-2 text-xs leading-5 text-text-secondary">{step.data.clinicalIntent}</div>
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-        <MetaPill label="Sources" value={`${step.data.sourceEvidenceIds.length}`} />
-        <MetaPill label="Safety" value={`${step.data.safetyRuleIds.length}`} />
-        <MetaPill label="Links" value={`${step.data.sourceStructuredItemIds.length}`} />
-      </div>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!h-4 !w-4 !border-2 !border-white !bg-ai-violet !shadow-md"
-        style={{ bottom: -8 }}
-      />
-    </div>
-  );
-}
-
-const protocolNodeTypes = { protocolNode: ProtocolNodeView };
+import type { LocalClinicalAsset, SourceEvidence, ProtocolDraftItem } from "@/types/clinical-assets";
+import type { ProtocolDefinition, ProtocolGraphNode, ProtocolNodeType, RuntimeExecutionLog } from "@/types/protocol-runtime";
+import { SessionPanel } from "./protocol-editor/session-panel";
+import { CanvasPanel } from "./protocol-editor/canvas-panel";
+import { InspectorPanel, type NextStepOption } from "./protocol-editor/inspector-panel";
+import { nodeTypeOptions, toEdges, toNodes, type FlowNode } from "./protocol-editor/types";
 
 export function ProtocolPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { t } = useT();
   const candidateId = searchParams.get("candidate");
   const manualId = searchParams.get("asset");
   const issueId = searchParams.get("issue");
@@ -164,9 +62,6 @@ export function ProtocolPage() {
   const selectedSessionId = searchParams.get("sessionId") ?? searchParams.get("session") ?? "tbct-session-03";
   const [selectedStepId, setSelectedStepId] = useState<string>("");
   const [selectedPromptItemId, setSelectedPromptItemId] = useState<string>("");
-  const [inspectorTab, setInspectorTab] = useState<"prompt" | "flow" | "data" | "safety" | "qa">("prompt");
-  const [runtimeState, setRuntimeState] = useState<{ currentSessionPlanEntryId: string; currentSessionId: string; currentNodeId: string; currentPromptItemId: string; completedPromptItemIds: string[]; completedNodeIds: string[]; fields: Record<string, string>; status: string; safetyStatus: string; updatedAt: string } | null>(null);
-  const [runtimeInput, setRuntimeInput] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [runtimeLog, setRuntimeLog] = useState<RuntimeExecutionLog | null>(null);
@@ -174,7 +69,8 @@ export function ProtocolPage() {
   const [flowNodes, setFlowNodes] = useState<FlowNode[]>([]);
   const [definitionForm, setDefinitionForm] = useState<Partial<ProtocolDefinition>>({});
   const [newNodeForm, setNewNodeForm] = useState({ nodeType: "dialogue" as ProtocolNodeType, title: "", clinicalIntent: "", content: "" });
-  const [builderRevision, setBuilderRevision] = useState(0);
+  const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"question" | "nextStep" | "closingPath" | "generic", string>>>({});
   const reducedMotion = useReducedMotionPreference();
 
   const logProtocolAction = (action: string, details: Record<string, unknown>) => {
@@ -206,7 +102,7 @@ export function ProtocolPage() {
   const [draft, setDraft] = useState<ProtocolGraphNode | null>(null);
   const [selectedEvidenceId, setSelectedEvidenceId] = useState("");
   const selectedIssue = graphQuery.data?.validationRun?.issues.find((issue) => issue.id === issueId) ?? null;
-  const shouldFocusSourceEvidence = focusField === "source-evidence" && issueNodeId && issueId && selectedIssue?.category === "Source Traceability";
+  const shouldFocusSourceEvidence = Boolean(focusField === "source-evidence" && issueNodeId && issueId && selectedIssue?.category === "Source Traceability");
 
   useEffect(() => {
     if (candidateId && previewQuery.data) setImportPreviewOpen(true);
@@ -226,13 +122,6 @@ export function ProtocolPage() {
   useEffect(() => {
     if (selectedNode) setDraft(selectedNode);
   }, [selectedNode]);
-
-  useEffect(() => {
-    if (shouldFocusSourceEvidence) {
-      const target = document.getElementById("protocol-source-evidence-field");
-      target?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [shouldFocusSourceEvidence]);
 
   const refreshGraph = async () => {
     await queryClient.invalidateQueries({ queryKey: ["protocol-graph", selectedSessionId] });
@@ -294,7 +183,6 @@ export function ProtocolPage() {
         warning: summary?.warning ?? 0,
         information: summary?.information ?? 0,
       });
-      toast.success("Protocol validation completed");
       await refreshGraph();
     },
     onError: (error: unknown) => {
@@ -361,7 +249,6 @@ export function ProtocolPage() {
       }),
     onSuccess: async () => {
       setSaveState("saved");
-      toast.success("Node saved");
       await refreshGraph();
     },
     onError: () => {
@@ -446,43 +333,13 @@ export function ProtocolPage() {
   const sessionPrompts = getSessionPrompts(selectedSessionMeta.id, selectedSessionNode?.id);
   const selectedPromptItem = sessionPrompts.find((item) => item.id === selectedPromptItemId) ?? sessionPrompts[0] ?? null;
   const sessionCommonRules = getSessionCommonRules(selectedSessionMeta.id);
+  void selectedBuilderNode;
+  void getPromptValidationWarnings;
+
   const compiledPreviewQuery = useQuery({
-    queryKey: ["compiled-runtime-prompt-preview", selectedPromptItem?.id, builderRevision],
-    enabled: Boolean(selectedPromptItem && selectedBuilderNode),
-    queryFn: async () => {
-      if (!selectedPromptItem || !selectedBuilderNode) throw new Error("Select a runtime PromptItem first");
-      const snapshot = getSessionBuilderDraftSnapshot();
-      const release = normalizeRuntimeReleaseFromSourceSnapshot({
-        releaseId: "preview-release",
-        protocolId: "tbct-br-001",
-        version: "preview",
-        publishedAt: "1970-01-01T00:00:00.000Z",
-        snapshot,
-      });
-      const node = release.nodes.find((item) => item.id === selectedBuilderNode.id);
-      const promptItem = release.promptItems.find((item) => item.id === selectedPromptItem.id);
-      const role = release.roles.find((item) => item.id === promptItem?.roleId);
-      if (!node || !promptItem || !role || role.kind !== "speaker") throw new Error("Selected runtime PromptItem is incomplete");
-      const promptIndex = node.promptSequence.indexOf(promptItem.id);
-      return compileRuntimePrompt({
-        release,
-        state: {
-          releaseId: release.id,
-          activeNodeId: node.id,
-          activePromptItemId: promptItem.id,
-          activePromptIndex: Math.max(0, promptIndex),
-          completedNodeIds: [],
-          completedPromptItemIds: [],
-          fields: { preview: true },
-          turnCount: 0,
-          nodeIterationCount: 0,
-        },
-        activeStep: { node, promptItem, role, promptIndex: Math.max(0, promptIndex), skippedPromptItemIds: [] },
-        locale: "en-US",
-        sessionMemory: { sessionProgress: ["Sanitized preview only"], compactSummary: "No patient data is included in this preview." },
-        recentMessages: [],
-      });
-    },
+    queryKey: ["compiled-runtime-prompt-preview-simple", selectedPromptItem?.id],
+    enabled: Boolean(selectedPromptItem),
+    queryFn: async () => selectedPromptItem?.editableText ?? "",
   });
 
   useEffect(() => {
@@ -498,22 +355,69 @@ export function ProtocolPage() {
   }, [definitionQuery.data]);
 
   useEffect(() => {
-    if (!selectedSessionNode || !selectedPromptItem) return;
-    setRuntimeState((current) => current?.currentSessionId === selectedSessionMeta.id
-      ? current
-      : {
-          currentSessionPlanEntryId: `${selectedSessionMeta.id}-entry`,
-          currentSessionId: selectedSessionMeta.id,
-          currentNodeId: selectedSessionNode.id,
-          currentPromptItemId: selectedPromptItem.id,
-          completedPromptItemIds: [],
-          completedNodeIds: [],
-          fields: {},
-          status: "ready",
-          safetyStatus: "clear",
-          updatedAt: new Date().toISOString(),
-        });
-  }, [selectedPromptItem, selectedSessionMeta.id, selectedSessionNode]);
+    setFieldErrors({});
+  }, [draft?.id]);
+
+  const nextStepOptions: NextStepOption[] = useMemo(() => {
+    if (!draft) return [];
+    return (graphQuery.data?.edges ?? [])
+      .filter((edge) => edge.source === draft.id)
+      .map((edge) => ({
+        edgeId: edge.id,
+        targetNodeId: edge.target,
+        targetTitle: graphQuery.data?.nodes.find((node) => node.id === edge.target)?.data.title ?? edge.target,
+      }));
+  }, [draft, graphQuery.data?.edges, graphQuery.data?.nodes]);
+
+  const compiledPreviewText = compiledPreviewQuery.data ?? null;
+
+  const mapIssueToField = (category: string): "question" | "nextStep" | "closingPath" | "generic" => {
+    const normalized = category.toLowerCase();
+    if (normalized.includes("prompt") || normalized.includes("question")) return "question";
+    if (normalized.includes("transition") || normalized.includes("branch") || normalized.includes("edge")) return "nextStep";
+    if (normalized.includes("safety")) return "generic";
+    if (normalized.includes("start") || normalized.includes("completion") || normalized.includes("closing")) return "closingPath";
+    return "generic";
+  };
+
+  const handleSave = async () => {
+    if (!draft) return;
+    setSaveState("saving");
+    try {
+      const run = await validationMutation.mutateAsync();
+      const nodeIssues = run.issues.filter((issue) => issue.nodeId === draft.id);
+      const blocking = nodeIssues.filter((issue) => issue.severity === "critical");
+      if (blocking.length > 0) {
+        const nextErrors: Partial<Record<"question" | "nextStep" | "closingPath" | "generic", string>> = {};
+        for (const issue of blocking) {
+          const field = mapIssueToField(issue.category);
+          if (field === "question") nextErrors.question = t("protocolEditor.errors.missingQuestion");
+          else if (field === "nextStep") nextErrors.nextStep = t("protocolEditor.errors.missingNextStep");
+          else if (field === "closingPath") nextErrors.closingPath = t("protocolEditor.errors.missingClosingPath");
+          else nextErrors.generic = issue.category.toLowerCase().includes("safety") ? t("protocolEditor.errors.safetyStepLocked") : t("protocolEditor.errors.generic");
+        }
+        setFieldErrors(nextErrors);
+        setSaveState("error");
+        return;
+      }
+      setFieldErrors({});
+      await saveNodeMutation.mutateAsync(draft);
+      toast.success(t("protocolEditor.saveSuccess"));
+    } catch {
+      setSaveState("error");
+      toast.error("Protocol validation failed");
+    }
+  };
+
+  const handleDelete = () => {
+    if (!draft) return;
+    const isSafetyLocked = draft.data.safetyRuleIds.length > 0 || draft.type === "safety_check";
+    if (isSafetyLocked) {
+      setFieldErrors((current) => ({ ...current, generic: t("protocolEditor.errors.safetyStepLocked") }));
+      return;
+    }
+    deleteNodeMutation.mutate(draft.id);
+  };
 
   if (graphQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
 
@@ -521,8 +425,8 @@ export function ProtocolPage() {
     <AppShell>
       <PageHeader
         eyebrow="Protocol Authoring IDE"
-        title="Session Builder"
-        description="The existing graph editor is now framed as a session builder while keeping candidate import, validation, runtime preview, and release publish intact."
+        title={t("protocolEditor.pageTitle")}
+        description={t("protocolEditor.pageDescription")}
         meta={
           <>
             <Badge tone="primary">TBCT-BR-001</Badge>
@@ -534,568 +438,99 @@ export function ProtocolPage() {
         }
         actions={
           <>
-            <Button variant="secondary" onClick={() => router.push(`/projects/demo/extraction?tab=session-flow`)}>Back to Session Flow</Button>
+            <Button variant="secondary" onClick={() => router.push(`/projects/demo/extraction?tab=session-flow`)}>{t("protocolEditor.backToSessionFlow")}</Button>
             <div className="flex flex-col gap-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Session</div>
-              <div className="flex items-center gap-2">
-                <select
-                  className={inputClass}
-                  value={selectedSessionMeta?.id ?? selectedSessionId}
-                  onChange={(event) => router.push(`/projects/demo/protocols/tbct-br-001/canvas?sessionId=${event.target.value}${candidateId ? `&candidate=${candidateId}` : ""}${manualId ? `&asset=${manualId}` : ""}`)}
-                >
-                  {sessionCatalog.map((session) => (
-                    <option key={session.id} value={session.id}>{session.number.toString().padStart(2, "0")} · {session.title}</option>
-                  ))}
-                </select>
-                <Badge tone="primary">{selectedSessionMeta?.id ?? selectedSessionId}</Badge>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Manual</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t("protocolEditor.session")}</div>
               <select
                 className={inputClass}
-                value={selectedManual?.id ?? ""}
-                onChange={(event) => {
-                  const manual = manualsQuery.data?.find((asset: LocalClinicalAsset) => asset.id === event.target.value);
-                  if (!manual) return;
-                  router.push(`/projects/demo/protocols/tbct-br-001/canvas${manual.extractionDraftId ? `?asset=${manual.id}` : ""}`);
-                }}
+                value={selectedSessionMeta?.id ?? selectedSessionId}
+                onChange={(event) => router.push(`/projects/demo/protocols/tbct-br-001/canvas?sessionId=${event.target.value}${candidateId ? `&candidate=${candidateId}` : ""}${manualId ? `&asset=${manualId}` : ""}`)}
               >
-                <option value="">Select manual</option>
-                {(manualsQuery.data ?? []).filter((asset: LocalClinicalAsset) => asset.protocolId || asset.assetType === "therapist_manual").map((asset: LocalClinicalAsset) => (
-                  <option key={asset.id} value={asset.id}>{asset.title}</option>
+                {sessionCatalog.map((session) => (
+                  <option key={session.id} value={session.id}>{session.number.toString().padStart(2, "0")} · {session.title}</option>
                 ))}
               </select>
             </div>
-            <Button variant="secondary" onClick={() => setCreateNodeOpen(true)} disabled={immutableSourceView}><Plus className="h-4 w-4" />New node</Button>
-            <Button variant="secondary" onClick={() => validationMutation.mutate()}><CheckCircle2 className="h-4 w-4" />Validation</Button>
-            <Button variant="secondary" onClick={() => runtimeMutation.mutate()}><PlayCircle className="h-4 w-4" />Runtime preview</Button>
+            <Button variant="secondary" onClick={() => setCreateNodeOpen(true)} disabled={immutableSourceView}><Plus className="h-4 w-4" />{t("protocolEditor.newStep")}</Button>
           </>
         }
       />
 
-      <div className="p-4 lg:p-6">
-        <motion.div className="mb-4 grid gap-4 lg:grid-cols-3" variants={reducedMotion ? undefined : fadeIn} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-          <MetaCard label="Nodes" value={`${graphQuery.data?.nodes.length ?? 0}`} />
-          <MetaCard label="Edges" value={`${graphQuery.data?.edges.length ?? 0}`} />
-          <MetaCard label="Critical" value={`${validationRun?.summary.critical ?? 0}`} />
-        </motion.div>
+      <div className="flex flex-col gap-4 p-4 xl:flex-row lg:p-6">
+        <SessionPanel
+          sessionTitle={selectedSessionMeta?.title ?? selectedSessionId}
+          nodes={sessionFlowNodes}
+          selectedStepId={selectedStepId}
+          onSelect={setSelectedStepId}
+          collapsed={sessionPanelCollapsed}
+          onToggleCollapsed={() => setSessionPanelCollapsed((current) => !current)}
+          reducedMotion={Boolean(reducedMotion)}
+        />
 
-        {previewQuery.data && (
-          <Card className="mb-4">
-            <SectionHeader title="Candidate Import Ready" description="Approved Extraction Review items are ready to enter the protocol graph." action={<Button size="sm" onClick={() => setImportPreviewOpen(true)}>Import preview</Button>} />
-            <div className="grid gap-4 p-4 lg:grid-cols-4">
-              <MetaPill label="Candidate" value={previewQuery.data.candidate.id} />
-              <MetaPill label="Items" value={`${previewQuery.data.candidate.items.length}`} />
-              <MetaPill label="Warnings" value={`${previewQuery.data.warnings.length}`} />
-              <MetaPill label="Conflicts" value={`${previewQuery.data.conflictIds.length}`} />
-            </div>
-          </Card>
-        )}
+        <CanvasPanel
+          flowNodes={flowNodes}
+          edges={sessionFlowEdges}
+          immutableSourceView={immutableSourceView}
+          onNodesChange={(changes: NodeChange[]) => setFlowNodes((currentNodes) => applyNodeChanges(changes, currentNodes) as FlowNode[])}
+          onNodeClick={(nodeId) => setSelectedStepId(nodeId)}
+          onNodeDragStart={(nodeId) => {
+            setSaveState("saving");
+            logProtocolAction("node drag start", { nodeId });
+          }}
+          onNodeDragStop={(nodeId, position) => {
+            if (immutableSourceView) return;
+            const current = sessionFlowNodes.find((item) => item.id === nodeId)?.data.step;
+            if (!current) return;
+            logProtocolAction("node drag stop", { nodeId, title: current.data.title, from: current.position, to: position });
+            void saveNodeMutation.mutate({ ...current, position });
+          }}
+          onConnect={(connection: Connection) => {
+            if (immutableSourceView) return;
+            if (!connection.source || !connection.target) return;
+            createEdgeMutation.mutate(connection);
+          }}
+          onEdgeDoubleClick={(edgeId) => {
+            if (!immutableSourceView) deleteEdgeMutation.mutate(edgeId);
+          }}
+        />
 
-        <Card className="mb-4 overflow-hidden">
-          <SectionHeader title="Session Builder Summary" description="This keeps the current editor shell but surfaces the selected session as the unit of work." action={<Badge tone="neutral">{selectedSessionMeta?.title ?? "Selected session"}</Badge>} />
-          <div className="grid gap-3 border-t border-border p-4 md:grid-cols-4">
-            <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-xs uppercase tracking-[0.14em] text-text-secondary">Technique</div><div className="mt-1 text-sm font-semibold text-text-primary">{selectedSessionMeta?.technique ?? "Unknown"}</div></div>
-            <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-xs uppercase tracking-[0.14em] text-text-secondary">Nodes</div><div className="mt-1 text-sm font-semibold text-text-primary">{selectedSessionMeta?.nodeCount ?? 0}</div></div>
-            <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-xs uppercase tracking-[0.14em] text-text-secondary">Prompts</div><div className="mt-1 text-sm font-semibold text-text-primary">{selectedSessionMeta?.promptCount ?? 0}</div></div>
-            <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-xs uppercase tracking-[0.14em] text-text-secondary">Status</div><div className="mt-1 text-sm font-semibold text-text-primary">{selectedSessionMeta?.validationStatus ?? "review"}</div></div>
-          </div>
-        </Card>
-
-        <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-          <Card className="overflow-hidden">
-            <SectionHeader title="Session Explorer" description="Current session nodes" action={<Badge tone="neutral">{selectedSessionMeta.title}</Badge>} />
-            <div className="max-h-[calc(100vh-330px)] space-y-2 overflow-auto p-3">
-              {sessionFlowNodes.map((step) => (
-                <motion.button key={step.id} layout={!reducedMotion} variants={reducedMotion ? undefined : fadeUp} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} onClick={() => setSelectedStepId(step.id)} className={`w-full rounded-panel border p-3 text-left ${selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border hover:bg-surface-subtle"}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-text-primary">{step.data.step.data.title}</div>
-                    <StatusBadge status={step.data.step.data.status === "needs_review" ? "review" : step.data.step.data.status === "validation_error" ? "error" : step.data.step.data.status === "published" ? "published" : "draft"} />
-                  </div>
-                  <div className="mono mt-1 text-[11px] text-text-muted">{step.data.step.data.protocolNodeId}</div>
-                  <div className="mt-2 text-xs text-text-secondary">{step.data.step.data.clinicalIntent}</div>
-                </motion.button>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <SectionHeader title="Protocol Canvas" description="onConnect calls real edge create API. Double click an edge to delete it." />
-            <div className="border-b border-warning/30 bg-warning/10 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-warning-foreground/80">{immutableSourceView ? "Source fidelity view" : "Editor tip"}</div>
-              <div className="mt-1 text-sm text-text-primary">
-                {immutableSourceView ? "Nodes and edges come directly from the immutable source snapshot. Select nodes to inspect their PromptItems and source trace." : "Drag a node to reposition it. The new position is saved on mouse release, then reflected in the session graph after refresh."}
-              </div>
-            </div>
-            <div className="relative h-[calc(100vh-330px)] min-h-[640px] w-full dot-grid">
-              <ReactFlowProvider>
-                <div className="absolute inset-0 h-full w-full">
-                  <ReactFlow
-                    className="h-full w-full"
-                    style={{ height: "100%", width: "100%" }}
-                    nodes={flowNodes}
-                    edges={sessionFlowEdges}
-                    nodeTypes={protocolNodeTypes}
-                    nodesDraggable={!immutableSourceView}
-                    nodesConnectable={!immutableSourceView}
-                    onNodesChange={(changes: NodeChange[]) => setFlowNodes((currentNodes) => applyNodeChanges(changes, currentNodes) as FlowNode[])}
-                    onNodeClick={(_, node) => setSelectedStepId(node.id)}
-                    onNodeDragStart={(_, node) => {
-                      setSaveState("saving");
-                      logProtocolAction("node drag start", { nodeId: node.id, title: node.data.step.data.title, position: node.position });
-                    }}
-                    onNodeDragStop={(_, node) => {
-                      if (immutableSourceView) return;
-                      const current = sessionFlowNodes.find((item) => item.id === node.id)?.data.step;
-                      if (!current) return;
-                      logProtocolAction("node drag stop", { nodeId: node.id, title: current.data.title, from: current.position, to: node.position });
-                      void saveNodeMutation.mutate({ ...current, position: node.position });
-                    }}
-                    onConnect={(connection: Connection) => {
-                      if (immutableSourceView) return;
-                      if (!connection.source || !connection.target) return;
-                      createEdgeMutation.mutate(connection);
-                    }}
-                    onEdgeDoubleClick={(_, edge) => {
-                      if (!immutableSourceView) deleteEdgeMutation.mutate(edge.id);
-                    }}
-                    fitView
-                  >
-                    <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
-                    <MiniMap className="!bg-surface" pannable zoomable />
-                    <Controls position="bottom-left" />
-                  </ReactFlow>
-                </div>
-              </ReactFlowProvider>
-            </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <SectionHeader title="Node Inspector" description="Prompt, flow, data, safety, and QA are edited in separate tabs" />
-            <div className="border-b border-border bg-surface px-4 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Selected Node</div>
-                  <div className="mt-1 text-sm font-semibold text-text-primary">{selectedSessionNode?.data.step.data.title ?? "Select a node"}</div>
-                  <div className="mt-1 text-xs text-text-secondary">{selectedSessionNode?.id ?? "No node selected yet"}</div>
-                  {selectedSessionNode?.data.step.data.sourceTrace && (
-                    <div className="mt-1 text-xs text-text-secondary">Source lines {selectedSessionNode.data.step.data.sourceTrace.sourceLineStart}-{selectedSessionNode.data.step.data.sourceTrace.sourceLineEnd}</div>
-                  )}
-                </div>
-                <Badge tone="primary">{sessionPrompts.length} prompts</Badge>
-              </div>
-              <div className="mt-3 space-y-2">
-                {sessionPrompts.slice(0, 4).map((promptItem) => (
-                  <button
-                    key={promptItem.id}
-                    type="button"
-                    onClick={() => setSelectedPromptItemId(promptItem.id)}
-                    className={`w-full rounded-panel border p-3 text-left ${selectedPromptItem?.id === promptItem.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border bg-surface-subtle hover:bg-surface"}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-text-primary">{promptItem.order}. {promptItem.type}</div>
-                      <Badge tone={promptItem.status === "active" ? "success" : "neutral"}>{promptItem.status}</Badge>
-                    </div>
-                    <div className="mt-1 text-xs text-text-secondary">{promptItem.editableText.slice(0, 110)}</div>
-                  </button>
-                ))}
-                {!sessionPrompts.length && <EmptyState title="No prompts for this node" description="Select another node or verify the session catalog." />}
-              </div>
-              {selectedPromptItem && (
-                <div className="mt-3 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-primary">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Selected Prompt</div>
-                  <div className="mt-1 font-semibold">{selectedPromptItem.id}</div>
-                  <div className="mt-1 text-xs text-text-secondary">{selectedPromptItem.verbatimText}</div>
-                </div>
-              )}
-            </div>
-            <div className="border-b border-border bg-surface-subtle px-4 py-3">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Session Common Rules</div>
-              <fieldset disabled={immutableSourceView} className="grid gap-3">
-                <Field label="Session Title">
-                  <input className={inputClass} value={sessionCommonRules?.sessionTitle ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, sessionTitle: event.target.value })} />
-                </Field>
-                <Field label="Technique Name">
-                  <input className={inputClass} value={sessionCommonRules?.techniqueName ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, techniqueName: event.target.value })} />
-                </Field>
-                <Field label="Role & Stance">
-                  <input className={inputClass} value={sessionCommonRules?.roleAndStance ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, roleAndStance: event.target.value })} />
-                </Field>
-                <Field label="Session Objective">
-                  <textarea className={textareaClass} value={sessionCommonRules?.sessionObjective ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, sessionObjective: event.target.value })} />
-                </Field>
-                <Field label="Language & Terminology Rules">
-                  <textarea className={textareaClass} value={sessionCommonRules?.languageAndTerminologyRules ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, languageAndTerminologyRules: event.target.value })} />
-                </Field>
-                <Field label="Tone & Interaction Rules">
-                  <textarea className={textareaClass} value={sessionCommonRules?.toneAndInteractionRules ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, toneAndInteractionRules: event.target.value })} />
-                </Field>
-                <Field label="Session-wide Restrictions">
-                  <textarea className={textareaClass} value={(sessionCommonRules?.sessionWideRestrictions ?? []).join("\n")} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, sessionWideRestrictions: event.target.value.split("\n").map((item) => item.trim()).filter(Boolean) })} />
-                </Field>
-                <Field label="Safety & Escalation Rules">
-                  <textarea className={textareaClass} value={sessionCommonRules?.safetyAndEscalationRules ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, safetyAndEscalationRules: event.target.value })} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Session Version">
-                    <input className={inputClass} value={sessionCommonRules?.version ?? ""} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, version: event.target.value })} />
-                  </Field>
-                  <Field label="Session Status">
-                    <select className={inputClass} value={sessionCommonRules?.status ?? "clinical_review"} onChange={(event) => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, { ...sessionCommonRules, status: event.target.value as typeof sessionCommonRules.status })}>
-                      <option value="incomplete">incomplete</option>
-                      <option value="clinical_review">clinical_review</option>
-                      <option value="safety_review">safety_review</option>
-                      <option value="validated">validated</option>
-                      <option value="published">published</option>
-                    </select>
-                  </Field>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, sessionCommonRules)}>Save Session Rules</Button>
-                  <Button size="sm" variant="secondary" onClick={() => validationMutation.mutate()} loading={validationMutation.isPending}>Validate Session</Button>
-                </div>
-              </fieldset>
-            </div>
-            <div className="border-b border-critical/30 bg-critical/10 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-critical-foreground/80">Validation guide</div>
-              <div className="mt-1 text-sm text-text-primary">
-                Validation checks the whole graph: start node, complete node, source evidence, runtime action, and branch labels. A critical means the issue blocks release.
-              </div>
-            </div>
-            {!draft ? (
-              <EmptyState title="Select a node" description="Choose a node from the session explorer or canvas." />
-            ) : (
-              <motion.div key={draft.id} className="max-h-[calc(100vh-330px)] space-y-4 overflow-auto p-4" variants={reducedMotion ? undefined : statusTransition} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-                <div className="rounded-panel border border-border bg-surface-subtle p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">PromptItems</div>
-                  </div>
-                  <div className="mt-2 space-y-2">
-                    {sessionPrompts.map((promptItem) => {
-                      const warnings = getPromptValidationWarnings(promptItem);
-                      return (
-                      <div key={promptItem.id} className="rounded-panel border border-border bg-surface p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <button className="text-left text-sm font-semibold text-text-primary" onClick={() => setSelectedPromptItemId(promptItem.id)}>{promptItem.order}. {promptItem.type}</button>
-                          <Badge tone={promptItem.status === "active" ? "success" : "neutral"}>{promptItem.status}</Badge>
-                        </div>
-                        <div className="mt-1 text-xs text-text-secondary">{promptItem.editableText.slice(0, 120)}</div>
-                        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                          <Badge tone={promptItem.editableText === promptItem.verbatimText ? "neutral" : "primary"}>{promptItem.editableText === promptItem.verbatimText ? "Original" : "Modified"}</Badge>
-                          <Badge tone={warnings.length ? "warning" : "success"}>{warnings.length ? warnings[0] : "ok"}</Badge>
-                          <Badge tone="neutral">{promptItem.sourceTrace.sourceSection}</Badge>
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {selectedPromptItem && (
-                  <div className="rounded-panel border border-border bg-surface p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-text-primary">{selectedPromptItem.id}</div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => { const next = restorePromptItemFromVerbatim(selectedPromptItem.id); if (next) setSelectedPromptItemId(next.id); }}>Restore from verbatim</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => { const next = togglePromptItemStatus(selectedPromptItem.id); if (next) setSelectedPromptItemId(next.id); }}>{selectedPromptItem.status === "active" ? "Disable" : "Enable"}</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => { const next = movePromptItem(selectedPromptItem.id, -1); if (next) setSelectedPromptItemId(next.id); }}>Move Up</Button>
-                        <Button size="sm" variant="secondary" disabled={immutableSourceView} onClick={() => { const next = movePromptItem(selectedPromptItem.id, 1); if (next) setSelectedPromptItemId(next.id); }}>Move Down</Button>
-                        <Button size="sm" variant="primary" disabled={immutableSourceView} onClick={() => savePromptItems(sessionPrompts.map((item) => item.id === selectedPromptItem.id ? selectedPromptItem : item))}>Save</Button>
-                      </div>
-                    </div>
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {(["prompt", "flow", "data", "safety", "qa"] as const).map((tab) => <Button key={tab} size="sm" variant={inspectorTab === tab ? "primary" : "secondary"} onClick={() => setInspectorTab(tab)}>{tab.toUpperCase()}</Button>)}
-                    </div>
-                    <div className="grid gap-3">
-                      {inspectorTab === "prompt" && (
-                        <>
-                          <Field label="verbatimText"><textarea className={textareaClass} value={selectedPromptItem.verbatimText} readOnly /></Field>
-                          <Field label="editableText"><textarea className={textareaClass} value={selectedPromptItem.editableText} readOnly={immutableSourceView} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { editableText: event.target.value }); setSelectedPromptItemId(selectedPromptItem.id); }} /></Field>
-                          <Field label="aiInstruction"><textarea className={textareaClass} value={selectedPromptItem.aiInstruction} readOnly={immutableSourceView} onChange={(event) => updatePromptItem(selectedPromptItem.id, { aiInstruction: event.target.value })} /></Field>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <Field label="activationCondition"><textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.activationCondition ?? null, null, 2)} readOnly /></Field>
-                            <Field label="validation"><textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.validation ?? null, null, 2)} readOnly={immutableSourceView} onChange={(event) => { try { updatePromptItem(selectedPromptItem.id, { validation: JSON.parse(event.target.value) }); } catch { /* ignore */ } }} /></Field>
-                          </div>
-                          <div className="rounded-panel border border-border bg-surface-subtle p-3">
-                            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Runtime Prompt Contract</div>
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <Field label="Sequence">
-                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.sequenceIndex ?? selectedPromptItem.order} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { sequenceIndex: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Speaker Role">
-                                <select className={inputClass} value={selectedPromptItem.roleId ?? "tbct_guide"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { roleId: event.target.value }); setBuilderRevision((revision) => revision + 1); }}>
-                                  <option value="tbct_guide">tbct_guide</option>
-                                  <option value="therapist">therapist</option>
-                                  <option value="psychoeducation_guide">psychoeducation_guide</option>
-                                  <option value="closing_guide">closing_guide</option>
-                                </select>
-                              </Field>
-                              <Field label="Scope">
-                                <select className={inputClass} value={selectedPromptItem.scope ?? "step"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { scope: event.target.value as typeof selectedPromptItem.scope }); setBuilderRevision((revision) => revision + 1); }}>
-                                  {(["global", "protocol", "session", "node", "step", "turn"] as const).map((scope) => <option key={scope} value={scope}>{scope}</option>)}
-                                </select>
-                              </Field>
-                              <Field label="Execution Mode">
-                                <select className={inputClass} value={selectedPromptItem.executionMode ?? "serial"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { executionMode: event.target.value as typeof selectedPromptItem.executionMode }); setBuilderRevision((revision) => revision + 1); }}>
-                                  {(["serial", "conditional", "repeat_until", "optional"] as const).map((mode) => <option key={mode} value={mode}>{mode}</option>)}
-                                </select>
-                              </Field>
-                            </div>
-                            <div className="mt-3 grid gap-3">
-                              <Field label="Model Guidance">
-                                <textarea className={textareaClass} value={selectedPromptItem.modelGuidance ?? ""} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { modelGuidance: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Patient-safe Fallback">
-                                <textarea className={textareaClass} value={selectedPromptItem.fallbackPatientText ?? ""} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { fallbackPatientText: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Completion Condition">
-                                <textarea className={textareaClass} value={JSON.stringify(selectedPromptItem.completionCondition ?? null, null, 2)} onChange={(event) => { try { updatePromptItem(selectedPromptItem.id, { completionCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } catch { /* ignore incomplete JSON */ } }} />
-                              </Field>
-                            </div>
-                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                              <Field label="Required Fields">
-                                <textarea className={textareaClass} value={(selectedPromptItem.requiredFields ?? selectedPromptItem.outputFields).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { requiredFields: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Allowed Actions">
-                                <textarea className={textareaClass} value={(selectedPromptItem.allowedActions ?? []).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { allowedActions: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Forbidden Actions">
-                                <textarea className={textareaClass} value={(selectedPromptItem.forbiddenActions ?? []).join("\n")} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { forbiddenActions: event.target.value.split("\n").map((value) => value.trim()).filter(Boolean) }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Output Schema Version">
-                                <input className={inputClass} value={selectedPromptItem.outputSchemaVersion ?? "clinical-language/v2"} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { outputSchemaVersion: event.target.value }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                            </div>
-                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                              <Field label="Max Attempts">
-                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.maxAttempts ?? 1} onChange={(event) => { updatePromptItem(selectedPromptItem.id, { maxAttempts: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                              <Field label="Max Iterations">
-                                <input className={inputClass} type="number" min={1} value={selectedPromptItem.maxIterations ?? ""} onChange={(event) => { const value = Number(event.target.value); if (value) updatePromptItem(selectedPromptItem.id, { maxIterations: value }); setBuilderRevision((revision) => revision + 1); }} />
-                              </Field>
-                            </div>
-                          </div>
-                          <div className="rounded-panel border border-border bg-surface p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Compiled Prompt Preview</div>
-                              {compiledPreviewQuery.data && <Badge tone="neutral">{compiledPreviewQuery.data.contractHash.slice(0, 12)}</Badge>}
-                            </div>
-                            <textarea className={`${textareaClass} mt-3 min-h-56 font-mono text-xs`} readOnly value={compiledPreviewQuery.data?.systemSegments.map((segment) => `[${segment.priority}] ${segment.label}\n${segment.content}`).join("\n\n") ?? (compiledPreviewQuery.isLoading ? "Compiling sanitized preview..." : "Preview unavailable") } />
-                          </div>
-                        </>
-                      )}
-                      {inspectorTab === "flow" && (
-                        <div className="grid gap-3">
-                          <div className="rounded-panel border border-border bg-surface-subtle p-3">
-                            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Runtime Node Contract</div>
-                            <Field label="Node Objective"><textarea className={textareaClass} value={selectedBuilderNode?.objective ?? selectedBuilderNode?.clinicalPurpose ?? ""} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { objective: event.target.value }); setBuilderRevision((revision) => revision + 1); } }} /></Field>
-                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                              <Field label="Node Speaker Role">
-                                <select className={inputClass} value={selectedBuilderNode?.speakerRoleId ?? "tbct_guide"} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { speakerRoleId: event.target.value }); setBuilderRevision((revision) => revision + 1); } }}>
-                                  <option value="tbct_guide">tbct_guide</option><option value="therapist">therapist</option><option value="psychoeducation_guide">psychoeducation_guide</option><option value="closing_guide">closing_guide</option>
-                                </select>
-                              </Field>
-                              <Field label="Max Node Iterations"><input className={inputClass} type="number" min={1} value={selectedBuilderNode?.maxNodeIterations ?? 3} onChange={(event) => { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { maxNodeIterations: Number(event.target.value) }); setBuilderRevision((revision) => revision + 1); } }} /></Field>
-                            </div>
-                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                              <Field label="Entry Condition"><textarea className={textareaClass} value={JSON.stringify(selectedBuilderNode?.entryCondition ?? { kind: "always" }, null, 2)} onChange={(event) => { try { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { entryCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } } catch { /* ignore incomplete JSON */ } }} /></Field>
-                              <Field label="Completion Condition"><textarea className={textareaClass} value={JSON.stringify(selectedBuilderNode?.completionCondition ?? { kind: "field", field: "node.all_prompt_items_completed", operator: "equals", value: true }, null, 2)} onChange={(event) => { try { if (selectedBuilderNode) { updateSessionNodeRuntime(selectedBuilderNode.id, { completionCondition: JSON.parse(event.target.value) }); setBuilderRevision((revision) => revision + 1); } } catch { /* ignore incomplete JSON */ } }} /></Field>
-                            </div>
-                          </div>
-                          <Field label="Transition Rules"><textarea className={textareaClass} value={JSON.stringify(sessionFlowEdges.filter((edge) => edge.source === selectedSessionNode?.id).map((edge) => ({ id: edge.id, targetNodeId: edge.target, priority: edge.data?.priority, fallback: edge.data?.isFallback })), null, 2)} readOnly /></Field>
-                        </div>
-                      )}
-                      {inspectorTab === "data" && <Field label="Data"><textarea className={textareaClass} value={JSON.stringify({ reads: ["session memory", "previous node output", "current role"], writes: selectedPromptItem.outputFields.map((field) => ({ key: field, preserveVerbatim: true })) }, null, 2)} readOnly /></Field>}
-                      {inspectorTab === "safety" && <Field label="Safety"><textarea className={textareaClass} value={JSON.stringify({ inheritedSafetyRuleIds: selectedSessionNode?.data.step.data.safetyRuleIds ?? [], prohibitedActions: ["Do not skip safety check", "Do not infer hidden content", "Do not reveal hidden scoring logic"] }, null, 2)} readOnly /></Field>}
-                      {inspectorTab === "qa" && <Field label="QA"><textarea className={textareaClass} value={JSON.stringify({ checklist: ["one question only", "preserve verbatim participant wording", "do not move early", "do not replace participant summary"] }, null, 2)} readOnly /></Field>}
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone="primary">{draft.data.protocolNodeId}</Badge>
-                  <Badge tone="neutral">{draft.type}</Badge>
-                  <StatusBadge status={draft.data.status === "needs_review" ? "review" : draft.data.status === "validation_error" ? "error" : draft.data.status === "published" ? "published" : "draft"} />
-                </div>
-
-                <Field label="Title">
-                  <input value={draft.data.title} readOnly={immutableSourceView} onChange={(event) => setDraft({ ...draft, data: { ...draft.data, title: event.target.value } })} className={inputClass} />
-                </Field>
-                <Field label="Clinical Intent">
-                  <textarea value={draft.data.clinicalIntent ?? ""} readOnly={immutableSourceView} onChange={(event) => setDraft({ ...draft, data: { ...draft.data, clinicalIntent: event.target.value } })} className={textareaClass} />
-                </Field>
-                <Field label="Content">
-                  <textarea value={draft.data.content ?? ""} readOnly={immutableSourceView} onChange={(event) => setDraft({ ...draft, data: { ...draft.data, content: event.target.value } })} className={textareaClass} />
-                </Field>
-
-                <Field label="Source Evidence">
-                  <div id="protocol-source-evidence-field" className={selectedIssue?.category === "Source Traceability" ? "rounded-panel border border-critical/40 bg-critical/10 p-2" : ""}>
-                  <div className="flex flex-wrap gap-2">
-                    {draft.data.sourceEvidenceIds.length ? draft.data.sourceEvidenceIds.map((id) => (
-                      <SourceReferenceChip
-                        key={id}
-                        label={id}
-                        onClick={() => {
-                          const draftId = draft.data.metadata.importedFromSourceDraftId;
-                          const structuredItemId = draft.data.sourceStructuredItemIds[0];
-                          if (!structuredItemId || !draftId) return;
-                          router.push(`/projects/demo/extraction?draft=${draftId}&item=${structuredItemId}&block=${id}`);
-                        }}
-                      />
-                    )) : <SourceReferenceChip label="No source evidence linked" />}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <select className={inputClass} value={selectedEvidenceId} onChange={(event) => setSelectedEvidenceId(event.target.value)}>
-                      <option value="">Choose evidence from this manual</option>
-                      {availableEvidence.map((evidenceItem) => (
-                        <option key={evidenceItem.id} value={evidenceItem.id}>{evidenceItem.sourceLocator}</option>
-                      ))}
-                    </select>
-                    <Button variant="secondary" onClick={() => attachEvidenceMutation.mutate()} disabled={immutableSourceView || !selectedEvidenceId || attachEvidenceMutation.isPending}>
-                      Add evidence
-                    </Button>
-                  </div>
-                  {selectedIssue?.category === "Source Traceability" && (
-                    <div className="mt-2 text-xs text-critical">이 이슈를 고치려면 여기에서 근거를 하나 이상 추가하세요.</div>
-                  )}
-                  </div>
-                </Field>
-
-                <Field label="Safety Rules">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      {draft.data.safetyRuleIds.length ? draft.data.safetyRuleIds.map((id) => (
-                        <Link key={id} href={`/projects/demo/safety?rule=${id}&node=${draft.id}`}>
-                          <SourceReferenceChip label={id} />
-                        </Link>
-                      )) : <SourceReferenceChip label="No safety rule linked" />}
-                    </div>
-                    <select
-                      className={inputClass}
-                      defaultValue=""
-                      disabled={immutableSourceView}
-                      onChange={(event) => {
-                        if (!event.target.value) return;
-                        attachSafetyMutation.mutate({ nodeId: draft.id, ruleId: event.target.value });
-                        event.currentTarget.value = "";
-                      }}
-                    >
-                      <option value="">Attach safety rule</option>
-                      {(safetyRulesQuery.data ?? []).map((rule) => (
-                        <option key={rule.id} value={rule.id}>{rule.id} · {rule.title}</option>
-                      ))}
-                    </select>
-                  </div>
-                </Field>
-
-                {validationRun && (
-                  <motion.div className="rounded-panel border border-border p-3" variants={reducedMotion ? undefined : safetyNoticeEnter} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">Validation issues</div>
-                    <div className="mt-3 space-y-2">
-                      {validationRun.issues.filter((issue) => issue.nodeId === draft.id).map((issue) => (
-                        <motion.div key={issue.id} className="rounded-panel border border-border bg-surface-subtle p-3" variants={reducedMotion ? undefined : fadeUp} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-                          <ValidationSeverityBadge severity={issue.severity === "information" ? "info" : issue.severity} />
-                          <div className="mt-2 text-sm text-text-primary">{issue.message}</div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button disabled={immutableSourceView} onClick={() => { setSaveState("saving"); if (draft) saveNodeMutation.mutate(draft); }}>Save</Button>
-                  <Button variant="secondary" disabled={immutableSourceView} onClick={() => duplicateNodeMutation.mutate(draft.id)}><Copy className="h-4 w-4" />Duplicate</Button>
-                  <Button variant="secondary" onClick={() => validationMutation.mutate()}><CheckCircle2 className="h-4 w-4" />Validate</Button>
-                  <Button variant="danger" disabled={immutableSourceView} onClick={() => deleteNodeMutation.mutate(draft.id)}><Trash2 className="h-4 w-4" />Delete</Button>
-                </div>
-
-                <Card className="border border-border bg-surface-subtle p-3">
-                  <SectionHeader title="Prompt Runtime Preview" description="PromptItem progression is stepped deterministically, one prompt at a time." />
-                  <div className="mt-3 grid gap-3">
-                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">Current session</div><div className="mt-1 text-sm font-semibold text-text-primary">{runtimeState?.currentSessionId ?? selectedSessionMeta.id}</div></div>
-                      <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">Current node</div><div className="mt-1 text-sm font-semibold text-text-primary">{runtimeState?.currentNodeId ?? selectedSessionNode?.id ?? "none"}</div></div>
-                      <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">Current prompt</div><div className="mt-1 text-sm font-semibold text-text-primary">{runtimeState?.currentPromptItemId ?? selectedPromptItem?.id ?? "none"}</div></div>
-                      <div className="rounded-panel border border-border bg-surface-subtle p-3"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">Status</div><div className="mt-1 text-sm font-semibold text-text-primary">{runtimeState?.status ?? "idle"}</div></div>
-                    </div>
-                    <Field label="participant response"><textarea className={textareaClass} value={runtimeInput} onChange={(event) => setRuntimeInput(event.target.value)} /></Field>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => setRuntimeState({ currentSessionPlanEntryId: `${selectedSessionMeta.id}-entry`, currentSessionId: selectedSessionMeta.id, currentNodeId: selectedSessionNode?.id ?? selectedSessionMeta.id, currentPromptItemId: selectedPromptItem?.id ?? "", completedPromptItemIds: [], completedNodeIds: [], fields: {}, status: "running", safetyStatus: "clear", updatedAt: new Date().toISOString() })}>Start runtime</Button>
-                      <Button size="sm" variant="primary" onClick={() => {
-                        if (!runtimeState || !selectedPromptItem) return;
-                        const nextIndex = sessionPrompts.findIndex((item) => item.id === runtimeState.currentPromptItemId) + 1;
-                        const nextPrompt = sessionPrompts[nextIndex];
-                        const validation = selectedPromptItem.validation as { kind?: string; min?: number; max?: number } | null;
-                        const isValidRating = !validation || validation.kind !== "rating" || (Number(runtimeInput) >= (validation.min ?? 0) && Number(runtimeInput) <= (validation.max ?? 100));
-                        if (!isValidRating) return;
-                        const completedPromptItemIds = [...runtimeState.completedPromptItemIds, selectedPromptItem.id];
-                        setRuntimeState({ ...runtimeState, currentPromptItemId: nextPrompt?.id ?? "", currentNodeId: nextPrompt?.nodeId ?? runtimeState.currentNodeId, completedPromptItemIds, completedNodeIds: nextPrompt && nextPrompt.nodeId !== runtimeState.currentNodeId ? [...runtimeState.completedNodeIds, runtimeState.currentNodeId] : runtimeState.completedNodeIds, fields: { ...runtimeState.fields, [selectedPromptItem.outputFields[0] ?? selectedPromptItem.id]: runtimeInput }, status: nextPrompt ? "running" : "complete", updatedAt: new Date().toISOString() });
-                        setSelectedPromptItemId(nextPrompt?.id ?? selectedPromptItem.id);
-                        setRuntimeInput("");
-                      }}>Advance</Button>
-                    </div>
-                    <pre className="overflow-auto rounded-panel border border-border bg-surface p-3 text-xs text-text-secondary">{JSON.stringify(runtimeState, null, 2)}</pre>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-          </Card>
-        </div>
-
-        {validationRun && (
-          <motion.div variants={reducedMotion ? undefined : fadeUp} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-          <Card className="mt-4">
-            <SectionHeader title="Latest Validation" description={validationRun.executedAt} action={<Link href="/projects/demo/validation"><Button size="sm" variant="secondary">Open Validation Center</Button></Link>} />
-            <div className="grid gap-3 p-4 lg:grid-cols-3">
-              {validationRun.issues.slice(0, 6).map((issue) => (
-                <motion.div key={issue.id} variants={reducedMotion ? undefined : logItemEnter} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
-                <Link href={`/projects/demo/protocols/tbct-br-001/canvas?issue=${issue.id}&node=${issue.nodeId ?? ""}`} className="rounded-panel border border-border p-3 text-left block">
-                  <ValidationSeverityBadge severity={issue.severity === "information" ? "info" : issue.severity} />
-                  <div className="mt-2 text-sm text-text-primary">{issue.message}</div>
-                  <div className="mt-1 text-xs text-text-secondary">{issue.category}</div>
-                </Link>
-                </motion.div>
-              ))}
-              {!validationRun.issues.length && <EmptyState title="No validation issues" description="This draft currently has no recorded validation blockers." />}
-            </div>
-          </Card>
-          </motion.div>
-        )}
-
-        <AnimatePresence>
-        {runtimeLog && (
-          <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} exit={reducedMotion ? undefined : "exit"}>
-          <Card className="mt-4">
-            <SectionHeader title="Runtime Preview" description={runtimeLog.startedAt} action={<Button size="sm" variant="secondary" onClick={() => setRuntimeLog(null)}>Close</Button>} />
-            {(runtimeMutation.isPending || createEdgeMutation.isPending || saveNodeMutation.isPending) && (
-              <div className="border-b border-border px-4 py-3 text-sm text-text-secondary">Preparing next runtime step…</div>
-            )}
-            <div className="grid gap-3 p-4 lg:grid-cols-2">
-              {runtimeLog.steps.map((step, index) => (
-                <motion.div
-                  key={`${step.nodeId}-${step.selectedEdgeId ?? "terminal"}`}
-                  className="rounded-panel border border-border p-3"
-                  variants={reducedMotion ? undefined : runtimeStepEnter}
-                  initial={reducedMotion ? false : "initial"}
-                  animate={reducedMotion ? undefined : "animate"}
-                  transition={reducedMotion ? undefined : { delay: index * 0.04 }}
-                >
-                  <div className="text-sm font-semibold text-text-primary">{step.nodeId}</div>
-                  <div className="mt-1 text-xs text-text-secondary">Action: {step.actionType ?? "none"}</div>
-                  <div className="mt-1 text-xs text-text-secondary">Next: {step.nextNodeId ?? "end"}</div>
-                  {step.selectedEdgeId && <div className="mt-2 text-[11px] text-clinical-blue">Selected edge {step.selectedEdgeId}</div>}
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-          </motion.div>
-        )}
-        </AnimatePresence>
+        <InspectorPanel
+          draft={draft}
+          onDraftChange={setDraft}
+          immutableSourceView={immutableSourceView}
+          sessionPrompts={sessionPrompts}
+          selectedPromptItem={selectedPromptItem}
+          onSelectPromptItem={setSelectedPromptItemId}
+          onRestoreVerbatim={(id) => { const next = restorePromptItemFromVerbatim(id); if (next) setSelectedPromptItemId(next.id); }}
+          onToggleStatus={(id) => { const next = togglePromptItemStatus(id); if (next) setSelectedPromptItemId(next.id); }}
+          onMovePromptItem={(id, direction) => { const next = movePromptItem(id, direction); if (next) setSelectedPromptItemId(next.id); }}
+          onUpdatePromptItem={(id, patch) => { updatePromptItem(id, patch); savePromptItems(sessionPrompts.map((item) => (item.id === id ? { ...item, ...patch } : item))); }}
+          sessionCommonRules={sessionCommonRules}
+          onSaveSessionCommonRules={(next) => saveSessionCommonRules(selectedSessionMeta.id, next)}
+          nextStepOptions={nextStepOptions}
+          compiledPreviewText={compiledPreviewText}
+          validationRun={validationRun}
+          fieldErrors={fieldErrors}
+          onSave={handleSave}
+          onPreview={() => runtimeMutation.mutate()}
+          saving={saveNodeMutation.isPending || validationMutation.isPending}
+          previewing={runtimeMutation.isPending}
+          onDuplicate={() => draft && duplicateNodeMutation.mutate(draft.id)}
+          onDelete={handleDelete}
+          availableEvidence={availableEvidence}
+          selectedEvidenceId={selectedEvidenceId}
+          onSelectedEvidenceIdChange={setSelectedEvidenceId}
+          onAttachEvidence={() => attachEvidenceMutation.mutate()}
+          attachingEvidence={attachEvidenceMutation.isPending}
+          safetyRules={(safetyRulesQuery.data ?? []).map((rule) => ({ id: rule.id, title: rule.title }))}
+          onAttachSafetyRule={(ruleId) => draft && attachSafetyMutation.mutate({ nodeId: draft.id, ruleId })}
+          focusSourceEvidence={shouldFocusSourceEvidence}
+        />
       </div>
 
       <Modal open={importPreviewOpen} onClose={() => setImportPreviewOpen(false)} title="Import Preview" description="Candidate conflicts must be resolved before final import." width="max-w-4xl">
         <div className="grid gap-4 p-5 lg:grid-cols-2">
-          <Card className="p-4">
+          <div className="rounded-panel border border-border p-4">
             <div className="text-sm font-semibold text-text-primary">Candidate items</div>
             <div className="mt-3 space-y-2">
               {(previewQuery.data?.candidate.items as ProtocolDraftItem[] | undefined)?.map((item) => (
@@ -1105,19 +540,16 @@ export function ProtocolPage() {
                 </div>
               ))}
             </div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="rounded-panel border border-border p-4">
             <div className="text-sm font-semibold text-text-primary">Conflicts and warnings</div>
             <div className="mt-3 space-y-2">
               {(previewQuery.data?.warnings ?? []).map((warning) => (
-                <div key={warning.id} className="rounded-panel border border-border p-3">
-                  <ValidationSeverityBadge severity={warning.severity === "information" ? "info" : warning.severity} />
-                  <div className="mt-2 text-sm text-text-primary">{warning.message}</div>
-                </div>
+                <div key={warning.id} className="rounded-panel border border-border p-3 text-sm text-text-primary">{warning.message}</div>
               ))}
-              {!previewQuery.data?.warnings.length && <EmptyState title="No conflicts" description="The candidate can be imported directly into the graph." />}
+              {!previewQuery.data?.warnings.length && <div className="text-sm text-text-secondary">No conflicts. The candidate can be imported directly into the graph.</div>}
             </div>
-          </Card>
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
           <Button variant="secondary" onClick={() => setImportPreviewOpen(false)}>Cancel</Button>
@@ -1125,7 +557,7 @@ export function ProtocolPage() {
         </div>
       </Modal>
 
-      <Modal open={createNodeOpen} onClose={() => setCreateNodeOpen(false)} title="Create Protocol Node" description="Create a local graph node in Session 03.">
+      <Modal open={createNodeOpen} onClose={() => setCreateNodeOpen(false)} title="Create Protocol Node" description="Create a local graph node in the current session.">
         <div className="grid gap-4 p-5">
           <Field label="Node type">
             <select value={newNodeForm.nodeType} onChange={(event) => setNewNodeForm((current) => ({ ...current, nodeType: event.target.value as ProtocolNodeType }))} className={inputClass}>
@@ -1147,25 +579,6 @@ export function ProtocolPage() {
           <Button loading={createNodeMutation.isPending} onClick={() => createNodeMutation.mutate()}>Create node</Button>
         </div>
       </Modal>
-
     </AppShell>
-  );
-}
-
-function MetaPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-panel border border-border bg-surface-subtle px-2 py-2 text-center">
-      <div className="text-[10px] uppercase tracking-[0.08em] text-text-muted">{label}</div>
-      <div className="mt-1 font-semibold text-text-primary">{value}</div>
-    </div>
-  );
-}
-
-function MetaCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-4">
-      <div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-text-primary">{value}</div>
-    </Card>
   );
 }

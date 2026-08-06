@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   FileStack,
   FlaskConical,
+  Globe,
   HelpCircle,
   LayoutDashboard,
   Menu,
@@ -19,36 +20,46 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
 import { DEMO_ACTORS, getCurrentDemoActor, setCurrentDemoActor } from "@/lib/demo-actor";
+import { useT } from "@/lib/i18n/context";
+import type { UiLocale } from "@/lib/i18n/locales";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio-store";
 
-const groups = [
-  {
-    label: "Workspace",
-    items: [
-      { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Clinical Assets", href: "/projects/demo/assets", icon: FileStack },
-      { label: "Extraction Review", href: "/projects/demo/extraction", icon: Sparkles },
-      { label: "Protocol Editor", href: "/projects/demo/protocols/tbct-br-001/canvas", icon: Boxes },
-    ],
-  },
-  {
-    label: "Governance",
-    items: [
-      { label: "Safety Rules", href: "/projects/demo/protocols/tbct-br-001/safety", icon: ShieldCheck },
-      { label: "Validation", href: "/projects/demo/protocols/tbct-br-001/validation", icon: CheckCircle2 },
-      { label: "Audit Log", href: "/audit", icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: "System",
-    items: [{ label: "Settings", href: "/settings", icon: Settings }],
-  },
+type Audience = "clinician" | "internal";
+
+interface NavItem {
+  labelKey: string;
+  href: string;
+  icon: typeof Boxes;
+  audience: Audience;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  // Clinician-facing primary navigation — keep to exactly these two.
+  { labelKey: "nav.protocolEditor", href: "/projects/demo/protocols/tbct-br-001/canvas", icon: Boxes, audience: "clinician" },
+  { labelKey: "nav.patientMonitoring", href: "/patients", icon: Users, audience: "clinician" },
+  // Internal/engineering routes: still implemented and reachable by direct URL,
+  // just hidden from the standard clinician sidebar and command palette.
+  { labelKey: "Overview", href: "/dashboard", icon: LayoutDashboard, audience: "internal" },
+  { labelKey: "Clinical Assets", href: "/projects/demo/assets", icon: FileStack, audience: "internal" },
+  { labelKey: "Extraction Review", href: "/projects/demo/extraction", icon: Sparkles, audience: "internal" },
+  { labelKey: "Safety Rules", href: "/projects/demo/protocols/tbct-br-001/safety", icon: ShieldCheck, audience: "internal" },
+  { labelKey: "Validation", href: "/projects/demo/protocols/tbct-br-001/validation", icon: CheckCircle2, audience: "internal" },
+  { labelKey: "Audit Log (internal)", href: "/audit", icon: ClipboardCheck, audience: "internal" },
+  { labelKey: "Settings", href: "/settings", icon: Settings, audience: "internal" },
 ];
+
+// Only the "clinician" demo role sees the reduced standard navigation; every
+// other demo role (research coordinator, supervisor, safety reviewer, research
+// analyst) keeps the full internal navigation for their own work.
+function isClinicianAudience(role: string) {
+  return role === "clinician";
+}
 
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
@@ -73,6 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeActorId = useStudioStore((state) => state.activeActorId);
   const activeActorRole = useStudioStore((state) => state.activeActorRole);
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
+  const { locale, setLocale, t } = useT();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -92,6 +104,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const breadcrumbs = useMemo(() => buildBreadcrumb(pathname), [pathname]);
   const sidebarWidth = collapsed ? "lg:pl-[92px]" : "lg:pl-[248px]";
+  const showFullNav = !isClinicianAudience(activeActorRole);
+  const visibleNavItems = useMemo(
+    () => NAV_ITEMS.filter((item) => showFullNav || item.audience === "clinician"),
+    [showFullNav],
+  );
+  const navLabel = (item: NavItem) => (item.labelKey.startsWith("nav.") ? t(item.labelKey) : item.labelKey);
+  const clinicianNavItems = useMemo(() => NAV_ITEMS.filter((item) => item.audience === "clinician"), []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,35 +168,58 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
 
           <nav className="flex-1 overflow-auto px-3 py-4">
-            {groups.map((group) => (
-              <div key={group.label} className="mb-5">
-                {!collapsed && <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.12em] text-blue-100">{group.label}</div>}
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    const active = isActive(pathname, item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          "group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm transition",
-                          active ? "bg-clinical-blue-light text-clinical-blue" : "text-blue-100 hover:bg-white/8 hover:text-white",
-                          collapsed && "justify-center px-0",
-                        )}
-                      >
-                        {active && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-clinical-blue" />}
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span className="truncate">{item.label}</span>}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+            <div className="space-y-1">
+              {visibleNavItems.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm transition",
+                      active ? "bg-clinical-blue-light text-clinical-blue" : "text-blue-100 hover:bg-white/8 hover:text-white",
+                      collapsed && "justify-center px-0",
+                    )}
+                  >
+                    {active && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-clinical-blue" />}
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span className="truncate">{navLabel(item)}</span>}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
-          <div className="border-t border-white/10 p-3">
+          <div className="border-t border-white/10 p-3 space-y-3">
+            {!collapsed ? (
+              <div className="flex items-center gap-2 rounded-panel border border-white/10 bg-white/5 p-1">
+                <Globe className="ml-2 h-3.5 w-3.5 text-blue-100" aria-hidden />
+                {(["ko", "en"] as UiLocale[]).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-label={`${t("nav.language")}: ${option.toUpperCase()}`}
+                    onClick={() => setLocale(option)}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-xs font-semibold transition",
+                      locale === option ? "bg-white text-navy-900" : "text-blue-100 hover:bg-white/10",
+                    )}
+                  >
+                    {option.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                aria-label={t("nav.language")}
+                onClick={() => setLocale(locale === "ko" ? "en" : "ko")}
+                className="flex h-9 w-full items-center justify-center rounded-panel border border-white/10 bg-white/5 text-blue-100 hover:bg-white/10"
+              >
+                <Globe className="h-4 w-4" />
+              </button>
+            )}
             <div className={cn("rounded-panel border border-white/10 bg-white/5 p-3", collapsed && "p-2")}>
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-clinical-blue-light text-sm font-semibold text-clinical-blue">KJ</span>
@@ -246,8 +288,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <main>{children}</main>
+        <main className="pb-16 sm:pb-0">{children}</main>
       </div>
+
+      {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}
+      {!showFullNav && (
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface sm:hidden">
+          {clinicianNavItems.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-1 py-2 text-[11px]",
+                  active ? "text-clinical-blue" : "text-text-secondary",
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="truncate">{navLabel(item)}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       <Modal open={commandOpen} onClose={() => setCommandOpen(false)} title="Quick Navigation" description="Jump pages, search Step IDs, and run key actions">
         <div className="p-4">
@@ -256,10 +320,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <input autoFocus className={cn(inputClass, "border-0 bg-transparent px-0 focus:ring-0")} placeholder="e.g. STEP-07, Validation, Session 03" />
           </div>
           <div className="mt-4 grid gap-2">
-            {groups.flatMap((group) => group.items).map((item) => (
+            {visibleNavItems.map((item) => (
               <Link key={item.href} href={item.href} onClick={() => setCommandOpen(false)} className="flex items-center gap-3 rounded-panel border border-transparent px-3 py-3 hover:border-border hover:bg-surface-subtle">
                 <item.icon className="h-4 w-4 text-clinical-blue" />
-                <span className="text-sm text-text-primary">{item.label}</span>
+                <span className="text-sm text-text-primary">{navLabel(item)}</span>
               </Link>
             ))}
           </div>
