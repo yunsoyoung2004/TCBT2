@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -299,6 +300,13 @@ export function PatientMonitoringDetailPage() {
               {t("patientDetail.summary.lastActivity")}: {formatTimestamp(session?.updatedAt ?? participant.updatedAt)}
             </Badge>
           </>
+        }
+        actions={
+          session ? (
+            <Link href={`/runtime/sessions/${session.id}`}>
+              <Button variant="secondary">{t("patientDetail.actions.inspector")}</Button>
+            </Link>
+          ) : undefined
         }
       />
 

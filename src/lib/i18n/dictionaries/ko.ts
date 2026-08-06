@@ -137,6 +137,7 @@ const ko = {
       resume: "세션 재개",
       end: "세션 종료",
       addNote: "임상 메모 추가",
+      inspector: "인스펙터 보기",
     },
     audit: {
       filters: { all: "전체", program: "프로그램", patient: "환자", notes: "임상 메모" },

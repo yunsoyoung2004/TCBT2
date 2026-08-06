@@ -32,7 +32,6 @@ export function PatientSessionCompletePage() {
           <Link href="/projects/demo/patient"><Button variant="secondary">Sessions</Button></Link>
           <Link href="/projects/demo/patient/memory"><Button variant="secondary">Memory</Button></Link>
           <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Summary</Button></Link>
-          <Link href={`/runtime/sessions/${session.id}`}><Button variant="secondary">Inspector</Button></Link>
         </div>
       </Card>
     </PatientShell>

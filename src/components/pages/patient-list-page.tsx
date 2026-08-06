@@ -116,8 +116,10 @@ function SessionRow({ session }: { session: ListedSession }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Inspector (raw runtime state/logs/provider events) is a clinician-only
+              diagnostic view -- see the clinician's Patient Monitoring screen. Patients
+              can only manage/continue their own session and view its summary. */}
           <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">Open</Button></Link>
-          <Link href={`/runtime/sessions/${session.id}`}><Button variant="secondary">Inspector</Button></Link>
           <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">Summary</Button></Link>
         </div>
       </div>
