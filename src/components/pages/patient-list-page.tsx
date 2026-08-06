@@ -95,17 +95,6 @@ function SessionGroup({ title, definitionId, sessions, number }: { title: string
           {sessions.map((session) => <SessionRow key={session.id} session={session} />)}
         </div>
       )}
-      {number && (
-        <div className="border-t border-border bg-clinical-blue-light/20 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-text-primary">Verified automated audit</div>
-              <div className="mt-1 text-xs text-text-secondary">Read-only S{String(number).padStart(2, "0")} full-run transcript from the local verification database.</div>
-            </div>
-            <Link href={`/projects/demo/patient/audits/s${String(number).padStart(2, "0")}`}><Button variant="secondary">View audit conversation</Button></Link>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
