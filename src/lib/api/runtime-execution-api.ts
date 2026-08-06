@@ -12,7 +12,7 @@ import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-va
 import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
-import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
+import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 import { reduceRuntimeState } from "@/lib/runtime/runtime-state-reducer";
 import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
 import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
@@ -102,44 +102,61 @@ async function deliverClarificationTurn(input: {
 }) {
   const clarificationAttemptCount = (input.session.runtimeContext.clarificationAttemptCount ?? 0) + 1;
   const missing = new Set(input.missingFields ?? []);
+  const isKorean = (input.session.locale ?? "").toLowerCase().startsWith("ko");
+  const tr = (en: string, ko: string) => (isKorean ? ko : en);
+  // "Passive" nodes (explanation/instruction/transition/etc.) present information rather
+  // than ask a question -- a short reply here is usually the patient asking to move on,
+  // not an incomplete answer, so it should never be met with "give a concrete example."
+  const isPassiveNode = PASSIVE_CLARIFICATION_PROMPT_TYPES.has(input.promptItem.type);
   const sourceSpecificClarification = input.promptItem.id === "tbct-s08-n01-p01-distressing-situation"
     ? missing.has("distressingSituation") && !missing.has("automaticThought")
-      ? "Please describe a specific distressing situation and the important facts of what actually happened."
+      ? tr("Please describe a specific distressing situation and the important facts of what actually happened.", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc911\uc694\ud55c \uc0ac\uc2e4\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694?")
       : missing.has("automaticThought") && !missing.has("distressingSituation")
-        ? "What automatic thought did that situation trigger?"
-        : "Please identify a specific distressing situation and the automatic thought it triggered. What actually happened, and what went through your mind?"
+        ? tr("What automatic thought did that situation trigger?", "\uadf8 \uc0c1\ud669\uc5d0\uc11c \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
+        : tr("Please identify a specific distressing situation and the automatic thought it triggered. What actually happened, and what went through your mind?", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uadf8\ub54c \ub5a0\uc624\ub978 \uc0dd\uac01\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc2e4\uc81c\ub85c \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\uace0, \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
     : undefined;
   const proposedContent = input.reason === "patient_refusal"
-    ? "I understand. We can pause here, and you do not need to continue. You can end the session or resume later only if you choose."
+    ? tr(
+        "I understand. We can pause here, and you do not need to continue. You can end the session or resume later only if you choose. If it helps, I can summarize what we've covered so far instead.",
+        "\uc54c\uaca0\uc2b5\ub2c8\ub2e4. \uc5ec\uae30\uc11c \uba48\ucd94\uc154\ub3c4 \uad1c\ucc2e\uc544\uc694. \uacc4\uc18d\ud558\uc9c0 \uc54a\uc73c\uc154\ub3c4 \ub429\ub2c8\ub2e4. \uc6d0\ud558\uc2dc\uba74 \uc5ec\uae30\uc11c \uc138\uc158\uc744 \ub9c8\uce58\uac70\ub098 \ub098\uc911\uc5d0 \ub2e4\uc2dc \uc774\uc5b4\uac00\uc2e4 \uc218 \uc788\uc5b4\uc694. \uad1c\ucc2e\uc73c\uc2dc\uba74 \uc9c0\uae08\uae4c\uc9c0 \uc774\uc57c\uae30\ud55c \ub0b4\uc6a9\uc744 \uc81c\uac00 \uc694\uc57d\ud574 \ub4dc\ub9b4\uae4c\uc694?",
+      )
     : input.reason === "safety_clarification"
-      ? "I want to make sure I understand you correctly. Are you saying that you may be thinking about dying or harming yourself, or do you mean that things feel overwhelming right now?"
+      ? tr(
+          "I want to make sure I understand you correctly. Are you saying that you may be thinking about dying or harming yourself, or do you mean that things feel overwhelming right now?",
+          "\uc81c\uac00 \uc815\ud655\ud788 \uc774\ud574\ud588\ub294\uc9c0 \ud655\uc778\ud558\uace0 \uc2f6\uc5b4\uc694. \uc8fd\uace0 \uc2f6\uac70\ub098 \uc2a4\uc2a4\ub85c\ub97c \ud574\uce58\uace0 \uc2f6\ub2e4\ub294 \uc0dd\uac01\uc774 \ub4e0\ub2e4\ub294 \ub73b\uc778\uac00\uc694, \uc544\ub2c8\uba74 \uc9c0\uae08 \uc0c1\ud669\uc774 \uac10\ub2f9\ud558\uae30 \ud798\ub4e4\uac8c \ub290\uaef4\uc9c4\ub2e4\ub294 \ub73b\uc778\uac00\uc694?",
+        )
     : sourceSpecificClarification ?? resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.clarificationPatientText ?? input.runtimePromptItem.fallbackPatientText, input.session.locale);
   const normalizeMessage = (value: string) => value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, " ").trim();
   const duplicatesRecentQuestion = (input.recentAssistantMessages ?? []).slice(-3).some((message) => normalizeMessage(message) === normalizeMessage(proposedContent));
   const outputField = input.promptItem.outputFields[0] ?? "";
   const validation = input.promptItem.validation as { kind?: unknown; values?: unknown; min?: unknown; max?: unknown } | null;
   const enumValues = Array.isArray(validation?.values) ? validation.values.map(String) : [];
-  const adaptiveClarification = enumValues.length
-    ? `Please choose one of these options: ${enumValues.join(" or ")}.`
+  const adaptiveClarification = isPassiveNode
+    ? tr(
+        "It sounds like you're ready to move on. Would you like me to summarize what we've covered so far?",
+        "\ub2e4\uc74c\uc73c\ub85c \ub118\uc5b4\uac00\uace0 \uc2f6\uc73c\uc2e0 \uac83 \uac19\uc544\uc694. \uc9c0\uae08\uae4c\uc9c0 \uc774\uc57c\uae30\ud55c \ub0b4\uc6a9\uc744 \uc81c\uac00 \uc694\uc57d\ud574 \ub4dc\ub9b4\uae4c\uc694?",
+      )
+    : enumValues.length
+    ? tr(`Please choose one of these options: ${enumValues.join(" or ")}.`, `\ub2e4\uc74c \uc911 \ud558\ub098\ub97c \uc120\ud0dd\ud574 \uc8fc\uc138\uc694: ${enumValues.join(" \ub610\ub294 ")}.`)
     : validation?.kind === "rating" || /Percent|Rating|Intensity/i.test(outputField)
-      ? `Please enter one number from ${Number(validation?.min ?? 0)} to ${Number(validation?.max ?? 100)}.`
+      ? tr(`Please enter one number from ${Number(validation?.min ?? 0)} to ${Number(validation?.max ?? 100)}.`, `${Number(validation?.min ?? 0)}\uc5d0\uc11c ${Number(validation?.max ?? 100)} \uc0ac\uc774\uc758 \uc22b\uc790 \ud558\ub098\ub85c \ub2f5\ud574 \uc8fc\uc138\uc694.`)
       : /Situation/i.test(outputField)
         ? clarificationAttemptCount === 1
-          ? "Could you describe one specific event: where you were, who was involved, and what happened?"
-          : "Please give one brief, concrete moment rather than a general feeling or thought."
+          ? tr("Could you describe one specific event: where you were, who was involved, and what happened?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uc0c1\ud669\uc774\uc5c8\ub294\uc9c0 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc5b4\ub514\uc5d0 \uc788\uc5c8\uace0, \ub204\uad6c\uc640 \uc788\uc5c8\uace0, \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\ub098\uc694?")
+          : tr("Please give one brief, concrete moment rather than a general feeling or thought.", "\ub290\ub08c\uc774\ub098 \uc0dd\uac01\uc774 \uc544\ub2c8\ub77c, \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc21c\uac04 \ud558\ub098\ub97c \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
         : /Thought|Belief/i.test(outputField)
           ? clarificationAttemptCount === 1
-            ? "What exact words went through your mind at that moment?"
-            : "If you put the thought into one short sentence, what would it say?"
+            ? tr("What exact words went through your mind at that moment?", "\uadf8 \uc21c\uac04 \uc815\ud655\ud788 \uc5b4\ub5a4 \ub9d0\uc774 \uba38\ub9bf\uc18d\uc5d0 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
+            : tr("If you put the thought into one short sentence, what would it say?", "\uadf8 \uc0dd\uac01\uc744 \ud55c \ubb38\uc7a5\uc73c\ub85c \ud45c\ud604\ud558\uba74 \uc5b4\ub5bb\uac8c \ub420\uae4c\uc694?")
           : /Emotion/i.test(outputField)
-            ? "Could you name one specific emotion you felt, such as anxiety, sadness, anger, shame, or relief?"
+            ? tr("Could you name one specific emotion you felt, such as anxiety, sadness, anger, shame, or relief?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uc815\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \ubd88\uc548, \uc2ac\ud514, \ud654, \uc218\uce58\uc2ec, \uc548\ub3c4\uac10 \uac19\uc740 \uac10\uc815\uc774 \uc788\uc5b4\uc694.")
             : /Behavior/i.test(outputField)
-              ? "What did you actually do, or what would the person visibly do next?"
+              ? tr("What did you actually do, or what would the person visibly do next?", "\uc2e4\uc81c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud558\uc168\ub098\uc694, \ub610\ub294 \uadf8 \uc0ac\ub78c\uc774 \ub2e4\uc74c\uc5d0 \uac89\uc73c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud560\uae4c\uc694?")
               : /Reaction/i.test(outputField)
-                ? "Would the other person's reaction be positive or negative?"
+                ? tr("Would the other person's reaction be positive or negative?", "\uadf8 \uc0ac\ub78c\uc758 \ubc18\uc751\uc740 \uae0d\uc815\uc801\uc77c\uae4c\uc694, \ubd80\uc815\uc801\uc77c\uae4c\uc694?")
                 : /Body|Sensation/i.test(outputField)
-                  ? "What specific physical sensation did you notice in your body?"
-                  : "Could you answer with one brief, specific example that directly addresses the question?";
+                  ? tr("What specific physical sensation did you notice in your body, such as a racing heart or shaky hands?", "\ubab8\uc5d0\uc11c \uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uac01\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \uc2ec\uc7a5\uc774 \ube68\ub9ac \ub6f0\uac70\ub098 \uc190\uc774 \ub5a8\ub9ac\ub294 \ub290\ub08c\uc774 \uc788\uc5b4\uc694.")
+                  : tr("Could you answer with one brief, specific example that directly addresses the question?", "\uc9c8\ubb38\uc5d0 \ub9de\ub294 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608\ub97c \ud558\ub098 \ub4e4\uc5b4 \uc8fc\uc2dc\uaca0\uc5b4\uc694?");
   const content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
   const sessionStatus: RuntimeSessionStatus = input.reason === "patient_refusal" || clarificationAttemptCount >= MAX_CLARIFICATION_ATTEMPTS ? "paused" : "waiting_for_input";
   const assistantMessage: RuntimeMessage = {

@@ -103,7 +103,7 @@ function isUsableMarkerLeadIn(text: string) {
 // rating -- exactly the "role transitions never wait for ready" and "missing
 // intermediate ratings" defects flagged for S07/S08. Falling through to the
 // generic outputFields.length > 0 check below fixes this without special-casing.
-const PASSIVE_PROMPT_TYPES = new Set<PromptItem["type"]>([
+export const PASSIVE_PROMPT_TYPES = new Set<PromptItem["type"]>([
   "instruction",
   "explanation",
   "transition",

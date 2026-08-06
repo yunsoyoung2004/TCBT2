@@ -158,6 +158,31 @@ export function isExplicitPatientRefusal(text: string) {
   return REFUSAL_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
+// A body-sensation prompt asks what the patient notices physically (racing
+// heart, shaky hands, tight chest); an emotion word ("좌절감을 느낀다" / "I feel
+// frustrated") answers a different question and must not be accepted as-is,
+// or it silently overwrites a clinically distinct field with the wrong content.
+const EMOTION_WORD_PATTERN = /(좌절|슬픔|슬프|우울|불안|초조|화가\s*나|화남|분노|짜증|억울|창피|부끄|죄책감|수치심|외로움|무섭|두려움|절망|허탈|허무)|\b(?:frustrat\w*|sad(?:ness)?|anxious|anxiety|angry|anger|ashamed|shame|guilt\w*|lonely|afraid|fear\w*|hopeless)\b/i;
+const BODY_SENSATION_WORD_PATTERN = /(심장|가슴|손이?\s*떨|떨림|두근|긴장|땀|호흡|숨이|어지럽|메스꺼|두통|근육|목이?\s*조|배가?|저림)|\b(?:heart\s*rac\w*|shak\w*|trembl\w*|sweat\w*|breath\w*|dizzy|nausea\w*|headache|tight\w*|muscle|tension)\b/i;
+
+export function looksLikeFeelingNotBodySensation(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return EMOTION_WORD_PATTERN.test(trimmed) && !BODY_SENSATION_WORD_PATTERN.test(trimmed);
+}
+
+// An automatic thought is a prediction/judgment/meaning ("발표를 망칠 것 같다");
+// a feeling statement ("좌절감을 느낀다") or an urge/avoidance-desire statement
+// ("이 상황을 회피하고 싶어") answer a different question and should be redirected
+// with a follow-up, not stored as the thought itself.
+const URGE_OR_DESIRE_PATTERN = /(하고\s*싶|피하고\s*싶|회피하고\s*싶|도망치고\s*싶|그만두고\s*싶)|\b(?:want\s+to\s+(?:avoid|leave|escape|quit|stop)|feel\s+like\s+(?:avoiding|leaving|escaping))\b/i;
+
+export function looksLikeFeelingOrUrgeNotThought(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return EMOTION_WORD_PATTERN.test(trimmed) || URGE_OR_DESIRE_PATTERN.test(trimmed);
+}
+
 function compactText(value: string) {
   return normalizeText(value).replace(/[\s.,!?\u2026'"`~\u00B7\-_/\\()[\]{}]+/g, "");
 }
@@ -424,12 +449,21 @@ export async function extractRuntimeState(input: {
       if (field === "symptomItems") nextFields.symptomCoreSituation = (nextFields[field] as string[])[0];
     }
   } else if (field === "automaticThought") {
-    nextFields.automaticThought = rawText;
+    // Leave the field unset (rather than storing a feeling/urge verbatim as
+    // "the thought") so it comes back through missingFields and the patient
+    // is asked what specifically went through their mind.
+    nextFields.automaticThoughtReportedAsFeeling = looksLikeFeelingOrUrgeNotThought(rawText);
+    if (!nextFields.automaticThoughtReportedAsFeeling) nextFields.automaticThought = rawText;
   } else if (field === "underlyingBelief") {
     nextFields.underlyingBelief = rawText;
     nextFields.workingAutomaticThought = rawText;
   } else if (field === "workingAutomaticThought") {
     nextFields.workingAutomaticThought = rawText;
+  } else if (/BodySensations$/i.test(field) && looksLikeFeelingNotBodySensation(rawText)) {
+    // Same idea for body-sensation prompts: an emotion word ("좌절감을 느낀다")
+    // isn't a physical sensation, so leave the field unset and let the
+    // missing-field clarification ask for one (racing heart, shaky hands, ...).
+    nextFields[`${field}ReportedAsFeeling`] = true;
   } else if (expectedFields.length === 1) {
     nextFields[field] = deterministic.handled && deterministic.valid ? deterministic.value : input.patientInput.value;
   }
