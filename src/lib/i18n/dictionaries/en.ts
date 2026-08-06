@@ -232,6 +232,38 @@ const en = {
     memory: "Memory",
     summary: "Summary",
   },
+  patientProfile: {
+    title: "Participant Profile",
+    notFound: "Participant not found",
+    openMemory: "Open memory",
+    saved: "Profile saved",
+    saveFailed: "Failed to save profile",
+    consent: { title: "Consent", memoryStorage: "Memory storage", crossSession: "Cross-session use", sensitiveMemory: "Sensitive memory" },
+    continuity: { title: "Continuity", sessions: "Sessions {count}", activeMemories: "Active memories {count}" },
+    currentItems: { title: "Current items", activeGoals: "Active goals {count}", unresolvedHomework: "Unresolved homework {count}" },
+    edit: {
+      title: "Edit profile",
+      displayName: "Display name",
+      locale: "Locale",
+      country: "Country",
+      storeMemory: "Store memory",
+      reuseAcrossSessions: "Reuse across sessions",
+      allowSensitiveMemory: "Allow sensitive memory",
+      save: "Save profile",
+    },
+    snapshot: { title: "Saved memory snapshot", participantRecord: "Participant record", activeMemoryIds: "Active memory IDs", latestSummary: "Latest summary", unavailable: "Unavailable", none: "None" },
+  },
+  patientMemory: {
+    title: "Memory",
+    notFound: "Participant not found",
+    saved: "Memory preferences saved",
+    saveFailed: "Failed to save memory preferences",
+    saveSettings: "Save memory settings",
+    controls: { title: "Memory controls", description: "Only approved and patient-viewable memory is shown here. Safety-restricted or clinician-only memory is not displayed.", snapshotName: "Memory snapshot name" },
+    consentOptions: { storeMemory: "Store memory", reuseAcrossSessions: "Reuse across sessions", allowSensitiveMemory: "Allow sensitive memory" },
+    noVisibleMemory: { title: "No patient-visible memory", description: "Approved goals, preferences, and homework will appear here." },
+    consentHistory: { title: "Recent consent changes", none: "No consent changes yet.", updated: "Consent updated", crossSession: "Cross-session", memoryStorage: "Memory storage", sensitive: "Sensitive", on: "on", off: "off" },
+  },
 } as const;
 
 export default en;

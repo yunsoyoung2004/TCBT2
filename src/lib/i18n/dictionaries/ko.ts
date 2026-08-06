@@ -232,6 +232,38 @@ const ko = {
     memory: "메모리",
     summary: "요약",
   },
+  patientProfile: {
+    title: "참여자 프로필",
+    notFound: "참여자를 찾을 수 없습니다",
+    openMemory: "메모리 열기",
+    saved: "프로필이 저장되었습니다",
+    saveFailed: "프로필 저장에 실패했습니다",
+    consent: { title: "동의", memoryStorage: "메모리 저장", crossSession: "세션 간 재사용", sensitiveMemory: "민감 메모리" },
+    continuity: { title: "연속성", sessions: "세션 {count}개", activeMemories: "활성 메모리 {count}개" },
+    currentItems: { title: "현재 항목", activeGoals: "활성 목표 {count}개", unresolvedHomework: "미해결 과제 {count}개" },
+    edit: {
+      title: "프로필 수정",
+      displayName: "표시 이름",
+      locale: "언어",
+      country: "국가",
+      storeMemory: "메모리 저장",
+      reuseAcrossSessions: "세션 간 재사용",
+      allowSensitiveMemory: "민감 메모리 허용",
+      save: "프로필 저장",
+    },
+    snapshot: { title: "저장된 메모리 스냅샷", participantRecord: "참여자 레코드", activeMemoryIds: "활성 메모리 ID", latestSummary: "최신 요약", unavailable: "확인 불가", none: "없음" },
+  },
+  patientMemory: {
+    title: "메모리",
+    notFound: "참여자를 찾을 수 없습니다",
+    saved: "메모리 설정이 저장되었습니다",
+    saveFailed: "메모리 설정 저장에 실패했습니다",
+    saveSettings: "메모리 설정 저장",
+    controls: { title: "메모리 관리", description: "승인되고 환자에게 공개된 메모리만 여기에 표시됩니다. 안전상 제한되거나 임상의 전용 메모리는 표시되지 않습니다.", snapshotName: "메모리 스냅샷 이름" },
+    consentOptions: { storeMemory: "메모리 저장", reuseAcrossSessions: "세션 간 재사용", allowSensitiveMemory: "민감 메모리 허용" },
+    noVisibleMemory: { title: "환자에게 표시되는 메모리가 없습니다", description: "승인된 목표, 선호도, 과제가 여기에 표시됩니다." },
+    consentHistory: { title: "최근 동의 변경 내역", none: "아직 동의 변경 내역이 없습니다.", updated: "동의가 업데이트되었습니다", crossSession: "세션 간 재사용", memoryStorage: "메모리 저장", sensitive: "민감 메모리", on: "켜짐", off: "꺼짐" },
+  },
 } as const;
 
 export default ko;
