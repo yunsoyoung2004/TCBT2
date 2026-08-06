@@ -26,6 +26,8 @@ import { getRuntimeSession, listCanonicalTestSessions, listRuntimeSessions } fro
 import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import { addClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
+import { loadPromptItems } from "@/lib/session-catalog";
+import type { PromptItem } from "@/lib/session-catalog";
 import {
   findSessionTitle,
   findStepTitle,
@@ -58,6 +60,9 @@ interface TimelineEntry {
   content: string;
   stepTitle?: string;
   createdAt: string;
+  sessionDefinitionId?: string;
+  nodeId?: string;
+  promptItemId?: string;
 }
 
 export function PatientMonitoringDetailPage() {
@@ -75,6 +80,7 @@ export function PatientMonitoringDetailPage() {
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
   const [activeTab, setActiveTab] = useState<"audit" | "profile">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [inspectedEntry, setInspectedEntry] = useState<TimelineEntry | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
 
   const participantQuery = useQuery({
@@ -182,6 +188,9 @@ export function PatientMonitoringDetailPage() {
         content: message.content,
         stepTitle: findStepTitle(message.nodeId) ?? nodes.find((node) => node.id === message.nodeId)?.title,
         createdAt: message.createdAt,
+        sessionDefinitionId: session?.sessionDefinitionId,
+        nodeId: message.nodeId,
+        promptItemId: message.promptItemId,
       });
     }
 
@@ -245,6 +254,12 @@ export function PatientMonitoringDetailPage() {
       } satisfies { id: string; number: number; title: string; status: MonitoringStatus };
     });
   }, [canonicalSessionsQuery.data, summary.sessions, safetyQuery.data, participantId]);
+
+  const inspectedPromptItem = useMemo<PromptItem | null>(() => {
+    if (!inspectedEntry?.promptItemId) return null;
+    const items = loadPromptItems(inspectedEntry.sessionDefinitionId, inspectedEntry.nodeId);
+    return items.find((item) => item.id === inspectedEntry.promptItemId) ?? null;
+  }, [inspectedEntry]);
 
   if (participantQuery.isLoading) {
     return (
@@ -347,10 +362,15 @@ export function PatientMonitoringDetailPage() {
                     const isNewMessage = entry.kind === "message"
                       && historicalMessageIdsRef.current?.sessionId === effectiveSessionId
                       && !historicalMessageIdsRef.current.ids.has(entry.id);
+                    const canInspect = entry.kind === "message" && Boolean(entry.promptItemId);
                     return (
                       <div
                         key={entry.id}
-                        className={`rounded-panel border px-4 py-3 ${
+                        role={canInspect ? "button" : undefined}
+                        tabIndex={canInspect ? 0 : undefined}
+                        onClick={canInspect ? () => setInspectedEntry(entry) : undefined}
+                        onKeyDown={canInspect ? (event) => { if (event.key === "Enter") setInspectedEntry(entry); } : undefined}
+                        className={`rounded-panel border px-4 py-3 ${canInspect ? "cursor-pointer hover:border-clinical-blue" : ""} ${
                           entry.kind === "lifecycle"
                             ? "border-border bg-surface-subtle"
                             : entry.speaker === "patient"
@@ -371,6 +391,7 @@ export function PatientMonitoringDetailPage() {
                           active={!reducedMotion && isNewMessage}
                           className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary"
                         />
+                        {canInspect && <div className="mt-1 text-[11px] text-clinical-blue">{t("patientDetail.audit.viewInspector")}</div>}
                       </div>
                     );
                   })
@@ -477,6 +498,31 @@ export function PatientMonitoringDetailPage() {
               {t("patientDetail.note.submit")}
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={Boolean(inspectedEntry)} onClose={() => setInspectedEntry(null)} title={t("patientDetail.inspector.title")} description={inspectedEntry?.stepTitle}>
+        <div className="space-y-3 p-5">
+          {inspectedPromptItem ? (
+            <>
+              <Field label={t("patientDetail.inspector.participantFacingText")}>
+                <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">{inspectedPromptItem.editableText}</div>
+              </Field>
+              <Field label={t("patientDetail.inspector.clinicianGuidance")}>
+                <div className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">
+                  {inspectedPromptItem.modelGuidance ?? inspectedPromptItem.aiInstruction}
+                </div>
+              </Field>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                <Badge tone={inspectedPromptItem.status === "active" ? "success" : "neutral"}>{inspectedPromptItem.status}</Badge>
+                <Badge tone={inspectedPromptItem.editableText === inspectedPromptItem.verbatimText ? "neutral" : "primary"}>
+                  {inspectedPromptItem.editableText === inspectedPromptItem.verbatimText ? t("protocolEditor.unedited") : t("protocolEditor.editedFromSource")}
+                </Badge>
+              </div>
+            </>
+          ) : (
+            <EmptyState title={t("patientDetail.inspector.noPromptItem")} />
+          )}
         </div>
       </Modal>
     </AppShell>

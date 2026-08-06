@@ -149,6 +149,13 @@ const en = {
       },
       noEntries: "No audit entries yet.",
       unknownStep: "Unknown step",
+      viewInspector: "View in inspector",
+    },
+    inspector: {
+      title: "Question and Instructions",
+      participantFacingText: "Participant-facing question",
+      clinicianGuidance: "Clinician guidance",
+      noPromptItem: "Could not find the question item linked to this message.",
     },
     note: {
       label: "Note",
