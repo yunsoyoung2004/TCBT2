@@ -96,6 +96,10 @@ export async function createRuntimeSession(input: {
 }): Promise<RuntimeSession> {
   const now = new Date().toISOString();
   const sessionId = makeId("RTS");
+  // Every session must belong to a real, persisted participant record --
+  // otherwise the clinician monitoring screens (which join sessions to
+  // participants by participantId) can never find it.
+  const resolvedParticipantId = input.participantId ?? (await getOrCreateDemoParticipant()).id;
   const activeProtocolId = isCanonicalProtocolId(input.protocolId) ? CANONICAL_PROTOCOL_ID : input.protocolId;
   const storedRelease = await getProtocolRelease(input.releaseId);
   const release = storedRelease ?? (input.releaseId === "demo-release" && activeProtocolId === CANONICAL_PROTOCOL_ID ? createCanonicalDemoRelease() : null);
@@ -144,11 +148,13 @@ export async function createRuntimeSession(input: {
     updatedAt: now,
   };
 
+  const sessionWithParticipant: RuntimeSession = { ...sessionWithoutRuntimeState, participantId: resolvedParticipantId };
   const session: RuntimeSession = {
-    ...sessionWithoutRuntimeState,
-    runtimeState: normalizeRuntimeSessionState(sessionWithoutRuntimeState, runtimeRelease),
+    ...sessionWithParticipant,
+    runtimeState: normalizeRuntimeSessionState(sessionWithParticipant, runtimeRelease),
   };
   await createRuntimeSessionRecord(session);
+  await attachSessionToParticipant(resolvedParticipantId, session.id);
   return session;
 }
 
@@ -162,7 +168,6 @@ export async function createCanonicalTestRuntimeSession(input: {
     protocolId: CANONICAL_PROTOCOL_ID,
     releaseId: "demo-release",
     sessionDefinitionId: input.sessionDefinitionId ?? "tbct-s01",
-    participantId: "demo-participant",
     patientAlias: input.patientAlias ?? "Test Patient",
     locale: input.locale ?? "ko-KR",
   });
