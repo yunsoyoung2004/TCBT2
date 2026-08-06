@@ -54,8 +54,8 @@ export function InspectorPanel(props: InspectorPanelProps) {
   const {
     draft, onDraftChange, immutableSourceView, sessionPrompts, selectedPromptItem, onSelectPromptItem,
     onUpdatePromptItem,
-    sessionCommonRules, onSaveSessionCommonRules, nextStepOptions, compiledPreviewText,
-    validationRun, fieldErrors, onSave, onPreview, saving, previewing, onDelete,
+    sessionCommonRules, onSaveSessionCommonRules, nextStepOptions,
+    validationRun, fieldErrors, onSave, saving, onDelete,
   } = props;
 
   if (!draft) {
@@ -148,12 +148,6 @@ export function InspectorPanel(props: InspectorPanelProps) {
           {fieldErrors.nextStep && <div className="mt-1 text-xs text-critical">{fieldErrors.nextStep}</div>}
         </Field>
 
-        {compiledPreviewText && (
-          <Field label={t("protocolEditor.compiledPreview")}>
-            <textarea className={`${textareaClass} min-h-32`} readOnly value={compiledPreviewText} />
-          </Field>
-        )}
-
         {draft.data.safetyRuleIds.length > 0 && (
           <Badge tone="critical">{t("protocolEditor.requiredSafetyStep")}</Badge>
         )}
@@ -179,10 +173,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </div>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button disabled={immutableSourceView} loading={saving} onClick={onSave}>{t("protocolEditor.saveChanges")}</Button>
-          <Button variant="secondary" loading={previewing} onClick={onPreview}>{t("protocolEditor.preview")}</Button>
-        </div>
+        <Button className="w-full" disabled={immutableSourceView} loading={saving} onClick={onSave}>{t("protocolEditor.saveChanges")}</Button>
         <Button variant="danger" className="w-full" disabled={immutableSourceView} onClick={onDelete}><Trash2 className="h-4 w-4" />{t("protocolEditor.deleteStep")}</Button>
 
         <details className="rounded-panel border border-border bg-surface-subtle p-3">
