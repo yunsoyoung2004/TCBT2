@@ -11,7 +11,6 @@ const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page"
 const ProtocolPage = dynamic(() => import("@/components/pages/protocol-page").then((mod) => mod.ProtocolPage), { ssr: false });
 const SafetyPage = dynamic(() => import("@/components/pages/safety-page").then((mod) => mod.SafetyPage), { ssr: false });
 const ValidationPage = dynamic(() => import("@/components/pages/validation-page").then((mod) => mod.ValidationPage), { ssr: false });
-const VersionsPage = dynamic(() => import("@/components/pages/versions-page").then((mod) => mod.VersionsPage), { ssr: false });
 const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mod) => mod.AuditPage), { ssr: false });
 const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((mod) => mod.SettingsPage), { ssr: false });
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
@@ -97,7 +96,6 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname.includes("/canvas"), Page: ProtocolPage },
   { matches: (pathname) => pathname.includes("/safety"), Page: SafetyPage },
   { matches: (pathname) => pathname.includes("/validation"), Page: ValidationPage },
-  { matches: (pathname) => pathname.includes("/versions") || pathname.includes("/release"), Page: VersionsPage },
   { matches: (pathname) => pathname.startsWith("/audit"), Page: AuditPage },
   { matches: (pathname) => pathname.startsWith("/settings"), Page: SettingsPage },
 ];

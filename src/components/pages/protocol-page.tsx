@@ -24,7 +24,7 @@ import {
   type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
-import { CheckCircle2, Copy, Download, Link2, PlayCircle, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, Link2, PlayCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
 import {
@@ -50,19 +50,16 @@ import { normalizeRuntimeReleaseFromSourceSnapshot } from "@/lib/runtime/runtime
 import { compileRuntimePrompt } from "@/lib/runtime/runtime-prompt-compiler";
 import {
   attachSafetyRuleToNode,
-  createDraftFromRelease,
   createProtocolEdge,
   createProtocolNode,
   deleteProtocolEdge,
   deleteProtocolNode,
-  downloadProtocolReleasePackage,
   duplicateProtocolNode,
   getProtocolDefinitionApi,
   getProtocolGraphApi,
   getSafetyRulesApi,
   importProtocolDraftCandidate,
   previewCandidateImport,
-  publishProtocolRelease,
   runProtocolValidation,
   upsertProtocolDefinition,
   runRuntimeScenario,
@@ -173,14 +170,10 @@ export function ProtocolPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [runtimeLog, setRuntimeLog] = useState<RuntimeExecutionLog | null>(null);
-  const [publishOpen, setPublishOpen] = useState(false);
   const [createNodeOpen, setCreateNodeOpen] = useState(false);
-  const [releaseDraftOpen, setReleaseDraftOpen] = useState(false);
   const [flowNodes, setFlowNodes] = useState<FlowNode[]>([]);
   const [definitionForm, setDefinitionForm] = useState<Partial<ProtocolDefinition>>({});
   const [newNodeForm, setNewNodeForm] = useState({ nodeType: "dialogue" as ProtocolNodeType, title: "", clinicalIntent: "", content: "" });
-  const [publishForm, setPublishForm] = useState({ version: "0.4.0", targetEnvironment: "pilot" as const, changeSummary: "Clinical graph import and validation" });
-  const [newDraftForm, setNewDraftForm] = useState({ version: "0.4.1", changeSummary: "Continue from published release" });
   const [builderRevision, setBuilderRevision] = useState(0);
   const reducedMotion = useReducedMotionPreference();
 
@@ -322,24 +315,6 @@ export function ProtocolPage() {
     },
   });
 
-  const publishMutation = useMutation({
-    mutationFn: async () => {
-      if (!immutableSourceView) await upsertProtocolDefinition("TBCT-BR-001", definitionForm);
-      const validation = await runProtocolValidation();
-      const criticalIssues = validation.issues.filter((issue) => issue.severity === "critical");
-      if (criticalIssues.length) {
-        const message = criticalIssues.slice(0, 3).map((issue) => `${issue.category}: ${issue.message}`).join(" | ");
-        throw new Error(`Publish blocked: ${message}${criticalIssues.length > 3 ? ` | +${criticalIssues.length - 3} more` : ""}`);
-      }
-      return publishProtocolRelease("TBCT-BR-001", publishForm);
-    },
-    onSuccess: async () => {
-      setPublishOpen(false);
-      toast.success("Release published");
-      await refreshGraph();
-    },
-  });
-
   const createNodeMutation = useMutation({
     mutationFn: () =>
       createProtocolNode({
@@ -455,20 +430,10 @@ export function ProtocolPage() {
     },
   });
 
-  const newDraftMutation = useMutation({
-    mutationFn: (releaseId: string) => createDraftFromRelease(releaseId, newDraftForm),
-    onSuccess: async () => {
-      setReleaseDraftOpen(false);
-      toast.success("New draft created from published release");
-      await refreshGraph();
-    },
-  });
-
   const nodes = useMemo(() => toNodes(graphQuery.data?.nodes ?? []), [graphQuery.data?.nodes]);
   const edges = useMemo(() => toEdges(graphQuery.data?.edges ?? []), [graphQuery.data?.edges]);
   const availableEvidence = (evidenceDraftQuery.data?.evidence ?? []) as SourceEvidence[];
   const validationRun = graphQuery.data?.validationRun;
-  const releases = graphQuery.data?.releases ?? [];
   const selectedSessionMeta = sessionCatalog.find((session) => session.id === graphQuery.data?.session.id)
     ?? sessionCatalog.find((session) => session.id === selectedSessionId)
     ?? sessionCatalog[0];
@@ -605,17 +570,15 @@ export function ProtocolPage() {
             <Button variant="secondary" onClick={() => setCreateNodeOpen(true)} disabled={immutableSourceView}><Plus className="h-4 w-4" />New node</Button>
             <Button variant="secondary" onClick={() => validationMutation.mutate()}><CheckCircle2 className="h-4 w-4" />Validation</Button>
             <Button variant="secondary" onClick={() => runtimeMutation.mutate()}><PlayCircle className="h-4 w-4" />Runtime preview</Button>
-            <Button onClick={() => setPublishOpen(true)}><ShieldCheck className="h-4 w-4" />Publish</Button>
           </>
         }
       />
 
       <div className="p-4 lg:p-6">
-        <motion.div className="mb-4 grid gap-4 lg:grid-cols-4" variants={reducedMotion ? undefined : fadeIn} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
+        <motion.div className="mb-4 grid gap-4 lg:grid-cols-3" variants={reducedMotion ? undefined : fadeIn} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
           <MetaCard label="Nodes" value={`${graphQuery.data?.nodes.length ?? 0}`} />
           <MetaCard label="Edges" value={`${graphQuery.data?.edges.length ?? 0}`} />
           <MetaCard label="Critical" value={`${validationRun?.summary.critical ?? 0}`} />
-          <MetaCard label="Releases" value={`${releases.length}`} />
         </motion.div>
 
         {previewQuery.data && (
@@ -791,7 +754,6 @@ export function ProtocolPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => sessionCommonRules && saveSessionCommonRules(selectedSessionMeta.id, sessionCommonRules)}>Save Session Rules</Button>
                   <Button size="sm" variant="secondary" onClick={() => validationMutation.mutate()} loading={validationMutation.isPending}>Validate Session</Button>
-                  <Button size="sm" variant="primary" onClick={() => setPublishOpen(true)}>Submit for Clinical Review</Button>
                 </div>
               </fieldset>
             </div>
@@ -1186,66 +1148,6 @@ export function ProtocolPage() {
         </div>
       </Modal>
 
-      <Modal open={publishOpen} onClose={() => setPublishOpen(false)} title="Publish Protocol Release" description="Only validation-clean drafts can be published." width="max-w-2xl">
-        <div className="grid gap-4 p-5">
-          <Field label="Version">
-            <input value={publishForm.version} onChange={(event) => setPublishForm((current) => ({ ...current, version: event.target.value }))} className={inputClass} />
-          </Field>
-          <Field label="Change Summary">
-            <textarea value={publishForm.changeSummary} onChange={(event) => setPublishForm((current) => ({ ...current, changeSummary: event.target.value }))} className={textareaClass} />
-          </Field>
-          <div className="rounded-panel border border-border bg-surface-subtle p-3 text-xs text-text-secondary">
-            Critical validation: {validationRun?.summary.critical ?? 0} · Warnings: {validationRun?.summary.warning ?? 0}
-          </div>
-        </div>
-        <div className="flex justify-between border-t border-border px-5 py-4">
-          <div className="flex gap-2">
-            <Link href="/projects/demo/versions"><Button variant="secondary">Open Releases</Button></Link>
-            <Button variant="secondary" onClick={() => setReleaseDraftOpen(true)} disabled={!releases[0]}>New draft from published</Button>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setPublishOpen(false)}>Cancel</Button>
-            <Button loading={publishMutation.isPending} disabled={(validationRun?.summary.critical ?? 1) > 0} onClick={() => publishMutation.mutate()}>Publish</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={releaseDraftOpen} onClose={() => setReleaseDraftOpen(false)} title="New Draft From Published Release" description="Creates a new editable draft while preserving immutable published snapshots.">
-        <div className="grid gap-4 p-5">
-          <Field label="Base release">
-            <input value={releases[0]?.version ?? ""} readOnly className={inputClass} />
-          </Field>
-          <Field label="New version">
-            <input value={newDraftForm.version} onChange={(event) => setNewDraftForm((current) => ({ ...current, version: event.target.value }))} className={inputClass} />
-          </Field>
-          <Field label="Change summary">
-            <textarea value={newDraftForm.changeSummary} onChange={(event) => setNewDraftForm((current) => ({ ...current, changeSummary: event.target.value }))} className={textareaClass} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" onClick={() => setReleaseDraftOpen(false)}>Cancel</Button>
-          <Button loading={newDraftMutation.isPending} onClick={() => releases[0] && newDraftMutation.mutate(releases[0].id)}>Create draft</Button>
-        </div>
-      </Modal>
-
-      {!!releases[0] && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              const blob = await downloadProtocolReleasePackage(releases[0].id);
-              const url = URL.createObjectURL(blob);
-              const anchor = globalThis.document.createElement("a");
-              anchor.href = url;
-              anchor.download = `TBCT-BR-001-v${releases[0].version}.zip`;
-              anchor.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="h-4 w-4" />Latest ZIP
-          </Button>
-        </div>
-      )}
     </AppShell>
   );
 }

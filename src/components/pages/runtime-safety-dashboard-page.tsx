@@ -24,11 +24,12 @@ export function RuntimeSafetyDashboardPage() {
           <div className="text-sm font-semibold text-text-primary">Immediate attention</div>
           <div className="mt-3 space-y-2">
             {data.events.filter((item) => item.urgency === "immediate" || item.urgency === "urgent").slice(0, 6).map((item) => (
-              <Link key={item.id} href={`/runtime/safety/events/${item.id}`} className="block rounded-panel border border-border p-3">
-                <div className="flex gap-2"><Badge tone={item.severity === "high" ? "critical" : "warning"}>{item.severity}</Badge><Badge tone="neutral">{item.status}</Badge></div>
+              <Link key={item.id} href={`/runtime/safety/events/${item.id}`} className="block rounded-panel border border-border p-3 transition hover:border-primary/60">
+                <div className="flex gap-2"><Badge tone={item.severity === "high" ? "critical" : "warning"}>{item.severity}</Badge><Badge tone={item.urgency === "immediate" ? "critical" : "warning"}>{item.urgency}</Badge><Badge tone="neutral">{item.status}</Badge></div>
                 <div className="mt-2 text-sm text-text-primary">{item.triggerSummary}</div>
               </Link>
             ))}
+            {!data.events.some((item) => item.urgency === "immediate" || item.urgency === "urgent") && <div className="text-xs text-text-secondary">No immediate or urgent events right now.</div>}
           </div>
         </Card>
         <Card className="p-4">
@@ -36,10 +37,11 @@ export function RuntimeSafetyDashboardPage() {
           <div className="mt-3 space-y-2">
             {data.events.slice(0, 6).map((item) => (
               <div key={item.id} className="rounded-panel border border-border p-3">
-                <div className="text-xs text-text-muted">{item.createdAt}</div>
+                <div className="flex items-center justify-between gap-2 text-xs text-text-muted"><span>{new Date(item.createdAt).toLocaleString()}</span><Badge tone="neutral">{item.status}</Badge></div>
                 <div className="mt-1 text-sm text-text-primary">{item.triggerSummary}</div>
               </div>
             ))}
+            {!data.events.length && <div className="text-xs text-text-secondary">No safety events recorded yet.</div>}
           </div>
         </Card>
       </div>
@@ -48,5 +50,11 @@ export function RuntimeSafetyDashboardPage() {
 }
 
 function Kpi({ label, value, tone = "primary" }: { label: string; value: number; tone?: "primary" | "warning" | "critical" }) {
-  return <Card className="p-4"><div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{label}</div><div className="mt-2 flex items-center gap-2"><div className="text-2xl font-semibold text-text-primary">{value}</div><Badge tone={tone}>{label.split(" ")[0]}</Badge></div></Card>;
+  const accent = tone === "critical" ? "border-l-critical" : tone === "warning" ? "border-l-warning" : "border-l-clinical-blue";
+  return (
+    <Card className={`border-l-4 p-4 ${accent}`}>
+      <div className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-text-primary">{value}</div>
+    </Card>
+  );
 }

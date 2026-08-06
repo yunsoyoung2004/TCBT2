@@ -2,6 +2,7 @@ import { assets as seededAssets } from "@/mocks/data";
 import type { AuditEntry } from "@/types";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { makeId } from "@/lib/id";
+import { listAuditEntries, saveAuditEntry } from "@/lib/repositories/audit-log-repository";
 import type {
   AssetFilters,
   AssetRelationship,
@@ -172,7 +173,7 @@ export async function createClinicalAsset(asset: LocalClinicalAsset, fileRecord:
     await db.clinicalAssets.put(asset);
     await db.storedFiles.put(fileRecord);
     await db.assetVersions.put(version);
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
   return asset;
 }
@@ -183,7 +184,7 @@ export async function updateClinicalAsset(assetId: string, patch: Partial<LocalC
   if (!current) throw new Error("Asset not found");
   const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
   await db.clinicalAssets.put(next);
-  if (audit) await db.auditEntries.put(audit);
+  if (audit) await saveAuditEntry(audit);
   return next;
 }
 
@@ -200,7 +201,7 @@ export async function deleteClinicalAsset(assetId: string, audit: AuditEntry) {
       await db.clinicalAssets.delete(assetId);
       const fileIds = await db.storedFiles.where("assetId").equals(assetId).primaryKeys();
       await db.storedFiles.bulkDelete(fileIds);
-      await db.auditEntries.put(audit);
+      await saveAuditEntry(audit);
       const docs = await db.extractedDocuments.where("assetId").equals(assetId).primaryKeys();
       await db.extractedDocuments.bulkDelete(docs);
       const jobs = await db.extractionJobs.where("assetId").equals(assetId).primaryKeys();
@@ -224,7 +225,7 @@ export async function addAssetVersion(version: AssetVersion, fileRecord: StoredF
   await db.transaction("rw", [db.assetVersions, db.storedFiles, db.auditEntries], async () => {
     await db.assetVersions.put(version);
     await db.storedFiles.put(fileRecord);
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -246,7 +247,7 @@ export async function setCurrentAssetVersion(assetId: string, versionId: string,
       checksumSha256: current.checksumSha256,
       extractionStatus: current.extractionStatus,
     });
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
   return current;
 }
@@ -262,7 +263,7 @@ export async function saveExtractedDocument(document: ExtractedDocument, job: Ex
         await db.assetVersions.put({ ...version, extractionStatus: job.status, extractedDocumentId: document.id });
       }
     }
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -293,7 +294,7 @@ export async function saveReviewDraft(draft: ExtractionReviewDraft, audit: Audit
   const db = getLocalDb();
   await db.transaction("rw", [db.reviewDrafts, db.auditEntries], async () => {
     await db.reviewDrafts.put(draft);
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -303,7 +304,7 @@ export async function updateReviewDraft(draftId: string, patch: Partial<Extracti
   if (!current) throw new Error("Draft not found");
   const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
   await db.reviewDrafts.put(next);
-  if (audit) await db.auditEntries.put(audit);
+  if (audit) await saveAuditEntry(audit);
   return next;
 }
 
@@ -315,7 +316,7 @@ export async function saveStructuredItem(item: StructuredTbctItem, audit: AuditE
   const db = getLocalDb();
   await db.transaction("rw", [db.structuredTbctItems, db.auditEntries], async () => {
     await db.structuredTbctItems.put(item);
-    await db.auditEntries.put(audit);
+    await saveAuditEntry(audit);
   });
 }
 
@@ -325,20 +326,20 @@ export async function updateStructuredItem(itemId: string, patch: Partial<Struct
   if (!current) throw new Error("Structured item not found");
   const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
   await db.structuredTbctItems.put(next);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
   return next;
 }
 
 export async function deleteStructuredItem(itemId: string, audit: AuditEntry) {
   const db = getLocalDb();
   await db.structuredTbctItems.delete(itemId);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function saveSourceEvidence(evidence: SourceEvidence, audit?: AuditEntry) {
   const db = getLocalDb();
   await db.sourceEvidence.put(evidence);
-  if (audit) await db.auditEntries.put(audit);
+  if (audit) await saveAuditEntry(audit);
 }
 
 export async function getSourceEvidenceByIds(ids: string[]) {
@@ -349,13 +350,13 @@ export async function getSourceEvidenceByIds(ids: string[]) {
 export async function deleteSourceEvidence(evidenceId: string, audit: AuditEntry) {
   const db = getLocalDb();
   await db.sourceEvidence.delete(evidenceId);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function saveReviewDecision(decision: ReviewDecision, audit: AuditEntry) {
   const db = getLocalDb();
   await db.reviewDecisions.put(decision);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function getReviewDecisions(draftId: string) {
@@ -365,7 +366,7 @@ export async function getReviewDecisions(draftId: string) {
 export async function linkAssets(relationship: AssetRelationship, audit: AuditEntry) {
   const db = getLocalDb();
   await db.relationships.put(relationship);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function updateRelationship(id: string, patch: Partial<AssetRelationship>, audit: AuditEntry) {
@@ -374,14 +375,14 @@ export async function updateRelationship(id: string, patch: Partial<AssetRelatio
   if (!current) throw new Error("Relationship not found");
   const next = { ...current, ...patch };
   await db.relationships.put(next);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
   return next;
 }
 
 export async function deleteRelationship(id: string, audit: AuditEntry) {
   const db = getLocalDb();
   await db.relationships.delete(id);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function getRelationships(assetId: string) {
@@ -397,7 +398,7 @@ export async function getAllRelationships() {
 export async function saveProtocolDraftCandidate(candidate: ProtocolDraftCandidate, audit: AuditEntry) {
   const db = getLocalDb();
   await db.protocolDraftCandidates.put(candidate);
-  await db.auditEntries.put(audit);
+  await saveAuditEntry(audit);
 }
 
 export async function getProtocolDraftCandidate(candidateId: string) {
@@ -418,5 +419,5 @@ export async function exportSourceManifest(projectId: string): Promise<SourceMan
 
 export async function getLocalAuditEntries() {
   await seedIfEmpty();
-  return getLocalDb().auditEntries.orderBy("timestamp").reverse().toArray();
+  return listAuditEntries();
 }

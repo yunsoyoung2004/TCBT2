@@ -193,7 +193,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       { label: "Structured Sessions", value: "6 / 12", helper: "Six key sessions are draft-ready", tone: "violet", href: "/projects/demo/extraction" },
       { label: "Pending Review", value: "14", helper: "14 items require clinical review", tone: "warning", href: "/projects/demo/extraction" },
       { label: "Critical Validation", value: "2", helper: "2 release-blocking issues remain", tone: "critical", href: "/projects/demo/protocols/tbct-br-001/validation" },
-      { label: "Current Version", value: "v0.3.0", helper: "Clinical review candidate", tone: "neutral", href: "/projects/demo/protocols/tbct-br-001/versions" },
+      { label: "Current Version", value: "v0.3.0", helper: "Clinical review candidate", tone: "neutral", href: "/projects/demo/protocols/tbct-br-001/canvas" },
       { label: "Runtime Readiness", value: "78%", helper: "Expected pilot-ready after safety rule linkage updates", tone: "success", href: "/projects/demo/protocols/tbct-br-001/validation" },
     ],
   };

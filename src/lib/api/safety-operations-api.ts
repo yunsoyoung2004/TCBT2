@@ -1,7 +1,13 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
-import { findActiveTriggerSuppression, getPendingResumeRequest, listClinicianHandoffs, listFollowUpTasks, listInterventionRecords, listNotifications, listResumeRequests, listSafetyEvents, listSafetyReports, listSafetyTransitions, listSafetyTriageRecords, listPendingClinicianHandoffs, saveClinicianHandoff, saveFollowUpTask, saveInterventionRecord, saveNotification, saveResumeRequest, saveSafetyEvent, saveSafetyReport, saveSafetyTransition, saveSafetyTriageRecord, saveTriggerSuppression, updateClinician, updateClinicianHandoff, updateFollowUpTask, updateInterventionRecord, updateNotification, updateResumeRequest, updateSafetyEvent, updateTriggerSuppression, getSafetyEvent, listClinicians, getClinician, getSafetyReport } from "@/lib/repositories/safety-event-repository";
+import { findActiveTriggerSuppression, getClinicianHandoff, getInterventionRecord, getPendingResumeRequest, listClinicianHandoffs, listFollowUpTasks, listInterventionRecords, listNotifications, listResumeRequests, listSafetyEvents, listSafetyReports, listSafetyTransitions, listSafetyTriageRecords, listPendingClinicianHandoffs, saveClinicianHandoff, saveFollowUpTask, saveInterventionRecord, saveNotification, saveResumeRequest, saveSafetyEvent, saveSafetyReport, saveSafetyTransition, saveSafetyTriageRecord, saveTriggerSuppression, updateClinician, updateClinicianHandoff, updateFollowUpTask, updateInterventionRecord, updateNotification, updateResumeRequest, updateSafetyEvent, updateTriggerSuppression, getSafetyEvent, listClinicians, getClinician, getSafetyReport } from "@/lib/repositories/safety-event-repository";
+// The clinician safety-monitoring domain (events, transitions, triage,
+// interventions, follow-ups, clinicians, notifications, reports, handoffs,
+// resume requests, trigger suppressions) is migrated to Neon Postgres --
+// see sql/003_safety_monitoring.sql. safety-event-repository.ts above is now
+// a thin fetch client over src/app/api/safety/store/route.ts, so every
+// function below is unchanged and unaffected by the storage backend swap.
 import { getLongitudinalMemory } from "@/lib/repositories/longitudinal-memory-repository";
 import { createMemoryAuditEntry } from "@/lib/memory/memory-helpers";
 import { makeId } from "@/lib/id";
@@ -223,8 +229,7 @@ export async function createHumanIntervention(input: Omit<HumanInterventionRecor
 
 export async function startHumanIntervention(interventionId: string) {
   await requirePermission("intervention_start", { resourceType: "Intervention", resourceId: interventionId });
-  const list = await getLocalDb().humanInterventionRecords.toArray();
-  const current = list.find((item) => item.id === interventionId);
+  const current = await getInterventionRecord(interventionId);
   if (!current) throw new Error("Intervention not found");
   if (current.status !== "planned") throw new Error("Invalid intervention transition");
   return updateInterventionRecord(interventionId, { status: "in_progress", startedAt: new Date().toISOString() });
@@ -233,8 +238,7 @@ export async function startHumanIntervention(interventionId: string) {
 export async function completeHumanIntervention(interventionId: string, input: { outcomeCode: string; outcomeSummary: string; nextAction?: string }) {
   await requirePermission("intervention_complete", { resourceType: "Intervention", resourceId: interventionId });
   if (!input.outcomeCode && !input.outcomeSummary) throw new Error("Intervention completion requires outcome");
-  const list = await getLocalDb().humanInterventionRecords.toArray();
-  const current = list.find((item) => item.id === interventionId);
+  const current = await getInterventionRecord(interventionId);
   if (!current) throw new Error("Intervention not found");
   if (!["planned", "in_progress"].includes(current.status)) throw new Error("Invalid intervention transition");
   const updated = await updateInterventionRecord(interventionId, { status: "completed", completedAt: new Date().toISOString(), ...input });
@@ -507,8 +511,7 @@ export async function createClinicianHandoff(input: Omit<ClinicianHandoffRecord,
 
 export async function acknowledgeClinicianHandoff(handoffId: string, clinicianId: string) {
   await requirePermission("handoff_acknowledge", { clinicianId, resourceType: "Handoff", resourceId: handoffId });
-  const all = await getLocalDb().clinicianHandoffRecords.toArray();
-  const current = all.find((item) => item.id === handoffId);
+  const current = await getClinicianHandoff(handoffId);
   if (!current) throw new Error("Handoff not found");
   if (current.status !== "pending") throw new Error("Handoff already acknowledged");
   if (current.toClinicianId !== clinicianId) throw new Error("Insufficient permission");
