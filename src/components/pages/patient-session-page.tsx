@@ -185,7 +185,7 @@ export function PatientSessionPage() {
                   </motion.div>
                 );
               })}
-              {activeSession.status === "processing" && (
+              {(activeSession.status === "processing" || isSubmittingTurn) && (
                 <motion.div
                   key="typing-indicator"
                   variants={reducedMotion ? undefined : fadeUp}
@@ -216,7 +216,7 @@ export function PatientSessionPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {activeSession.status === "waiting_for_input" && currentNode && !inSafetyHold ? (
+            {activeSession.status === "waiting_for_input" && currentNode && !inSafetyHold && !isSubmittingTurn ? (
               <PatientInputControls
                 payload={payload}
                 promptItem={currentPromptItem}
@@ -225,7 +225,7 @@ export function PatientSessionPage() {
                 locale={activeSession.locale}
                 onBeforeMic={stop}
               />
-            ) : activeSession.status === "processing" ? (
+            ) : activeSession.status === "processing" || isSubmittingTurn ? (
               <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} className="text-sm text-text-secondary">
                 We are reviewing your response and preparing the next step.
               </motion.div>
