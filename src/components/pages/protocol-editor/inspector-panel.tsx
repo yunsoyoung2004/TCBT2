@@ -54,7 +54,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
   const {
     draft, onDraftChange, immutableSourceView, sessionPrompts, selectedPromptItem, onSelectPromptItem,
     onUpdatePromptItem,
-    sessionCommonRules, onSaveSessionCommonRules, nextStepOptions,
+    sessionCommonRules, onSaveSessionCommonRules,
     validationRun, fieldErrors, onSave, saving, onDelete,
   } = props;
 
@@ -81,9 +81,9 @@ export function InspectorPanel(props: InspectorPanelProps) {
           <textarea value={draft.data.clinicalIntent ?? ""} readOnly={immutableSourceView} onChange={(event) => onDraftChange({ ...draft, data: { ...draft.data, clinicalIntent: event.target.value } })} className={textareaClass} />
         </Field>
 
-        <div className="rounded-panel border border-border bg-surface-subtle p-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{t("protocolEditor.questionsAndInstructions")}</div>
-          <div className="space-y-2">
+        <details className="rounded-panel border border-border bg-surface-subtle p-3" open={Boolean(selectedPromptItem)}>
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{t("protocolEditor.questionsAndInstructions")}</summary>
+          <div className="mt-3 space-y-2">
             {sessionPrompts.map((promptItem) => {
               const isSelected = selectedPromptItem?.id === promptItem.id;
               return (
@@ -135,18 +135,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
             })}
             {!sessionPrompts.length && <EmptyState title={t("protocolEditor.noStepSelected")} description={t("protocolEditor.selectStepPrompt")} />}
           </div>
-        </div>
-
-        <Field label={t("protocolEditor.nextStep")}>
-          <div className="space-y-2">
-            {nextStepOptions.length ? nextStepOptions.map((option) => (
-              <div key={option.edgeId} className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-sm text-text-primary">{option.targetTitle}</div>
-            )) : (
-              <div className="text-xs text-text-secondary">{t("protocolEditor.noNextStepOptions")}</div>
-            )}
-          </div>
-          {fieldErrors.nextStep && <div className="mt-1 text-xs text-critical">{fieldErrors.nextStep}</div>}
-        </Field>
+        </details>
 
         {draft.data.safetyRuleIds.length > 0 && (
           <Badge tone="critical">{t("protocolEditor.requiredSafetyStep")}</Badge>
