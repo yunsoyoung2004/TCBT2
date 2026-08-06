@@ -1,8 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
 import { statusTransition } from "@/lib/motion/motion-variants";
 import { useT } from "@/lib/i18n/context";
 import { summarizeCondition } from "./types";
@@ -55,7 +54,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
     draft, onDraftChange, immutableSourceView, sessionPrompts, selectedPromptItem, onSelectPromptItem,
     onUpdatePromptItem,
     sessionCommonRules, onSaveSessionCommonRules,
-    validationRun, fieldErrors, onSave, saving, onDelete,
+    validationRun, fieldErrors,
   } = props;
 
   if (!draft) {
@@ -137,10 +136,6 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </div>
         </details>
 
-        {draft.data.safetyRuleIds.length > 0 && (
-          <Badge tone="critical">{t("protocolEditor.requiredSafetyStep")}</Badge>
-        )}
-
         {fieldErrors.closingPath && (
           <div className="rounded-panel border border-critical/40 bg-critical/10 p-3 text-sm text-critical">{fieldErrors.closingPath}</div>
         )}
@@ -161,9 +156,6 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </div>
           </div>
         )}
-
-        <Button className="w-full" disabled={immutableSourceView} loading={saving} onClick={onSave}>{t("protocolEditor.saveChanges")}</Button>
-        <Button variant="danger" className="w-full" disabled={immutableSourceView} onClick={onDelete}><Trash2 className="h-4 w-4" />{t("protocolEditor.deleteStep")}</Button>
 
         <details className="rounded-panel border border-border bg-surface-subtle p-3">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{t("protocolEditor.sessionCommonRules")}</summary>

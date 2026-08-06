@@ -18,16 +18,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyNodeChanges, type Connection, type NodeChange } from "@xyflow/react";
-import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Button, Field, Modal, PageHeader, PageSkeleton, SaveStatus, inputClass, textareaClass } from "@/components/ui/primitives";
+import { Badge, Button, Modal, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { useT } from "@/lib/i18n/context";
 import {
   attachSafetyRuleToNode,
   createProtocolEdge,
-  createProtocolNode,
   deleteProtocolEdge,
   deleteProtocolNode,
   duplicateProtocolNode,
@@ -43,11 +41,11 @@ import {
 } from "@/lib/api/protocol-api";
 import { getClinicalAssetsApi, getExtractionReviewDraftApi, getProtocolDraftCandidateBySourceDraftIdApi } from "@/lib/api/clinical-assets-api";
 import type { LocalClinicalAsset, SourceEvidence, ProtocolDraftItem } from "@/types/clinical-assets";
-import type { ProtocolDefinition, ProtocolGraphNode, ProtocolNodeType, RuntimeExecutionLog } from "@/types/protocol-runtime";
+import type { ProtocolDefinition, ProtocolGraphNode, RuntimeExecutionLog } from "@/types/protocol-runtime";
 import { SessionPanel } from "./protocol-editor/session-panel";
 import { CanvasPanel } from "./protocol-editor/canvas-panel";
 import { InspectorPanel, type NextStepOption } from "./protocol-editor/inspector-panel";
-import { nodeTypeOptions, toEdges, toNodes, type FlowNode } from "./protocol-editor/types";
+import { toEdges, toNodes, type FlowNode } from "./protocol-editor/types";
 
 export function ProtocolPage() {
   const router = useRouter();
@@ -65,10 +63,8 @@ export function ProtocolPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [runtimeLog, setRuntimeLog] = useState<RuntimeExecutionLog | null>(null);
-  const [createNodeOpen, setCreateNodeOpen] = useState(false);
   const [flowNodes, setFlowNodes] = useState<FlowNode[]>([]);
   const [definitionForm, setDefinitionForm] = useState<Partial<ProtocolDefinition>>({});
-  const [newNodeForm, setNewNodeForm] = useState({ nodeType: "dialogue" as ProtocolNodeType, title: "", clinicalIntent: "", content: "" });
   const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<"question" | "nextStep" | "closingPath" | "generic", string>>>({});
   const reducedMotion = useReducedMotionPreference();
@@ -200,41 +196,6 @@ export function ProtocolPage() {
     onSuccess: (result) => {
       setRuntimeLog(result);
       toast.success("Runtime preview completed");
-    },
-  });
-
-  const createNodeMutation = useMutation({
-    mutationFn: () =>
-      createProtocolNode({
-        protocolId: "TBCT-BR-001",
-        sessionId: selectedSessionId,
-        nodeType: newNodeForm.nodeType,
-        title: newNodeForm.title || "New Node",
-        clinicalIntent: newNodeForm.clinicalIntent,
-        content: newNodeForm.content,
-        reason: "Manual node creation",
-      }),
-    onSuccess: async () => {
-      logProtocolAction("create node success", {
-        protocolId: "TBCT-BR-001",
-        sessionId: selectedSessionId,
-        nodeType: newNodeForm.nodeType,
-        title: newNodeForm.title || "New Node",
-      });
-      setCreateNodeOpen(false);
-      setNewNodeForm({ nodeType: "dialogue", title: "", clinicalIntent: "", content: "" });
-      toast.success("Protocol node created");
-      await refreshGraph();
-    },
-    onError: (error: unknown) => {
-      logProtocolAction("create node failed", {
-        protocolId: "TBCT-BR-001",
-        sessionId: selectedSessionId,
-        nodeType: newNodeForm.nodeType,
-        title: newNodeForm.title || "New Node",
-        error: String(error),
-      });
-      toast.error("Protocol node creation failed");
     },
   });
 
@@ -426,12 +387,7 @@ export function ProtocolPage() {
       <PageHeader
         title={t("protocolEditor.pageTitle")}
         description={t("protocolEditor.pageDescription")}
-        meta={
-          <>
-            <Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>
-            <SaveStatus state={saveState} />
-          </>
-        }
+        meta={<Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>}
         actions={
           <>
             <div className="flex flex-col gap-1">
@@ -446,7 +402,6 @@ export function ProtocolPage() {
                 ))}
               </select>
             </div>
-            <Button variant="secondary" onClick={() => setCreateNodeOpen(true)} disabled={immutableSourceView}><Plus className="h-4 w-4" />{t("protocolEditor.newStep")}</Button>
           </>
         }
       />
@@ -552,28 +507,6 @@ export function ProtocolPage() {
         </div>
       </Modal>
 
-      <Modal open={createNodeOpen} onClose={() => setCreateNodeOpen(false)} title="Create Protocol Node" description="Create a local graph node in the current session.">
-        <div className="grid gap-4 p-5">
-          <Field label="Node type">
-            <select value={newNodeForm.nodeType} onChange={(event) => setNewNodeForm((current) => ({ ...current, nodeType: event.target.value as ProtocolNodeType }))} className={inputClass}>
-              {nodeTypeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </Field>
-          <Field label="Title">
-            <input value={newNodeForm.title} onChange={(event) => setNewNodeForm((current) => ({ ...current, title: event.target.value }))} className={inputClass} />
-          </Field>
-          <Field label="Clinical Intent">
-            <textarea value={newNodeForm.clinicalIntent} onChange={(event) => setNewNodeForm((current) => ({ ...current, clinicalIntent: event.target.value }))} className={textareaClass} />
-          </Field>
-          <Field label="Content">
-            <textarea value={newNodeForm.content} onChange={(event) => setNewNodeForm((current) => ({ ...current, content: event.target.value }))} className={textareaClass} />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" onClick={() => setCreateNodeOpen(false)}>Cancel</Button>
-          <Button loading={createNodeMutation.isPending} onClick={() => createNodeMutation.mutate()}>Create node</Button>
-        </div>
-      </Modal>
     </AppShell>
   );
 }

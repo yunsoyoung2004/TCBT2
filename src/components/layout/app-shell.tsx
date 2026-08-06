@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
-import { DEMO_ACTORS, getCurrentDemoActor, setCurrentDemoActor } from "@/lib/demo-actor";
+import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const commandOpen = useStudioStore((state) => state.commandOpen);
   const setCommandOpen = useStudioStore((state) => state.setCommandOpen);
   const unsaved = useStudioStore((state) => state.unsaved);
-  const activeActorId = useStudioStore((state) => state.activeActorId);
   const activeActorRole = useStudioStore((state) => state.activeActorRole);
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
   const { locale, setLocale, t } = useT();
@@ -266,21 +265,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
-          <select
-            aria-label="Demo role switcher"
-            className="hidden h-9 w-[300px] shrink-0 rounded-panel border border-border bg-surface px-3 text-xs text-text-primary lg:block"
-            value={activeActorId}
-            onChange={(event) => {
-              setCurrentDemoActor(event.target.value);
-              setActiveActor(event.target.value);
-            }}
-          >
-            {DEMO_ACTORS.map((actor) => (
-              <option key={actor.id} value={actor.id}>
-                {actor.name} · {actor.role}
-              </option>
-            ))}
-          </select>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><HelpCircle className="h-4 w-4" /></Button>
           <button className="flex shrink-0 items-center gap-2 rounded-panel border border-border bg-surface px-2 py-1.5">
