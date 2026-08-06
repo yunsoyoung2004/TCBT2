@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Card, EmptyState, PageHeader, PageSkeleton, SectionHeader } from "@/components/ui/primitives";
 import { getRuntimeSession } from "@/lib/api/runtime-session-api";
+import { useT } from "@/lib/i18n/context";
 import type { RuntimeMessage, SessionExecutionLog } from "@/types/runtime-session";
 
 type StepStatus = "completed" | "current" | "notStarted";
@@ -19,12 +20,6 @@ const STEP_BADGE_TONE: Record<StepStatus, "success" | "primary" | "neutral"> = {
   completed: "success",
   current: "primary",
   notStarted: "neutral",
-};
-
-const STEP_LABEL: Record<StepStatus, string> = {
-  completed: "완료",
-  current: "진행중",
-  notStarted: "시작 전",
 };
 
 // Consecutive messages that share a nodeId are one "turn" -- the same node can
@@ -45,11 +40,23 @@ function groupMessagesByNode(messages: RuntimeMessage[], nodeTitleFor: (nodeId?:
 export function RuntimeInspectorPage() {
   const params = useParams<{ sessionId: string }>();
   const pathname = usePathname();
+  const { t } = useT();
   const sessionId = (Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId) ?? pathname.split("/").filter(Boolean).at(-1) ?? "";
   const sessionQuery = useQuery({ queryKey: ["runtime-inspector", sessionId], queryFn: () => getRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   if (sessionQuery.isLoading) return <AppShell><PageSkeleton /></AppShell>;
-  if (!sessionQuery.data) return <AppShell><Card className="m-4 lg:m-6"><EmptyState title="Runtime session not found" /></Card></AppShell>;
+  if (!sessionQuery.data) return <AppShell><Card className="m-4 lg:m-6"><EmptyState title={t("runtimeInspector.notFound")} /></Card></AppShell>;
   const { session, messages, logs, escalations, providerEvents, validationEvents, nodes, edges, memoryRetrievalRuns, memoryUsageLogs } = sessionQuery.data;
+  const STEP_LABEL: Record<StepStatus, string> = {
+    completed: t("runtimeInspector.step.completed"),
+    current: t("runtimeInspector.step.current"),
+    notStarted: t("runtimeInspector.step.notStarted"),
+  };
+  const ROLE_LABEL: Record<string, string> = {
+    assistant: t("runtimeInspector.role.program"),
+    patient: t("runtimeInspector.role.you"),
+    clinician: t("runtimeInspector.role.clinician"),
+    system: t("runtimeInspector.role.system"),
+  };
 
   // The release can hold nodes for every session in the program -- only this
   // session's steps belong on the progress path.
@@ -82,14 +89,14 @@ export function RuntimeInspectorPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Stage 2 + Stage 3 Runtime Inspector"
-        title={`Runtime Session ${session.patientAlias}`}
-        description="Runtime state, provider events, output validation, memory retrieval, and execution log are shown from the same local runtime data."
+        eyebrow={t("runtimeInspector.eyebrow")}
+        title={t("runtimeInspector.title", { alias: session.patientAlias })}
+        description={t("runtimeInspector.description")}
         meta={<><Badge tone="primary">{session.status}</Badge><Badge tone="neutral">{session.protocolVersion}</Badge><Badge tone="warning">{session.sessionDefinitionId}</Badge></>}
       />
       <div className="space-y-4 p-4 lg:p-6">
         <Card className="p-4">
-          <SectionHeader title="Protocol Path" description="How far through this session the patient has progressed, step by step." />
+          <SectionHeader title={t("runtimeInspector.protocolPath.title")} description={t("runtimeInspector.protocolPath.description")} />
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {sessionNodes.map((node, index) => {
               const status = stepStatus(index);
@@ -101,9 +108,9 @@ export function RuntimeInspectorPage() {
                     <Badge tone={STEP_BADGE_TONE[status]}>{STEP_LABEL[status]}</Badge>
                   </div>
                   <div className="mt-1 text-xs text-text-secondary">{node.type}</div>
-                  <div className="mt-2 text-[11px] text-text-muted">{visitCount > 0 ? `${visitCount}번 응답함` : "아직 응답 없음"}</div>
+                  <div className="mt-2 text-[11px] text-text-muted">{visitCount > 0 ? t("runtimeInspector.step.respondedCount", { count: visitCount }) : t("runtimeInspector.step.noResponse")}</div>
                   <div className="mt-2 text-[11px] text-text-muted">
-                    Next: {edges.filter((edge) => edge.source === node.id).map((edge) => edge.target).join(", ") || "end"}
+                    {t("runtimeInspector.step.next")}: {edges.filter((edge) => edge.source === node.id).map((edge) => edge.target).join(", ") || "end"}
                   </div>
                 </div>
               );
@@ -112,7 +119,7 @@ export function RuntimeInspectorPage() {
         </Card>
 
         <Card className="overflow-hidden">
-          <SectionHeader title="Conversation & Execution Log" description="Each turn's patient-visible message lined up against the runtime steps it triggered." />
+          <SectionHeader title={t("runtimeInspector.conversationLog.title")} description={t("runtimeInspector.conversationLog.description")} />
           <div className="divide-y divide-border">
             {timelineRows.map((row, rowIndex) => {
               if (row.kind === "sessionEvent") {
@@ -137,7 +144,7 @@ export function RuntimeInspectorPage() {
                     <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">{group.nodeTitle}</div>
                     {group.messages.map((message) => (
                       <div key={message.id} className={`max-w-[95%] rounded-panel border px-3 py-2 ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : message.role === "clinician" ? "border-success bg-success-light/50" : "border-border bg-surface"}`}>
-                        <div className="text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role === "clinician" ? "Clinician" : "System"}</div>
+                        <div className="text-[11px] font-semibold text-text-muted">{ROLE_LABEL[message.role] ?? message.role}</div>
                         <div className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary">{message.content}</div>
                         <div className="mt-1 text-[10px] text-text-muted">{new Date(message.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST</div>
                       </div>
@@ -154,56 +161,56 @@ export function RuntimeInspectorPage() {
                         <div className="mt-1 text-sm text-text-primary">{log.summary}</div>
                       </div>
                     )) : (
-                      <div className="text-xs text-text-secondary">No execution log for this step.</div>
+                      <div className="text-xs text-text-secondary">{t("runtimeInspector.conversationLog.noLog")}</div>
                     )}
                   </div>
                 </div>
               );
             })}
-            {!timelineRows.length && <EmptyState title="No conversation recorded yet." />}
+            {!timelineRows.length && <EmptyState title={t("runtimeInspector.conversationLog.noConversation")} />}
           </div>
         </Card>
 
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
           <Card className="p-4">
-            <SectionHeader title="Safety" description="Escalation and safety results." />
+            <SectionHeader title={t("runtimeInspector.safety.title")} description={t("runtimeInspector.safety.description")} />
             <div className="mt-4 space-y-2">
-              {escalations.length ? escalations.map((item) => <Metric key={item.id} label={item.severity} value={item.triggerSummary} />) : <div className="text-xs text-text-secondary">No escalation recorded.</div>}
+              {escalations.length ? escalations.map((item) => <Metric key={item.id} label={item.severity} value={item.triggerSummary} />) : <div className="text-xs text-text-secondary">{t("runtimeInspector.safety.none")}</div>}
             </div>
           </Card>
           <Card className="p-4">
-            <SectionHeader title="Provider" description="Language provider events." />
+            <SectionHeader title={t("runtimeInspector.provider.title")} description={t("runtimeInspector.provider.description")} />
             <div className="mt-4 space-y-2">
-              {providerEvents.length ? providerEvents.map((event) => <Metric key={event.id} label={event.provider} value={`${event.model} · ${event.latencyMs ?? 0}ms`} />) : <div className="text-xs text-text-secondary">No provider event yet.</div>}
+              {providerEvents.length ? providerEvents.map((event) => <Metric key={event.id} label={event.provider} value={`${event.model} · ${event.latencyMs ?? 0}ms`} />) : <div className="text-xs text-text-secondary">{t("runtimeInspector.provider.none")}</div>}
             </div>
           </Card>
           <Card className="p-4">
-            <SectionHeader title="Output Validation" description="Output validator results." />
+            <SectionHeader title={t("runtimeInspector.outputValidation.title")} description={t("runtimeInspector.outputValidation.description")} />
             <div className="mt-4 space-y-2">
-              {validationEvents.length ? validationEvents.map((event) => <Metric key={event.id} label={event.accepted ? "accepted" : "fallback"} value={event.issues.join(", ") || "clean"} />) : <div className="text-xs text-text-secondary">No validation event yet.</div>}
+              {validationEvents.length ? validationEvents.map((event) => <Metric key={event.id} label={event.accepted ? t("runtimeInspector.outputValidation.accepted") : t("runtimeInspector.outputValidation.fallback")} value={event.issues.join(", ") || t("runtimeInspector.outputValidation.clean")} />) : <div className="text-xs text-text-secondary">{t("runtimeInspector.outputValidation.none")}</div>}
             </div>
           </Card>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
           <Card className="p-4">
-            <SectionHeader title="Memory" description="Selective retrieval result, exclusions, and injection trace." />
+            <SectionHeader title={t("runtimeInspector.memory.title")} description={t("runtimeInspector.memory.description")} />
             <div className="mt-4 space-y-3">
               {(memoryRetrievalRuns ?? []).map((run) => (
                 <div key={run.id} className="rounded-panel border border-border p-3">
-                  <div className="text-xs font-semibold text-text-muted">Run {run.id}</div>
-                  <div className="mt-1 text-sm text-text-primary">Selected {run.selectedMemoryIds.length} of {run.candidatesEvaluated}</div>
+                  <div className="text-xs font-semibold text-text-muted">{t("runtimeInspector.memory.run", { id: run.id })}</div>
+                  <div className="mt-1 text-sm text-text-primary">{t("runtimeInspector.memory.selected", { selected: run.selectedMemoryIds.length, evaluated: run.candidatesEvaluated })}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {run.selectedMemoryIds.map((memoryId) => <Badge key={memoryId} tone="primary">{memoryId}</Badge>)}
                   </div>
-                  <div className="mt-2 text-xs text-text-secondary">{run.excluded.slice(0, 3).map((item) => `${item.memoryId}: ${item.reason}`).join(" · ") || "No exclusions"}</div>
+                  <div className="mt-2 text-xs text-text-secondary">{run.excluded.slice(0, 3).map((item) => `${item.memoryId}: ${item.reason}`).join(" · ") || t("runtimeInspector.memory.noExclusions")}</div>
                 </div>
               ))}
-              {!memoryRetrievalRuns?.length && <div className="text-xs text-text-secondary">No retrieval run recorded yet.</div>}
+              {!memoryRetrievalRuns?.length && <div className="text-xs text-text-secondary">{t("runtimeInspector.memory.none")}</div>}
             </div>
           </Card>
           <Card className="p-4">
-            <SectionHeader title="Memory Usage" description="Retrieval and injection usage logs." />
+            <SectionHeader title={t("runtimeInspector.memoryUsage.title")} description={t("runtimeInspector.memoryUsage.description")} />
             <div className="mt-4 space-y-2">
               {(memoryUsageLogs ?? []).map((item) => (
                 <div key={item.id} className="rounded-panel border border-border p-3">
@@ -211,7 +218,7 @@ export function RuntimeInspectorPage() {
                   <div className="mt-1 text-sm text-text-primary">{item.reason}</div>
                 </div>
               ))}
-              {!memoryUsageLogs?.length && <div className="text-xs text-text-secondary">No memory usage log yet.</div>}
+              {!memoryUsageLogs?.length && <div className="text-xs text-text-secondary">{t("runtimeInspector.memoryUsage.none")}</div>}
             </div>
           </Card>
         </div>

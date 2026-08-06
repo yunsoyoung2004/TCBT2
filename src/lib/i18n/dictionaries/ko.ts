@@ -177,6 +177,21 @@ const ko = {
       notesHeading: "임상 메모",
     },
   },
+  runtimeInspector: {
+    eyebrow: "2·3단계 런타임 인스펙터",
+    title: "런타임 세션 {alias}",
+    description: "런타임 상태, provider 이벤트, 출력 검증, 메모리 조회, 실행 로그를 같은 로컬 런타임 데이터로 보여줍니다.",
+    notFound: "런타임 세션을 찾을 수 없습니다",
+    protocolPath: { title: "진행 경로", description: "환자가 이 세션에서 단계별로 어디까지 진행했는지 보여줍니다." },
+    step: { completed: "완료", current: "진행중", notStarted: "시작 전", respondedCount: "{count}번 응답함", noResponse: "아직 응답 없음", next: "다음" },
+    conversationLog: { title: "대화 & 실행 로그", description: "각 턴의 참여자용 메시지와 그 턴이 발생시킨 런타임 단계를 나란히 보여줍니다.", noLog: "이 단계에 대한 실행 로그가 없습니다.", noConversation: "아직 기록된 대화가 없습니다." },
+    role: { program: "프로그램", you: "참여자", clinician: "임상의", system: "시스템" },
+    safety: { title: "안전", description: "에스컬레이션과 안전 결과.", none: "기록된 에스컬레이션이 없습니다." },
+    provider: { title: "Provider", description: "언어 provider 이벤트.", none: "아직 provider 이벤트가 없습니다." },
+    outputValidation: { title: "출력 검증", description: "출력 검증기 결과.", none: "아직 검증 이벤트가 없습니다.", accepted: "승인됨", fallback: "대체 사용", clean: "문제 없음" },
+    memory: { title: "메모리", description: "선택적 조회 결과, 제외 항목, 주입 추적.", run: "실행 {id}", selected: "{evaluated}개 중 {selected}개 선택", noExclusions: "제외 항목 없음", none: "아직 기록된 조회 실행이 없습니다." },
+    memoryUsage: { title: "메모리 사용", description: "조회 및 주입 사용 로그.", none: "아직 메모리 사용 로그가 없습니다." },
+  },
 } as const;
 
 export default ko;

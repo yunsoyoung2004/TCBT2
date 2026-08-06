@@ -177,6 +177,21 @@ const en = {
       notesHeading: "Clinical notes",
     },
   },
+  runtimeInspector: {
+    eyebrow: "Stage 2 + Stage 3 Runtime Inspector",
+    title: "Runtime Session {alias}",
+    description: "Runtime state, provider events, output validation, memory retrieval, and execution log are shown from the same local runtime data.",
+    notFound: "Runtime session not found",
+    protocolPath: { title: "Protocol Path", description: "How far through this session the patient has progressed, step by step." },
+    step: { completed: "Completed", current: "In progress", notStarted: "Not started", respondedCount: "Responded {count} time(s)", noResponse: "No response yet", next: "Next" },
+    conversationLog: { title: "Conversation & Execution Log", description: "Each turn's patient-visible message lined up against the runtime steps it triggered.", noLog: "No execution log for this step.", noConversation: "No conversation recorded yet." },
+    role: { program: "Program", you: "You", clinician: "Clinician", system: "System" },
+    safety: { title: "Safety", description: "Escalation and safety results.", none: "No escalation recorded." },
+    provider: { title: "Provider", description: "Language provider events.", none: "No provider event yet." },
+    outputValidation: { title: "Output Validation", description: "Output validator results.", none: "No validation event yet.", accepted: "accepted", fallback: "fallback", clean: "clean" },
+    memory: { title: "Memory", description: "Selective retrieval result, exclusions, and injection trace.", run: "Run {id}", selected: "Selected {selected} of {evaluated}", noExclusions: "No exclusions", none: "No retrieval run recorded yet." },
+    memoryUsage: { title: "Memory Usage", description: "Retrieval and injection usage logs.", none: "No memory usage log yet." },
+  },
 } as const;
 
 export default en;
