@@ -31,12 +31,11 @@ function baseContract(overrides: Partial<DialogueContract> = {}): DialogueContra
 }
 
 describe("dialogue agent scope", () => {
-  it("is enabled for Sessions 1-3 only", () => {
-    expect(isDialogueAgentEnabled("tbct-s01")).toBe(true);
-    expect(isDialogueAgentEnabled("tbct-s02")).toBe(true);
-    expect(isDialogueAgentEnabled("tbct-s03")).toBe(true);
-    expect(isDialogueAgentEnabled("tbct-s04")).toBe(false);
-    expect(isDialogueAgentEnabled("tbct-s06")).toBe(false);
+  it("is enabled for all eight sessions", () => {
+    for (const id of ["tbct-s01", "tbct-s02", "tbct-s03", "tbct-s04", "tbct-s05", "tbct-s06", "tbct-s07", "tbct-s08"]) {
+      expect(isDialogueAgentEnabled(id)).toBe(true);
+    }
+    expect(isDialogueAgentEnabled("tbct-s09")).toBe(false);
   });
 });
 

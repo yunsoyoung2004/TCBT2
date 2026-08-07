@@ -6,13 +6,12 @@ import { callDialogueAgent } from "@/lib/dialogue-agent/dialogue-agent-client";
 import { validateDialogueDecision } from "@/lib/dialogue-agent/dialogue-output-validator";
 import type { DialogueDecision } from "@/lib/dialogue-agent/dialogue-agent-contract";
 
-// Expanded from the S03-only pilot to Sessions 1-3, per the "dialogue
-// expansion first" scoping decision -- the branching/revision system
-// (Part 16-17/28 of the follow-up spec) is intentionally NOT built yet, so
-// this stays capped at S01-S03 until that separate piece of work lands.
-// Add a session here only after it's been through the same verification
-// pass these three got.
-const DIALOGUE_AGENT_ENABLED_SESSIONS = new Set(["tbct-s01", "tbct-s02", "tbct-s03"]);
+// Expanded from the S01-S03 rollout to all eight sessions. The
+// branching/revision system is still intentionally NOT built -- see
+// revision_request handling in dialogue-contract-compiler.ts /
+// anthropic-dialogue-agent.ts, which stays session-agnostic (honest,
+// worksheetEditAvailable-gated response) regardless of this set's size.
+const DIALOGUE_AGENT_ENABLED_SESSIONS = new Set(["tbct-s01", "tbct-s02", "tbct-s03", "tbct-s04", "tbct-s05", "tbct-s06", "tbct-s07", "tbct-s08"]);
 
 export function isDialogueAgentEnabled(sessionDefinitionId: string) {
   return DIALOGUE_AGENT_ENABLED_SESSIONS.has(sessionDefinitionId);
