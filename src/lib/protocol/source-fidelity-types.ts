@@ -90,6 +90,13 @@ export type ClinicalStageNode = {
   type: string;
   clinicalPurpose: string;
   objective?: string;
+  /** Short (1-2 sentence), participant-facing "why this step matters" text,
+   * paraphrased from this node's own clinicalPurpose/objective -- not new
+   * clinical content. Optional: only populated for nodes where an
+   * unfamiliar or abstract task benefits from an explicit rationale before
+   * or during the exercise (dialogue-agent spec Part 8). Absent on most
+   * nodes; the dialogue agent falls back to therapeuticObjective alone. */
+  participantRationale?: string;
   speakerRoleId?: string;
   entryCondition?: ConditionExpression;
   completionCondition?: ConditionExpression;

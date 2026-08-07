@@ -6,19 +6,42 @@ import { callDialogueAgent } from "@/lib/dialogue-agent/dialogue-agent-client";
 import { validateDialogueDecision } from "@/lib/dialogue-agent/dialogue-output-validator";
 import type { DialogueDecision } from "@/lib/dialogue-agent/dialogue-agent-contract";
 
-// Pilot scope (feedback v2's dialogue-agent spec): S03 only, confirmed with
-// the user before implementation. Add a session here only after it's been
-// through the same verification pass this one got.
-const DIALOGUE_AGENT_ENABLED_SESSIONS = new Set(["tbct-s03"]);
+// Expanded from the S03-only pilot to Sessions 1-3, per the "dialogue
+// expansion first" scoping decision -- the branching/revision system
+// (Part 16-17/28 of the follow-up spec) is intentionally NOT built yet, so
+// this stays capped at S01-S03 until that separate piece of work lands.
+// Add a session here only after it's been through the same verification
+// pass these three got.
+const DIALOGUE_AGENT_ENABLED_SESSIONS = new Set(["tbct-s01", "tbct-s02", "tbct-s03"]);
 
 export function isDialogueAgentEnabled(sessionDefinitionId: string) {
   return DIALOGUE_AGENT_ENABLED_SESSIONS.has(sessionDefinitionId);
 }
 
+/** Safety-critical turns never go through Claude, in either direction: not
+ * the question ("how are you doing today") and not the crisis-pause
+ * instruction. Risk disposition and its wording stay fully deterministic
+ * regardless of session enablement -- this is checked independently of
+ * isDialogueAgentEnabled so it also protects S04-S08 if those are ever
+ * added to the set above without someone re-deriving this rule. */
+function isSafetyCriticalPrompt(promptItem: PromptItem) {
+  if ((promptItem.safetyRuleIds?.length ?? 0) > 0) return true;
+  const validation = promptItem.validation as { kind?: unknown } | null;
+  return validation?.kind === "safety_check";
+}
+
 export type DialogueAgentTurnResult = {
   patientMessage: string;
   decision: DialogueDecision | null;
+  // True only when Claude was actually consulted and its output had to be
+  // discarded (transport failure or failed validation) -- NOT true for
+  // excludedBySafety, where the deterministic text is the correct, intended
+  // output by design, not a degraded substitute. Callers that count
+  // "fallback turns" as a quality signal (e.g. the simulated-patient audit)
+  // depend on this distinction: an always-deterministic safety turn is not
+  // a quality regression.
   usedFallback: boolean;
+  excludedBySafety?: boolean;
   fallbackReason?: string;
   provider: string;
   model?: string;
@@ -45,7 +68,11 @@ export async function resolveDialogueAgentMessage(input: {
   clarificationAttemptCount: number;
   turnId: string;
   deterministicFallbackText: string;
+  currentTaskTextOverride?: string;
 }): Promise<DialogueAgentTurnResult> {
+  if (isSafetyCriticalPrompt(input.sourcePromptItem)) {
+    return { patientMessage: input.deterministicFallbackText, decision: null, usedFallback: false, excludedBySafety: true, fallbackReason: "safety_critical_prompt_excluded", provider: "deterministic" };
+  }
   const contract = compileDialogueContract({
     session: input.session,
     node: input.node,
@@ -54,6 +81,7 @@ export async function resolveDialogueAgentMessage(input: {
     lastParticipantMessage: input.lastParticipantMessage,
     recentMessages: input.recentMessages,
     clarificationAttemptCount: input.clarificationAttemptCount,
+    currentTaskTextOverride: input.currentTaskTextOverride,
   });
 
   const result = await callDialogueAgent(contract, { sessionId: input.session.id, turnId: input.turnId });

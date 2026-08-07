@@ -73,6 +73,9 @@ type NodeSpec = {
   prompts: PromptSpec[];
   nextSlug?: string | null;
   terminal?: boolean;
+  /** See ClinicalStageNode.participantRationale. Only set on nodes where a
+   * brief "why this step" line materially helps comprehension. */
+  participantRationale?: string;
 };
 
 type EdgeSpec = {
@@ -382,6 +385,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
       title: node.title,
       type: node.type,
       clinicalPurpose: sourceText(node.source),
+      participantRationale: node.participantRationale,
       position: { x: 180 + (index % 2) * 340, y: 100 + index * 190 },
       promptItemIds: promptItems.filter((item) => item.nodeId === node.id).map((item) => item.id),
       requiredFields: node.requiredFields ?? [],
@@ -504,6 +508,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [66, 74],
         requiredFields: ["situationThoughtDistinction"],
         restrictions: [sourceText([66, 74])],
+        participantRationale: "This helps separate what actually happened from the thought your mind added about it — that difference is the foundation the rest of this program builds on.",
         prompts: [
           { slug: "situation-or-thought", type: "clarification", source: [66, 74], marker: "That's interesting", outputFields: ["situationThoughtDistinction"] },
           { slug: "personal-example-redirect", type: "transition", source: [73, 74], marker: "That's a great example", completionEffect: { type: "redirect_to_three_person_example" } },
@@ -516,6 +521,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [75, 85],
         requiredFields: ["threePersonPreviewComplete"],
         restrictions: [sourceText([75, 85])],
+        participantRationale: "Three people hearing the exact same words can react in completely different ways. Walking through their reactions makes it easier to see how a thought, not just what happened, shapes how someone feels and acts.",
         prompts: [
           { slug: "preview-candidates", type: "explanation", source: [75, 85], marker: "I'm going to walk you through three different people", outputFields: ["threePersonPreviewComplete"] },
           {
@@ -643,6 +649,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [145, 155],
         requiredFields: ["distortionListAvailable", "participantSelectedDistortions"],
         restrictions: [sourceText([145, 155])],
+        participantRationale: "Automatic thoughts often follow a handful of common patterns. Naming the pattern in your own thought makes it easier to question later, rather than just having it feel automatically true.",
         prompts: [
           { slug: "confirm-list", type: "question", source: [145, 155], marker: "Do you have the cognitive distortions list", outputFields: ["distortionListAvailable"], validation: { kind: "boolean" } },
           { slug: "read-distortions", type: "instruction", source: [145, 155], marker: "These negative automatic thoughts", outputFields: ["participantSelectedDistortions"], validation: { kind: "min_items", minItems: 2, maxItems: 3 } },
@@ -693,6 +700,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [263, 279],
         requiredFields: ["problems"],
         restrictions: [sourceText([263, 279])],
+        participantRationale: "Naming problems clearly, one at a time, makes it possible to track and work on each one instead of feeling weighed down by everything at once.",
         prompts: [
           { slug: "problem-framing", type: "question", source: [263, 279], marker: "Over the next five or six months", outputFields: ["problems"], validation: { kind: "array", minItems: 1, maxItems: 5 } },
           { slug: "problem-home-work-relationships", type: "follow_up", source: [263, 279], marker: "Is there anything going on at home", outputFields: ["problems"] },
@@ -723,6 +731,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [294, 313],
         requiredFields: ["problemScalePresented"],
         restrictions: [sourceText([294, 313])],
+        participantRationale: "Rating each problem helps us see which ones matter most right now, so we know where to focus first.",
         prompts: [
           { slug: "rating-card-check", type: "question", source: [294, 313], marker: "Do you have the rating scale card", outputFields: ["problemScaleCardAvailable"] },
           { slug: "six-anchor-problem-scale", type: "instruction", source: [294, 313], marker: "Now I'll ask you to rate each problem", outputFields: ["problemScalePresented"], validation: { kind: "exact_scale_anchors", min: 0, max: 5 } },
@@ -783,6 +792,7 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         source: [334, 350],
         requiredFields: ["goals"],
         restrictions: [sourceText([334, 350])],
+        participantRationale: "Naming what you're working toward, not just what's wrong, gives therapy a direction to move in rather than only a list of things to fix.",
         prompts: [
           { slug: "goal-framing", type: "question", source: [334, 350], marker: "Over the next five or six months, if therapy goes really well", outputFields: ["goals"], validation: { kind: "array", minItems: 1, maxItems: 5 } },
           { slug: "goal-life-change", type: "follow_up", source: [334, 350], marker: "If therapy goes really well, what would be different", outputFields: ["goals"] },

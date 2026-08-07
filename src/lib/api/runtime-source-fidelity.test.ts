@@ -211,7 +211,11 @@ describe("canonical source-fidelity runtime", () => {
     expect([...active?.messages ?? []].reverse().find((message) => message.role === "assistant")?.promptItemId).toBe(promptItem?.id);
     expect(active?.promptItems.some((item) => item.id === promptItem?.id)).toBe(true);
     expect(active?.release.immutableSnapshot.nodes.some((node) => node.id.startsWith("RT-NODE-"))).toBe(false);
-    expect(active?.providerEvents.every((event) => event.provider === "deterministic")).toBe(true);
+    // tbct-s01 now routes non-safety-critical turns through the dialogue
+    // agent (see dialogue-agent-orchestrator.ts); in this test environment
+    // that resolves to the intercepted fake ("mock"), never a real
+    // "anthropic" call, even with AI_PROVIDER=anthropic set above.
+    expect(active?.providerEvents.every((event) => event.provider === "deterministic" || event.provider === "mock")).toBe(true);
     expect("release" in (patientView ?? {})).toBe(false);
     expect(patientView?.currentPromptInput && "aiInstruction" in patientView.currentPromptInput).toBe(false);
     expect(patientView?.messages.some((message) => message.id === "internal-system-message")).toBe(false);

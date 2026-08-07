@@ -1,0 +1,214 @@
+import { describe, expect, it } from "vitest";
+import { CANONICAL_PROMPT_ITEMS, CANONICAL_STAGE_NODES } from "@/lib/protocol/source-fidelity-catalog";
+import { compileDialogueContract } from "@/lib/dialogue-agent/dialogue-contract-compiler";
+import { resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
+import { fakeDialogueDecision } from "@/test/fakes/dialogue-agent.fake";
+import { validateDialogueDecision } from "@/lib/dialogue-agent/dialogue-output-validator";
+import type { RuntimeSession } from "@/types/runtime-session";
+import type { RuntimePromptItem } from "@/types/protocol-runtime";
+
+// Sessions 1-2 have no worksheet-binding registry entry (only tbct-s03 does)
+// -- these tests exercise dialogue-contract-compiler.ts's GENERIC fallback
+// classification (derived from PromptItem.validation + field-name shape),
+// which is what every S01/S02 field actually relies on, rather than the
+// exact-match S03 binding table this pilot originally covered.
+
+function minimalSession(overrides: Partial<RuntimeSession> = {}): RuntimeSession {
+  return {
+    id: "session-1",
+    projectId: "TBCT-BR-001",
+    protocolId: "tbct-br-001",
+    protocolVersion: "1",
+    releaseId: "release-1",
+    sessionDefinitionId: "tbct-s01",
+    participantId: "participant-1",
+    status: "waiting_for_input",
+    patientAlias: "Synthetic",
+    locale: "en-US",
+    runtimeContext: { fields: {}, riskSignals: [], iterationCounts: {} },
+    ...overrides,
+  } as RuntimeSession;
+}
+
+function minimalRuntimePromptItem(overrides: Partial<RuntimePromptItem> = {}): RuntimePromptItem {
+  return {
+    id: "runtime-prompt-1",
+    nodeId: "node-1",
+    roleId: "tbct_guide",
+    scope: "node",
+    sequenceIndex: 1,
+    executionMode: "serial",
+    modelGuidance: "",
+    fallbackPatientText: "What went through your mind in that moment?",
+    completionCondition: { kind: "always" },
+    allowedActions: ["ask"],
+    forbiddenActions: [],
+    requiredFields: [],
+    validationRules: [],
+    maxAttempts: 3,
+    requiresPatientInput: true,
+    outputSchemaVersion: "1",
+    ...overrides,
+  };
+}
+
+describe("dialogue contract compiler: generic classification (S01/S02, no worksheet bindings)", () => {
+  it("marks a real content field (candidateOneThought) as participant-owned and assistantMustNotSupply", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;
+    expect(node).toBeDefined();
+    expect(promptItem).toBeDefined();
+
+    const contract = compileDialogueContract({
+      session: minimalSession(),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id, fallbackPatientText: promptItem.fallbackPatientText ?? "What comes to mind?" }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+
+    expect(contract.targetField).toBe("candidateOneThought");
+    expect(contract.participantOwned).toBe(true);
+    expect(contract.assistantMustNotSupply).toBe(true);
+    expect(contract.worksheetEditAvailable).toBe(false);
+    // Pattern-based terminology should recognize "Thought" in the field name
+    // even though this exact field name never appears in S03's map.
+    expect(contract.expectedConstruct).toContain("thought");
+  });
+
+  it("marks an administrative gate field (distortionListAvailable) as not participant-owned", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Cognitive Distortions"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("confirm-list"))!;
+    expect(promptItem.outputFields).toContain("distortionListAvailable");
+
+    const contract = compileDialogueContract({
+      session: minimalSession(),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+
+    expect(contract.participantOwned).toBe(false);
+    expect(contract.assistantMustNotSupply).toBe(false);
+    expect(contract.expectedInputType).toBe("yes_no");
+  });
+
+  it("derives a 0-5 scale from a S02 rating validation kind (max 5), not the S03 percentage scale", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s02" && item.title.includes("Rate Each Problem"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("reflect-problem-score"))!;
+
+    const contract = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s02" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+
+    expect(contract.expectedInputType).toBe("integer_0_5");
+    expect(contract.scaleExplanation).toMatch(/0 means/);
+    expect(contract.scaleExplanation).not.toContain("100");
+  });
+
+  it("carries the node's participantRationale through to the contract", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+
+    const contract = compileDialogueContract({
+      session: minimalSession(),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+
+    expect(contract.participantRationale).toContain("separate what actually happened");
+  });
+});
+
+describe("safety-critical prompts are excluded from the dialogue agent", () => {
+  it("never calls Claude for the S03 safety-check prompt, and does not count as a fallback", async () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s03" && item.title === "Safety Protocol")!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("safety-check"))!;
+    expect(promptItem.safetyRuleIds.length).toBeGreaterThan(0);
+
+    const result = await resolveDialogueAgentMessage({
+      session: minimalSession({ sessionDefinitionId: "tbct-s03" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id, fallbackPatientText: "Before we start, how are you doing today?" }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+      turnId: "turn-1",
+      deterministicFallbackText: "Before we start, how are you doing today?",
+    });
+
+    expect(result.decision).toBeNull();
+    expect(result.usedFallback).toBe(false);
+    expect(result.excludedBySafety).toBe(true);
+    expect(result.patientMessage).toBe("Before we start, how are you doing today?");
+  });
+});
+
+describe("revision_request: honest handling depends on worksheetEditAvailable", () => {
+  it("points to the real worksheet-edit path when the session has one (S03)", () => {
+    const contract = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s03" }),
+      node: CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s03" && item.id.includes("q1"))!,
+      sourcePromptItem: CANONICAL_PROMPT_ITEMS.find((item) => item.sessionId === "tbct-s03" && item.outputFields.includes("situation"))!,
+      runtimePromptItem: minimalRuntimePromptItem({}),
+      lastParticipantMessage: "Actually, can I go back and change what I said earlier?",
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+    expect(contract.worksheetEditAvailable).toBe(true);
+    const decision = fakeDialogueDecision(contract);
+    expect(decision.participantResponseState).toBe("revision_request");
+    expect(decision.patientFacingMessage).toContain("edit");
+    expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: true });
+  });
+
+  it("says plainly that it isn't automated yet when the session has no worksheet (S01)", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+    const contract = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s01" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      lastParticipantMessage: "I want to change my earlier answer.",
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+    expect(contract.worksheetEditAvailable).toBe(false);
+    const decision = fakeDialogueDecision(contract);
+    expect(decision.participantResponseState).toBe("revision_request");
+    expect(decision.patientFacingMessage).toMatch(/isn't automated|don't have a way/);
+    expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: true });
+  });
+});
+
+describe("explain_rationale: answers 'why are you asking this' using the node's own rationale", () => {
+  it("uses participantRationale instead of the generic objective-based repair when one exists", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+    const contract = compileDialogueContract({
+      session: minimalSession(),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      lastParticipantMessage: "Why are you asking me this?",
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+    });
+    const decision = fakeDialogueDecision(contract);
+    expect(decision.responseType).toBe("explain_rationale");
+    expect(decision.patientFacingMessage).toContain("separate what actually happened");
+    expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: true });
+  });
+});

@@ -18,6 +18,7 @@ function baseContract(overrides: Partial<DialogueContract> = {}): DialogueContra
     expectedInputType: "free_text",
     participantOwned: true,
     assistantMustNotSupply: false,
+    worksheetEditAvailable: true,
     confirmedState: { situation: "My partner did not reply to my messages yesterday afternoon." },
     allowedActions: ["brief_reflection", "ask_current_task", "clarify_current_task"],
     forbiddenActions: ["advance_protocol", "supply_participant_answer"],
@@ -29,10 +30,12 @@ function baseContract(overrides: Partial<DialogueContract> = {}): DialogueContra
   };
 }
 
-describe("dialogue agent pilot scope", () => {
-  it("is enabled for tbct-s03 only", () => {
+describe("dialogue agent scope", () => {
+  it("is enabled for Sessions 1-3 only", () => {
+    expect(isDialogueAgentEnabled("tbct-s01")).toBe(true);
+    expect(isDialogueAgentEnabled("tbct-s02")).toBe(true);
     expect(isDialogueAgentEnabled("tbct-s03")).toBe(true);
-    expect(isDialogueAgentEnabled("tbct-s01")).toBe(false);
+    expect(isDialogueAgentEnabled("tbct-s04")).toBe(false);
     expect(isDialogueAgentEnabled("tbct-s06")).toBe(false);
   });
 });

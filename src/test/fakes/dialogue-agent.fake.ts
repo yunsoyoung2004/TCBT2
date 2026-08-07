@@ -35,12 +35,20 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
     };
   }
   if (/\bwhy (?:are you|do you) ask|why does this matter|왜 물어/i.test(lower)) {
-    return {
-      responseType: "repair",
-      patientFacingMessage: `This helps us ${contract.therapeuticObjective.toLowerCase()} ${contract.currentTaskText}`,
-      keepCurrentNode: true,
-      participantResponseState: "participant_question",
-    };
+    return contract.participantRationale
+      ? {
+          responseType: "explain_rationale",
+          patientFacingMessage: `${contract.participantRationale} ${contract.currentTaskText}`,
+          keepCurrentNode: true,
+          participantResponseState: "participant_question",
+          explanationDepth: "standard",
+        }
+      : {
+          responseType: "repair",
+          patientFacingMessage: `This helps us ${contract.therapeuticObjective.toLowerCase()} ${contract.currentTaskText}`,
+          keepCurrentNode: true,
+          participantResponseState: "participant_question",
+        };
   }
   if (/\bpercent|score|number|scale\?/i.test(lower) && contract.scaleExplanation) {
     return {
@@ -52,6 +60,16 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
   }
   if (/\bpause|stop for now|i need a break|잠깐만/i.test(lower)) {
     return { responseType: "acknowledge_pause", patientFacingMessage: "Of course — we can pause here.", keepCurrentNode: true, participantResponseState: "pause_request" };
+  }
+  if (/\b(i answered that wrong|can i (?:go back|change)|i want to change|correct (?:my|an) (?:earlier|previous) answer|다시 바꾸고 싶어요)\b/i.test(lower)) {
+    return {
+      responseType: contract.worksheetEditAvailable ? "restore_context" : "clarify",
+      patientFacingMessage: contract.worksheetEditAvailable
+        ? "Of course — you can edit that directly, and I'll use your updated answer from here on."
+        : "I hear you. I don't have a way to change that earlier answer automatically in this conversation yet, but let's continue and you can tell me the correction.",
+      keepCurrentNode: true,
+      participantResponseState: "revision_request",
+    };
   }
   return {
     responseType: "reflect_and_ask",

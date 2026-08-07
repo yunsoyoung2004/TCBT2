@@ -74,30 +74,32 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
     safetyContext: { activeSafetyRuleIds: input.activeStep.node.safetyRuleIds, currentSafetyStatus: input.session.status },
   });
   const staticMessage = resolveStaticPatientMessage(input.sourcePromptItem, input.session.locale, input.session.runtimeContext);
-  if (staticMessage) {
-    const requestId = makeId("STATIC");
-    const response = fallbackResponse({ requestId, contract, activeStep: input.activeStep, locale: input.session.locale });
-    response.patientMessage = staticMessage.patientMessage;
-    response.providerMetadata = { provider: "mock", model: "approved-static" };
-    const validator: OutputValidationResult = { accepted: true, corrected: false, rejected: false, issues: [], finalText: staticMessage.patientMessage, fallbackRequired: false };
-    const stateReduction = reduceRuntimeState({ release: input.release, currentState: input.state, activeStep: input.activeStep, event: "assistant_delivered" });
-    recordModelUsage({ sessionId: input.session.id, turnId: requestId, provider: "none", model: undefined, purpose: "approved_static", llmCalled: false, inputTokens: 0, outputTokens: 0, totalTokens: 0, latencyMs: 0, retryCount: 0, cacheStatus: "hit", estimatedCost: 0, success: true });
-    return { contract, response, providerResult: { provider: "deterministic", model: "approved-static", latencyMs: 0, text: staticMessage.patientMessage }, validator, fallbackUsed: false, repairUsed: false, stateReduction, generatedMessage: {
-      id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: staticMessage.patientMessage, status: "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { fallbackUsed: false, llmCalled: false, messageSource: "approved_static", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id, sourceTextHash: input.sourcePromptItem.sourceTrace.sourceTextHash },
-    } };
-  }
-  const dynamicRequestId = makeId("REFLECT");
 
-  // Pilot: S03 routes through the protocol-bounded dialogue agent (Claude
-  // decides HOW to phrase this turn -- acknowledge / reflect_and_ask /
-  // explain_scale / etc. -- from the participant's actual last message; the
-  // deterministic engine already decided completion/transition before this
-  // function was ever called, via extractRuntimeState + the completion
-  // condition, and is untouched by whatever comes back here). Every other
-  // session keeps the exact prior behavior (personalized reflection when
-  // requiresPersonalizedResponse is set, otherwise deterministic fallback
-  // text) unchanged.
+  // Sessions 1-3 route EVERY turn through the protocol-bounded dialogue
+  // agent, not just clarifications -- the previous pilot wiring let
+  // staticMessage short-circuit first, which meant Claude only ever ran on
+  // turns that had NO approved static text (a small minority: most
+  // PromptItems have a fallbackPatientText, so resolveStaticPatientMessage
+  // almost always returns non-null). That made "a much larger role in
+  // patient-facing delivery" impossible in practice, since the actual
+  // question text for nearly every turn was still the rigid scripted
+  // string. Claude now decides HOW to phrase this turn (acknowledge /
+  // reflect_and_ask / explain_rationale / etc.) using the approved static
+  // text as both its grounding (currentTaskTextOverride) and its
+  // deterministic safety net (deterministicFallbackText) if it fails or
+  // fails validation -- the deterministic engine already decided
+  // completion/transition before this function was ever called, via
+  // extractRuntimeState + the completion condition, and is untouched by
+  // whatever comes back here. Safety-critical prompts (crisis check,
+  // pause-escalation) are excluded even for enabled sessions --
+  // isSafetyCriticalPrompt inside resolveDialogueAgentMessage falls
+  // straight to deterministicFallbackText without calling Claude at all.
+  // Every other session keeps the exact prior behavior (approved static
+  // text first, then personalized reflection / deterministic fallback)
+  // unchanged.
+  const approvedPatientText = staticMessage?.patientMessage ?? contract.fallbackPatientText;
   if (isDialogueAgentEnabled(input.session.sessionDefinitionId)) {
+    const dynamicRequestId = makeId("REFLECT");
     const dialogueResult = await resolveDialogueAgentMessage({
       session: input.session,
       node: input.sourceNode,
@@ -107,17 +109,33 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       recentMessages: input.recentMessages,
       clarificationAttemptCount: input.session.runtimeContext.clarificationAttemptCount ?? 0,
       turnId: dynamicRequestId,
-      deterministicFallbackText: contract.fallbackPatientText,
+      currentTaskTextOverride: approvedPatientText,
+      deterministicFallbackText: approvedPatientText,
     });
+    const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });
     dialogueResponse.patientMessage = dialogueResult.patientMessage;
-    dialogueResponse.providerMetadata = { provider: "mock", model: dialogueResult.usedFallback ? "deterministic-neutral" : "dialogue-agent" };
+    dialogueResponse.providerMetadata = { provider: "mock", model: usedClaude ? "dialogue-agent" : dialogueResult.excludedBySafety ? "safety-excluded" : "deterministic-neutral" };
     const dialogueValidator: OutputValidationResult = { accepted: true, corrected: false, rejected: false, issues: dialogueResult.usedFallback && dialogueResult.fallbackReason ? [dialogueResult.fallbackReason] : [], finalText: dialogueResult.patientMessage, fallbackRequired: false };
     const dialogueReduction = reduceRuntimeState({ release: input.release, currentState: input.state, activeStep: input.activeStep, event: "assistant_delivered" });
     return { contract, response: dialogueResponse, providerResult: { provider: dialogueResult.provider, model: dialogueResult.model ?? dialogueResponse.providerMetadata.model, latencyMs: dialogueResult.latencyMs, text: dialogueResult.patientMessage }, validator: dialogueValidator, fallbackUsed: dialogueResult.usedFallback, repairUsed: false, stateReduction: dialogueReduction, generatedMessage: {
-      id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: dialogueResult.patientMessage, status: dialogueResult.usedFallback ? "replaced_by_fallback" : "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { llmCalled: !dialogueResult.usedFallback, messageSource: "dialogue_agent", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id, dialogueDecision: dialogueResult.decision ?? undefined },
+      id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: dialogueResult.patientMessage, status: dialogueResult.usedFallback ? "replaced_by_fallback" : "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { llmCalled: usedClaude, messageSource: dialogueResult.excludedBySafety ? "deterministic_safety" : "dialogue_agent", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id, dialogueDecision: dialogueResult.decision ?? undefined },
     } };
   }
+
+  if (staticMessage) {
+    const requestId = makeId("STATIC");
+    const response = fallbackResponse({ requestId, contract, activeStep: input.activeStep, locale: input.session.locale });
+    response.patientMessage = staticMessage.patientMessage;
+    response.providerMetadata = { provider: "mock", model: "approved-static" };
+    const validator: OutputValidationResult = { accepted: true, corrected: false, rejected: false, issues: [], finalText: staticMessage.patientMessage, fallbackRequired: false };
+    const stateReduction = reduceRuntimeState({ release: input.release, currentState: input.state, activeStep: input.activeStep, event: "assistant_delivered" });
+    recordModelUsage({ sessionId: input.session.id, turnId: requestId, provider: "none", model: undefined, purpose: "approved_static", llmCalled: false, inputTokens: 0, outputTokens: 0, totalTokens: 0, latencyMs: 0, retryCount: 0, cacheStatus: "hit", estimatedCost: 0, success: true });
+    return { contract, response, validator, fallbackUsed: false, repairUsed: false, stateReduction, generatedMessage: {
+      id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: staticMessage.patientMessage, status: "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { fallbackUsed: false, llmCalled: false, messageSource: "approved_static", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id, sourceTextHash: input.sourcePromptItem.sourceTrace.sourceTextHash },
+    }, providerResult: { provider: "deterministic", model: "approved-static", latencyMs: 0, text: staticMessage.patientMessage } };
+  }
+  const dynamicRequestId = makeId("REFLECT");
 
   const personalized = Boolean((input.sourcePromptItem as PromptItem & { requiresPersonalizedResponse?: boolean }).requiresPersonalizedResponse);
   const rendered = personalized
