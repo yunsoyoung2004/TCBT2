@@ -564,7 +564,12 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
             outputFields: ["candidateTwoEmotion"],
           },
           { slug: "candidate-two-thought", type: "question", source: [93, 104], marker: "For them to feel sad or discouraged", outputFields: ["candidateTwoThought"] },
-          { slug: "candidate-two-behavior", type: "question", source: [93, 104], marker: "With that thought and that sadness", outputFields: ["candidateTwoBehavior"] },
+          // Explicit patientText because quotedSourceText's marker-quote
+          // extraction doesn't cleanly isolate this line the way it does for
+          // candidate-three-behavior's near-identical sentence -- without it,
+          // the generic fallback generator produced the ungrammatical
+          // "With that thought and that sadness, what they would do?"
+          { slug: "candidate-two-behavior", type: "question", source: [93, 104], marker: "With that thought and that sadness", patientText: "With that thought and that sadness, what behavior would you expect from this candidate?", outputFields: ["candidateTwoBehavior"] },
           { slug: "candidate-two-reaction", type: "question", source: [93, 104], marker: "Do you think the interviewer's reaction", outputFields: ["candidateTwoReaction"], validation: { kind: "enum", values: ["positive", "negative"] } },
           { slug: "candidate-two-cycle", type: "confirmation", source: [93, 104], marker: "And when the interviewer reacts negatively", outputFields: ["candidateTwoCycleComplete"] },
         ],

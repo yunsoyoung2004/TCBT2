@@ -162,7 +162,12 @@ export function isPatientSafeFallbackText(value: string | undefined) {
 }
 
 function humanizeField(field: string) {
-  return field.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/Percent$/i, " percentage").toLowerCase();
+  // The word-boundary split below already inserts a space before "Percent"
+  // (e.g. "...Belief" + " " + "Percent"), so replacing just "Percent$" added
+  // a second leading space from " percentage" itself -- "belief  percentage"
+  // (double space), verbatim in every S08 paired-rating question. \s* eats
+  // that pre-existing space before substituting the single-spaced form.
+  return field.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/\s*Percent$/i, " percentage").toLowerCase();
 }
 
 /** Third-person clinical fields describe a hypothetical or other person, not the patient themselves. */

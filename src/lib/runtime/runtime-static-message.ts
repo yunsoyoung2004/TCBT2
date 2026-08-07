@@ -15,7 +15,11 @@ const APPROVED_PATIENT_TEXT: Record<string, string> = {
   "tbct-s02-n11-p03-final-score-summary": "These ratings give you and your therapist a starting point for focusing on what matters most and tracking change over time.",
   "tbct-s04-n12-p02-all-actions-first": "Before drawing a conclusion, let’s review the actions and reactions you identified together.",
   "tbct-s05-n05-p02-new-contributor-next-round": "For the next round, is there another person, circumstance, or factor that contributed to what happened?",
-  "tbct-s05-n10-p01-participant-summary-table": "Let’s review the responsibility grid you created, including each contributor and the share you assigned.",
+  // Language Rules (tbct-source-text.generated.ts:922): "Never use the words
+  // 'responsibility' or 'responsible' in the closing step -- use 'values'
+  // instead." The technique's own name is also Participation Grid, not
+  // "responsibility grid".
+  "tbct-s05-n10-p01-participant-summary-table": "Let’s review the Participation Grid you created, including each contributor and the values you assigned.",
   "tbct-s06-n01-p01-warm-opening": "Welcome. Whenever you're ready, tell me a bit about what's been difficult for you lately — I'll follow your lead.",
   "tbct-s06-n04-p01-six-anchor-symptom-scale": "For each symptom, use this 0–5 color scale: 0 Light blue, 1 Dark blue, 2 Light green, 3 Dark green, 4 Yellow, and 5 Red. Higher scores mean greater distress or difficulty.",
   "tbct-s06-n04-p02-calibration-anchor": "Before we score your own items, let's calibrate the scale. On this same 0–5 scale, how would you rate a very mild, everyday moment right now — for example, simply talking with me during this session?",
