@@ -101,8 +101,29 @@ function reflectThenAskForNextRating(input: { listField: unknown; ratingsField: 
   return parts.join(" ") || undefined;
 }
 
+// Every session's own "SAFETY PROTOCOL (MANDATORY)" section gives the same
+// clinical instruction (pause immediately, acknowledge with compassion,
+// direct to the therapist/a crisis line, don't resume until safety is
+// confirmed) with only the exercise name changing -- see e.g.
+// tbct-source-text.generated.ts:465-471 for S03's wording, mirrored in each
+// other session. Previously these five nodes had no authored text at all,
+// so the runtime-release-normalizer's generic fallback produced a
+// slug-derived placeholder ("Let's continue with stop trial, one step at a
+// time") on exactly the nodes reached during a real safety pause.
+const SAFETY_PAUSE_EXERCISE_NAME: Record<string, string> = {
+  "tbct-s03-n15-p01-pause-and-escalate": "the Intra-TR",
+  "tbct-s05-n11-p01-pause-grid": "the Participation Grid",
+  "tbct-s06-n13-p01-pause-hierarchy": "the symptom hierarchy",
+  "tbct-s07-n12-p01-stop-crp": "the role-play",
+  "tbct-s08-n22-p01-stop-trial": "the trial",
+};
+
 function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext) {
   const fields = context?.fields ?? {};
+  const safetyPauseExercise = SAFETY_PAUSE_EXERCISE_NAME[promptItem.id];
+  if (safetyPauseExercise) {
+    return `Let's pause ${safetyPauseExercise} here for a moment. If you're feeling distressed or unsafe right now, please reach out to your therapist or a crisis line right away -- that matters more than continuing this exercise. We can pick this back up together once you're safe.`;
+  }
   if (promptItem.id === "tbct-s02-n06-p01-problem-total") {
     const ratings = ratingNumbers(fields.problemRatings);
     const total = ratings.reduce((sum, value) => sum + value, 0);
