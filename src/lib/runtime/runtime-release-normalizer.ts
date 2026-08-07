@@ -86,7 +86,16 @@ const DEFAULT_RUNTIME_ROLES: RuntimeRoleDefinition[] = [
   },
 ];
 
-const INTERNAL_GUIDANCE_PATTERN = /^(collect|prompt|identify|elicit|capture|explore|help|support|confirm|introduce|run|present|close|start|continue|rate|re-?rate|offer|invite|explain|keep|surface|anchor|set up|formulate|map|convert|prepare|begin|get|deepen|choose|score|establish|reflect|validate|use)\b/i;
+// "use" was deliberately removed from this list: it's meant to catch
+// clinician/authoring instructions ("Use the enclosed rubric to score..."),
+// but several already-approved patient-facing scale explanations are
+// legitimately imperative sentences that start with "Use" ("Use this 0-5
+// scale for each problem: ..." -- see APPROVED_PATIENT_TEXT in
+// runtime-static-message.ts). Keeping "use" here silently discarded those
+// and replaced them with the generic locale fallback on every S02 CCPH/CCGH
+// scale presentation. No catalog `marker` currently starts with "use", so
+// isUsableMarkerLeadIn loses no coverage by dropping it.
+const INTERNAL_GUIDANCE_PATTERN = /^(collect|prompt|identify|elicit|capture|explore|help|support|confirm|introduce|run|present|close|start|continue|rate|re-?rate|offer|invite|explain|keep|surface|anchor|set up|formulate|map|convert|prepare|begin|get|deepen|choose|score|establish|reflect|validate)\b/i;
 
 /** A `marker` excerpt is usable as a patient-facing lead-in only if it doesn't
  * itself read like a therapist/authoring instruction (e.g. "identify at

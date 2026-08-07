@@ -736,12 +736,19 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
             slug: "reflect-problem-score",
             type: "rating",
             source: [314, 318],
-            marker: "Thank you. So [problem",
+            marker: "Thank you. So [problem / X / Y / Z] is a [score]",
             outputFields: ["problemRatings"],
             validation: { kind: "rating", min: 0, max: 5, includeColor: true },
             // Re-asks this same prompt once per listed problem instead of
             // stopping after a single rating, so every problem the participant
-            // named actually gets its own score.
+            // named actually gets its own score. Patient-facing text is
+            // supplied dynamically by contextualPatientText in
+            // runtime-static-message.ts (reflectThenAskForNextRating) --
+            // this marker was previously missing its closing "]", which
+            // left the [problem/score/color] bracket template as the
+            // resolved verbatimText and made the runtime-release-normalizer
+            // fallback generator produce a garbled "Thank you. So [problem,
+            // what comes to mind for you?" instead.
             executionMode: "repeat_until",
             maxIterations: 5,
             completionCondition: { kind: "field", field: "allProblemsRated", operator: "equals", value: true },
@@ -1405,7 +1412,13 @@ const SESSION_05_TO_06_SPECS: SessionSpec[] = [
         restrictions: [sourceText([1105, 1123])],
         prompts: [
           { slug: "six-anchor-symptom-scale", type: "instruction", source: [1105, 1123], marker: "Comfortable or indifferent exposure", outputFields: ["colorScalePresented"], validation: { kind: "exact_scale_anchors", min: 0, max: 5, colors: ["light blue", "blue", "green", "green", "yellow", "red"] } },
-          { slug: "calibration-anchor", type: "rating", source: [1105, 1123], marker: "First, let's calibrate", outputFields: ["calibrationScore"], validation: { kind: "rating", min: 0, max: 1, collectedBeforeItemScores: true } },
+          // The manual's "establish 0-1" (tbct-source-text.generated.ts:1115) describes the
+          // EXPECTED result of scoring a benign in-session anchor ("talking with me during
+          // this session"), not a hard input bound -- the calibration anchor uses the same
+          // 0-5 color scale as every other item (six-anchor-symptom-scale above, and
+          // item-score below). Encoding {max:1} here rejected any real 2-5 answer and
+          // deadlocked the session after 3 clarification attempts.
+          { slug: "calibration-anchor", type: "rating", source: [1105, 1123], marker: "First, let's calibrate", outputFields: ["calibrationScore"], validation: { kind: "rating", min: 0, max: 5, collectedBeforeItemScores: true } },
           { slug: "color-zone-rules", type: "explanation", source: [1105, 1123], outputFields: ["colorZoneRulesAcknowledged"], validation: { kind: "green_yellow_red_rules_presented" } },
         ],
       },
@@ -1800,7 +1813,15 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["prosecutionEvidence"],
         restrictions: [sourceText([1549, 1574]), sourceText([1585, 1589])],
         prompts: [
-          { slug: "enter-prosecutor-role", type: "role_transition", source: [1585, 1589], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
+          // requiresThirdPerson does NOT belong on these readiness-confirmation
+          // prompts -- it's a rule about how the participant describes the
+          // defendant's actions while arguing a courtroom role (see
+          // violatesThirdPersonRequirement in runtime-context.ts), not about how
+          // they confirm being settled in the role. Applying it here rejected
+          // every natural "I'm ready"/"I am ready now" answer as a first-person
+          // violation and deadlocked the session (matches enter-defendant-role
+          // and post-verdict-defendant below, which never had it).
+          { slug: "enter-prosecutor-role", type: "role_transition", source: [1585, 1589], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
           {
             slug: "prosecution-evidence",
             type: "question",
@@ -1836,7 +1857,7 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["defenseEvidence"],
         restrictions: [sourceText([1549, 1574]), sourceText([1593, 1598])],
         prompts: [
-          { slug: "enter-defense-role", type: "role_transition", source: [1593, 1598], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
+          { slug: "enter-defense-role", type: "role_transition", source: [1593, 1598], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
           {
             slug: "defense-evidence",
             type: "question",
@@ -1869,7 +1890,7 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["prosecutionRebuttals"],
         restrictions: [sourceText([1549, 1574]), sourceText([1601, 1601])],
         prompts: [
-          { slug: "return-to-prosecutor", type: "role_transition", source: [1601, 1601], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
+          { slug: "return-to-prosecutor", type: "role_transition", source: [1601, 1601], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
           { slug: "rebut-each-defense-item", type: "question", source: [1601, 1601], marker: "The defense said", outputFields: ["prosecutionRebuttals"], validation: { kind: "one_rebuttal_per_defense_item", requiresButPhrase: true, assistantMustNotCoach: true } },
         ],
       },
@@ -1892,7 +1913,7 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["defenseSurrebuttals", "thereforeConclusions"],
         restrictions: [sourceText([1549, 1574]), sourceText([1604, 1604])],
         prompts: [
-          { slug: "return-to-defense", type: "role_transition", source: [1604, 1604], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true } },
+          { slug: "return-to-defense", type: "role_transition", source: [1604, 1604], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
           { slug: "surrebut-each-pair", type: "question", source: [1604, 1604], marker: "The prosecution said", outputFields: ["defenseSurrebuttals"], validation: { kind: "one_surrebuttal_per_rebuttal" } },
           { slug: "participant-therefore", type: "follow_up", source: [1604, 1604], marker: "Therefore", outputFields: ["thereforeConclusions"], validation: { kind: "participant_generated", perEvidencePair: true, assistantMustNotSupply: true } },
         ],
@@ -1915,7 +1936,7 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["juryOrientation", "juryReview", "verdict"],
         restrictions: [sourceText([1549, 1574]), sourceText([1609, 1616])],
         prompts: [
-          { slug: "enter-jury-role", type: "role_transition", source: [1609, 1616], outputFields: ["juryOrientation"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, requiresThirdPerson: true, privateJuryRoom: true } },
+          { slug: "enter-jury-role", type: "role_transition", source: [1609, 1616], outputFields: ["juryOrientation"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true, privateJuryRoom: true } },
           { slug: "juror-role", type: "question", source: [1609, 1616], marker: "What is the role of a juror", outputFields: ["juryOrientation"] },
           // "question" + repeat_until: the jury must actually review each of
           // the four evidence blocks in turn (minItems:4) instead of

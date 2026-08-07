@@ -62,6 +62,39 @@ function ratingNumbers(value: unknown): number[] {
   return [];
 }
 
+// The manual's 0-5 color scale (tbct-source-text.generated.ts:305-310,
+// 359-364) -- fixed number-to-color mapping, not a per-item field, so it's
+// computed here rather than invented as a new tracked field.
+const SCALE_COLORS = ["light blue", "dark blue", "light green", "dark green", "yellow", "red"];
+function colorForScore(score: number) {
+  return SCALE_COLORS[score] ?? "";
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+/**
+ * Builds the "reflect the just-rated item, then ask for the next one" text
+ * for a rate-one-list-item-at-a-time prompt (CCPH problems, CCGH goals) --
+ * see runtime-context.ts's LIST_RATING_PAIRS, which this mirrors using the
+ * same two arrays (the list and its parallel ratings) rather than a separate
+ * pointer, since the just-rated item's own name isn't kept anywhere once the
+ * pointer field advances to the next item.
+ */
+function reflectThenAskForNextRating(input: { listField: unknown; ratingsField: unknown; askVerb: string }) {
+  const list = stringList(input.listField);
+  const ratings = ratingNumbers(input.ratingsField);
+  const parts: string[] = [];
+  if (ratings.length > 0 && list[ratings.length - 1]) {
+    const score = ratings[ratings.length - 1];
+    parts.push(`Thank you. So ${list[ratings.length - 1]} is a ${score} — ${colorForScore(score)} — for you right now.`);
+  }
+  const next = list[ratings.length];
+  if (next) parts.push(`${input.askVerb} ${next}?`);
+  return parts.join(" ") || undefined;
+}
+
 function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext) {
   const fields = context?.fields ?? {};
   if (promptItem.id === "tbct-s02-n06-p01-problem-total") {
@@ -82,6 +115,12 @@ function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext)
     const problemTotal = problemRatings.reduce((sum, value) => sum + value, 0);
     const goalTotal = goalRatings.reduce((sum, value) => sum + value, 0);
     return `Your ratings have been recorded. Your total problem score is ${problemTotal}, and your total goals score is ${goalTotal}. These can be compared with future ratings to track change.`;
+  }
+  if (promptItem.id === "tbct-s02-n05-p01-reflect-problem-score") {
+    return reflectThenAskForNextRating({ listField: fields.problems, ratingsField: fields.problemRatings, askVerb: "Using the same 0 to 5 color scale, how would you rate" });
+  }
+  if (promptItem.id === "tbct-s02-n09-p01-reflect-goal-score") {
+    return reflectThenAskForNextRating({ listField: fields.goals, ratingsField: fields.goalRatings, askVerb: "Using the same 0 to 5 color scale, how would you rate" });
   }
   if (promptItem.id === "tbct-s08-n10-p02-rebut-each-defense-item") {
     const evidence = firstText(fields.defenseEvidence ?? fields.evidenceAgainst) ?? "the defense evidence you gave";
@@ -120,6 +159,20 @@ const BRACKET_PLACEHOLDER_SOURCES: Array<{ pattern: RegExp; fieldCandidates: str
   { pattern: /\[goal[^\]]*\]/gi, fieldCandidates: ["currentGoalText"], naturalFallback: "that goal" },
   { pattern: /\[item[^\]]*\]/gi, fieldCandidates: ["currentSymptomItemText"], naturalFallback: "that item" },
   { pattern: /\[emotion named at q3a\]/gi, fieldCandidates: ["primaryEmotion"], naturalFallback: "the emotion you named earlier" },
+  // The six below were found by exhaustively resolving every canonical
+  // PromptItem's static text with empty runtime fields and checking for a
+  // surviving "[...]" -- each is a genuine slot a human therapist fills
+  // from session context (source-fidelity-catalog.ts's own S01/S02/S03
+  // nodes name the field that holds it), not a decorative bracket.
+  { pattern: /\[their situation[^\]]*\]/gi, fieldCandidates: ["situationThoughtDistinction"], naturalFallback: "that situation" },
+  { pattern: /\[situation\]/gi, fieldCandidates: [], naturalFallback: "that situation" },
+  { pattern: /\[description of lower score\]/gi, fieldCandidates: [], naturalFallback: "the lower rating" },
+  { pattern: /\[description of higher score\]/gi, fieldCandidates: [], naturalFallback: "the higher rating" },
+  { pattern: /\[factual event\]/gi, fieldCandidates: ["situation"], naturalFallback: "what actually happened" },
+  { pattern: /\[underlying belief\]/gi, fieldCandidates: ["workingAutomaticThought"], naturalFallback: "what that means to you" },
+  { pattern: /\[initial conclusion\]/gi, fieldCandidates: ["balancedConclusion"], naturalFallback: "the conclusion you reached" },
+  { pattern: /\[extended conclusion\]/gi, fieldCandidates: ["conclusionTherefore"], naturalFallback: "what that leads you to" },
+  { pattern: /\[repeat the patient'?s exact at\]/gi, fieldCandidates: ["automaticThought"], naturalFallback: "that original thought" },
 ];
 
 /**
