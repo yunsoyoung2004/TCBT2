@@ -128,6 +128,16 @@ function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext)
   if (safetyPauseExercise) {
     return `Let's pause ${safetyPauseExercise} here for a moment. If you're feeling distressed or unsafe right now, please reach out to your therapist or a crisis line right away -- that matters more than continuing this exercise. We can pick this back up together once you're safe.`;
   }
+  if (promptItem.id === "tbct-s05-n06-p01-updated-percentage") {
+    // "Return to each contributor in order and ask for an updated
+    // percentage" (tbct-source-text.generated.ts:854) -- repeated once per
+    // contributor per round via repeat_until; currentParticipationContributorText
+    // is recomputed each turn in runtime-context.ts as the round fills in.
+    const contributor = fields.currentParticipationContributorText;
+    return typeof contributor === "string" && contributor
+      ? `Now that we've talked it through, what would you say ${contributor}'s participation percentage is?`
+      : undefined;
+  }
   if (promptItem.id === "tbct-s02-n06-p01-problem-total") {
     const ratings = ratingNumbers(fields.problemRatings);
     const total = ratings.reduce((sum, value) => sum + value, 0);

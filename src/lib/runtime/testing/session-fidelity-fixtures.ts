@@ -84,6 +84,10 @@ const CONTENT_POOLS: Array<{ pattern: RegExp; replies: string[] }> = [
     "I noticed the thought first, then the emotion, and then I acted on it by avoiding the situation.",
     "It sounds like one bad moment turned into a whole story about myself that isn't really true.",
   ] },
+  // Checked before the broader /participation/i pattern below, which would
+  // otherwise match this field name too and return a contributor's NAME in
+  // response to "How does that feel to you now?".
+  { pattern: /participationRatingStable/i, replies: ["That feels about right to me now.", "Yeah, that seems to fit better."] },
   { pattern: /participation|contributor/i, replies: ["My coworker who missed the deadline first", "My manager for not checking in sooner", "Myself, for not raising it earlier"] },
   // role_transition prompts (S07/S08 chair-switching) validate with
   // requiresThirdPerson: any first-person pronoun without an accompanying
@@ -125,7 +129,10 @@ export function syntheticPatientInput(prompt: PromptItem): PatientInput {
   if (validation.kind && SUM_TO_100_PAIR_KINDS.has(validation.kind) && fields.length === 2) {
     return { kind: "rating", value: "60, 40" };
   }
-  if (validation.kind === "rating" || validation.kind === "paired_ratings" || fields.some((field) => /percent|rating|score|weight|intensit/i.test(field))) {
+  // participationRatingStable is a free-text reflection field ("How does
+  // that feel to you now?"), not a number -- excluded despite containing
+  // "Rating" so the synthetic reply is realistic natural language.
+  if (validation.kind === "rating" || validation.kind === "paired_ratings" || fields.some((field) => field !== "participationRatingStable" && /percent|rating|score|weight|intensit/i.test(field))) {
     const max = validation.max ?? 100;
     const value = Math.max(validation.min ?? 0, Math.min(max, max >= 10 ? 55 : max));
     return { kind: "rating", value: fields.map((_, index) => String(Math.max(validation.min ?? 0, value - index))).join(", ") || String(value) };

@@ -1297,8 +1297,31 @@ const SESSION_05_TO_06_SPECS: SessionSpec[] = [
         requiredFields: ["participationRatingRounds", "participationRatingStable"],
         restrictions: [sourceText([851, 851])],
         prompts: [
-          { slug: "updated-percentage", type: "rating", source: [851, 851], marker: "Updated percentage", outputFields: ["participationRatingRounds"], validation: { kind: "participation_percentages", min: 0, max: 100, sumTo: 100, showPreviousOnly: true, maximumRounds: 5 } },
-          { slug: "reflect-without-interpretation", type: "reflection", source: [851, 851], marker: "How does that feel", outputFields: ["participationRatingStable"], validation: { kind: "participant_determines_stability" } },
+          // "Continue until the patient's own percentage stabilizes...
+          // most frequently three rounds total (including the first)"
+          // (tbct-source-text.generated.ts:854). Implemented as a bounded
+          // repeat_until covering rounds 2-3 (the manual's own most-common
+          // case) entirely within this one node/turn cycle -- deliberately
+          // NOT a dynamic stability-driven loop re-entering this node
+          // multiple times, which would need a node-graph self-loop; that
+          // mechanism is untested elsewhere in this catalog and re-entering
+          // a node doesn't reset its own per-node prompt-completion
+          // tracking, so a self-loop here can cascade through several
+          // "already complete" re-entries within a single turn with no
+          // patient input in between. A future pass that also fixes that
+          // re-entry behavior could extend this to the full 4/5-round case.
+          {
+            slug: "updated-percentage",
+            type: "rating",
+            source: [851, 851],
+            marker: "Updated percentage",
+            outputFields: ["participationRatingRounds"],
+            validation: { kind: "participation_percentages", min: 0, max: 100, sumTo: 100, showPreviousOnly: true, maximumRounds: 5 },
+            executionMode: "repeat_until",
+            maxIterations: 42,
+            completionCondition: { kind: "field", field: "participationReratingComplete", operator: "equals", value: true },
+          },
+          { slug: "reflect-without-interpretation", type: "reflection", source: [851, 851], marker: "How does that feel", patientText: "How does that feel to you now?", outputFields: ["participationRatingStable"] },
         ],
       },
       {

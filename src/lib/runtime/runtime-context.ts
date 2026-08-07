@@ -286,7 +286,11 @@ export async function extractRuntimeState(input: {
     ? { handled: false as const }
     : parseDeterministicPromptInput(input.patientInput, input.currentPromptItem?.validation);
   const percent = parsePercent(input.patientInput.value);
-  const numericLike = kind === "rating" || /intensity|percent|rating|score|weight/i.test(field);
+  // participationRatingStable is a free-text reflection field ("How does
+  // that feel to you now?") that happens to contain "Rating" in its name --
+  // excluded explicitly so a natural-language answer with no digits in it
+  // isn't rejected as numeric input missing a number.
+  const numericLike = kind === "rating" || (field !== "participationRatingStable" && /intensity|percent|rating|score|weight/i.test(field));
   // Respect the prompt's own configured range (e.g. a 0-5 color-coded scale)
   // instead of always assuming a 0-100% belief/intensity rating.
   const ratingRange = input.currentPromptItem?.validation as { min?: unknown; max?: unknown } | null | undefined;
@@ -427,16 +431,32 @@ export async function extractRuntimeState(input: {
     nextFields[field] = validPercent ? percent : input.patientInput.value;
     nextFields.expectedParticipationRemainder = expectedRemainder;
     nextFields.participantRejectsRemainder = typeof percent === "number" && Math.abs(percent - expectedRemainder) > 1;
-  } else if (kind === "participation_percentages") {
-    // Accumulate one contributor's share per turn instead of overwriting,
-    // so the running sum (and the participant's eventual remainder) can be
-    // computed instead of guessed.
-    const current = Array.isArray(input.currentContext.fields[field]) ? (input.currentContext.fields[field] as Array<{ contributor: string; percent: number }>) : [];
+  } else if (kind === "participation_percentages" && field === "participationRatingRounds") {
+    // Step 6 (re-rating, bounded to rounds 2-3 -- see the maxIterations
+    // comment on updated-percentage in source-fidelity-catalog.ts for why
+    // this stops at a fixed round count rather than a dynamic stability
+    // loop). Unlike the flat participationRatingsRound1 list below, this
+    // field is an array OF ROUNDS -- each round itself an array of
+    // {contributor, percent} entries -- since the same prompt is answered
+    // once per contributor, across two full passes. A new round starts
+    // exactly when the previous one (or none yet) already covers every
+    // contributor.
+    const contributors = Array.isArray(nextFields.contributors) ? (nextFields.contributors as string[]) : [];
+    const rounds = Array.isArray(nextFields.participationRatingRounds) ? (nextFields.participationRatingRounds as Array<Array<{ contributor: string; percent: number }>>) : [];
     const percentMatch = rawText.match(/-?\d+(?:\.\d+)?/);
-    if (percentMatch) {
+    if (percentMatch && contributors.length > 0) {
       const contributorPercent = Number(percentMatch[0]);
-      const contributorName = rawText.replace(percentMatch[0], "").replace(/[%,.:–-]+/g, " ").trim() || `Contributor ${current.length + 1}`;
-      nextFields[field] = [...current, { contributor: contributorName, percent: contributorPercent }];
+      const lastRound = rounds[rounds.length - 1];
+      const startNewRound = !lastRound || lastRound.length >= contributors.length;
+      const roundInProgress = startNewRound ? [] : lastRound;
+      const contributorName = contributors[roundInProgress.length] ?? `Contributor ${roundInProgress.length + 1}`;
+      const updatedRound = [...roundInProgress, { contributor: contributorName, percent: contributorPercent }];
+      const updatedRounds = startNewRound ? [...rounds, updatedRound] : [...rounds.slice(0, -1), updatedRound];
+      nextFields.participationRatingRounds = updatedRounds;
+      const roundComplete = updatedRound.length >= contributors.length;
+      nextFields.allContributorsRatedThisRound = roundComplete;
+      nextFields.currentParticipationContributorText = contributors[updatedRound.length];
+      nextFields.participationReratingComplete = roundComplete && updatedRounds.length >= 2;
     }
   } else if (LIST_BUILDING_VALIDATION_KINDS.has(kind) || field === "evidenceFor" || field === "evidenceAgainst") {
     // A growing list the patient builds one entry at a time (problems,
