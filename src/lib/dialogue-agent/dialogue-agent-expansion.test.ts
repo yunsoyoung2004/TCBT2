@@ -7,11 +7,16 @@ import { validateDialogueDecision } from "@/lib/dialogue-agent/dialogue-output-v
 import type { RuntimeSession } from "@/types/runtime-session";
 import type { RuntimePromptItem } from "@/types/protocol-runtime";
 
-// Sessions 1-2 have no worksheet-binding registry entry (only tbct-s03 does)
-// -- these tests exercise dialogue-contract-compiler.ts's GENERIC fallback
-// classification (derived from PromptItem.validation + field-name shape),
-// which is what every S01/S02 field actually relies on, rather than the
-// exact-match S03 binding table this pilot originally covered.
+// Sessions 1-2 now have worksheet-binding registry entries too (see
+// worksheet-binding-registry.ts), but these tests still exercise
+// dialogue-contract-compiler.ts's GENERIC fallback classification (derived
+// from PromptItem.validation + field-name shape) for whichever signal
+// should actually win for a given field: a plain-text field still falls
+// through to the pattern-based terminology lookup, and a repeated
+// per-turn rating (S02's problemRatings) still resolves to "integer_0_5"
+// from the PromptItem's own validation even though the binding's valueType
+// is the aggregate-storage "text_list" -- see
+// VALIDATION_KINDS_AUTHORITATIVE_OVER_BINDING's header comment for why.
 
 function minimalSession(overrides: Partial<RuntimeSession> = {}): RuntimeSession {
   return {
@@ -52,7 +57,7 @@ function minimalRuntimePromptItem(overrides: Partial<RuntimePromptItem> = {}): R
   };
 }
 
-describe("dialogue contract compiler: generic classification (S01/S02, no worksheet bindings)", () => {
+describe("dialogue contract compiler: generic classification (S01/S02 fields)", () => {
   it("marks a real content field (candidateOneThought) as participant-owned and assistantMustNotSupply", () => {
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
     const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;
@@ -71,7 +76,8 @@ describe("dialogue contract compiler: generic classification (S01/S02, no worksh
     expect(contract.targetField).toBe("candidateOneThought");
     expect(contract.participantOwned).toBe(true);
     expect(contract.assistantMustNotSupply).toBe(true);
-    expect(contract.worksheetEditAvailable).toBe(false);
+    // S01 now has a reviewed worksheet-binding registry entry (tbct-s01.ts).
+    expect(contract.worksheetEditAvailable).toBe(true);
     // Pattern-based terminology should recognize "Thought" in the field name
     // even though this exact field name never appears in S03's map.
     expect(contract.expectedConstruct).toContain("thought");
@@ -96,9 +102,14 @@ describe("dialogue contract compiler: generic classification (S01/S02, no worksh
     expect(contract.expectedInputType).toBe("yes_no");
   });
 
-  it("derives a 0-5 scale from a S02 rating validation kind (max 5), not the S03 percentage scale", () => {
+  it("derives a 0-5 scale from a S02 rating validation kind (max 5), not the S03 percentage scale -- and not the binding's aggregate text_list storage shape either", () => {
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s02" && item.title.includes("Rate Each Problem"))!;
     const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("reflect-problem-score"))!;
+    // reflect-problem-score's outputFields[0] is "problemRatings", which now
+    // has a tbct-s02.ts binding of valueType "text_list" (the worksheet
+    // displays every problem's accumulated score at once) -- but this
+    // PromptItem re-asks the same rating once per listed problem, so the
+    // single-turn expectation is still one 0-5 rating, not an ordered list.
 
     const contract = compileDialogueContract({
       session: minimalSession({ sessionDefinitionId: "tbct-s02" }),
@@ -173,11 +184,17 @@ describe("revision_request: honest handling depends on worksheetEditAvailable", 
     expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: true });
   });
 
-  it("says plainly that it isn't automated yet when the session has no worksheet (S01)", () => {
+  it("says plainly that it isn't automated yet when the session has no worksheet", () => {
+    // Every real TBCT session (s01-s08) now has a reviewed worksheet-binding
+    // registry entry, so this exercises the still-real "no worksheet"
+    // branch with a session id the registry has never heard of, rather than
+    // pretending a real session has no worksheet. The node/promptItem are
+    // still a real S01 pair -- compileDialogueContract looks up bindings by
+    // session.sessionDefinitionId independently of node.sessionId.
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
     const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
     const contract = compileDialogueContract({
-      session: minimalSession({ sessionDefinitionId: "tbct-s01" }),
+      session: minimalSession({ sessionDefinitionId: "unregistered-session-definition" }),
       node,
       sourcePromptItem: promptItem,
       runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),

@@ -38,8 +38,10 @@ export const dialogueContractSchema = z.object({
   choiceOptions: z.array(z.string()).optional(),
   participantOwned: z.boolean(),
   assistantMustNotSupply: z.boolean(),
-  // True only when this session has a worksheet-edit affordance (currently
-  // tbct-s03) -- lets Claude answer "can I change an earlier answer?"
+  // True only when this session has a worksheet-edit affordance (any
+  // session with a reviewed binding registry entry -- see
+  // worksheet-binding-registry.ts) -- lets Claude answer "can I change an
+  // earlier answer?"
   // honestly: point to the real edit path where one exists, or say plainly
   // that it isn't automated yet rather than promising a branch/fork the
   // runtime doesn't implement (branching/revision is explicitly deferred,

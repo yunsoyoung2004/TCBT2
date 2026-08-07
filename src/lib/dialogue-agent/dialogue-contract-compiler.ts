@@ -6,7 +6,7 @@ import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalize
 import { resolveBracketPlaceholders } from "@/lib/runtime/runtime-static-message";
 import type { DialogueContract, ExpectedInputType } from "@/lib/dialogue-agent/dialogue-agent-contract";
 import { dialogueContractSchema } from "@/lib/dialogue-agent/dialogue-agent-contract";
-import type { WorksheetValueType } from "@/types/worksheet";
+import type { WorksheetBinding, WorksheetValueType } from "@/types/worksheet";
 
 // Pattern-based, session-agnostic construct terminology. Keyed by field-NAME
 // shape rather than an exact per-session map, because the same construct
@@ -59,11 +59,10 @@ function expectedInputTypeFromValueType(valueType: WorksheetValueType): Expected
 }
 
 /** Generic fallback used for any session without a reviewed worksheet
- * binding registry entry for this field (today: everything except tbct-s03)
- * -- derives the expected control from the PromptItem's own validation spec,
- * the same source runtime-context.ts's deterministic extraction already
- * reads, so this never invents a control shape the runtime doesn't also
- * expect. */
+ * binding registry entry for this field -- derives the expected control
+ * from the PromptItem's own validation spec, the same source
+ * runtime-context.ts's deterministic extraction already reads, so this
+ * never invents a control shape the runtime doesn't also expect. */
 function expectedInputTypeFromValidation(validation: Record<string, unknown> | null | undefined): ExpectedInputType {
   const kind = typeof validation?.kind === "string" ? validation.kind : undefined;
   const max = typeof validation?.max === "number" ? validation.max : undefined;
@@ -74,15 +73,36 @@ function expectedInputTypeFromValidation(validation: Record<string, unknown> | n
   return "free_text";
 }
 
+/** validation.kind values that pin down exactly what THIS turn's input
+ * looks like (a single rating, a single enum pick, yes/no) regardless of
+ * how the field's accumulated value is stored. A worksheet binding's
+ * valueType describes the STORAGE shape -- e.g. S02's problemRatings is a
+ * text_list because the worksheet displays every problem's score at once
+ * -- but the prompt re-asks this same rating once per listed problem, so
+ * the single-turn expectation is still "one 0-5 rating," not "give me an
+ * ordered list." When validation already commits to one of these kinds,
+ * it wins over the binding's storage-shape mapping; otherwise (plain text,
+ * or a genuinely list-shaped single-turn answer) the binding is used when
+ * present, since that's the reviewed, field-specific signal. */
+const VALIDATION_KINDS_AUTHORITATIVE_OVER_BINDING = new Set(["rating", "enum", "boolean", "safety_check"]);
+
+function resolveExpectedInputType(binding: WorksheetBinding | undefined, validation: Record<string, unknown> | null | undefined): ExpectedInputType {
+  const kind = typeof validation?.kind === "string" ? validation.kind : undefined;
+  if (kind && VALIDATION_KINDS_AUTHORITATIVE_OVER_BINDING.has(kind)) return expectedInputTypeFromValidation(validation);
+  if (binding) return expectedInputTypeFromValueType(binding.valueType);
+  return expectedInputTypeFromValidation(validation);
+}
+
 /** Reads canonical RuntimeContext.fields directly -- never chat text, never a
  * cached/stale copy -- so a worksheet edit is reflected in the very next
  * dialogue turn. Always includes the current node's own requiredFields and
  * the active targetField; additionally includes every worksheet-bound field
- * (when this session has a worksheet registry, currently tbct-s03) because
- * those are precisely the fields an edit can make stale for a LATER node
- * that didn't itself capture them -- this generalizes what used to be a
- * hardcoded 4-field S03 list to whatever the reviewed binding registry
- * actually covers, for any session that has one. */
+ * (for any session with a reviewed binding registry entry -- see
+ * worksheet-binding-registry.ts) because those are precisely the fields an
+ * edit can make stale for a LATER node that didn't itself capture them --
+ * this generalizes what used to be a hardcoded 4-field S03 list to
+ * whatever the reviewed binding registry actually covers, for any session
+ * that has one. */
 function confirmedStateFor(session: RuntimeSession, node: ClinicalStageNode, targetField: string | undefined) {
   const fields = session.runtimeContext.fields;
   const relevantKeys = new Set<string>(node.requiredFields);
@@ -134,7 +154,7 @@ export function compileDialogueContract(input: {
   const { session, node, sourcePromptItem, runtimePromptItem } = input;
   const targetField = sourcePromptItem.outputFields[0];
   const binding = getWorksheetBindings(session.sessionDefinitionId).find((item) => item.canonicalFieldKey === targetField);
-  const expectedInputType = binding ? expectedInputTypeFromValueType(binding.valueType) : expectedInputTypeFromValidation(sourcePromptItem.validation);
+  const expectedInputType = resolveExpectedInputType(binding, sourcePromptItem.validation);
   const ownership = binding ? { participantOwned: binding.participantOwned, assistantMustNotSupply: binding.assistantMustNotSupply } : ownershipFor(targetField);
   const terminology = terminologyFor(targetField, expectedInputType);
 

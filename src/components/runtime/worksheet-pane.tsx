@@ -6,16 +6,20 @@ import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 import { FigureWorkspace } from "@/components/runtime/worksheet-renderers/figure-workspace";
 import { getSessionFigureConfig } from "@/lib/worksheet/figure-registry";
+import { getComposedWorksheet } from "@/lib/worksheet/composed-worksheet-registry";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
 
 // The interactive visual worksheet -- a typed projection of
 // RuntimeContext.fields (see src/lib/worksheet/worksheet-projection.ts for
-// the write-path contract). The main participant-facing view is the
-// session's actual source TBCT figure with a live-data overlay (see
-// FigureWorkspace + figure-registry); the flat field-status list further
-// down is kept only as a secondary/debug view, collapsed by default --
-// never the primary experience. Sessions with no figure registered yet
-// fall back to that flat list as their primary view.
+// the write-path contract). The main participant-facing view is a
+// recreation of that session's own source TBCT figure, either as a
+// coordinate-mapped photo overlay (session 3 only -- see FigureWorkspace +
+// figure-registry) or, for every other session with bindings, a composed
+// component that rebuilds the figure's structure in real HTML/CSS (see
+// composed-worksheet-registry.ts). The flat field-status list further down
+// is kept only as a secondary/debug view, collapsed by default -- never the
+// primary experience. Sessions with neither registered yet fall back to
+// that flat list as their primary view.
 
 const STATUS_TONE: Record<WorksheetFieldStatus, "success" | "primary" | "neutral" | "warning" | "critical"> = {
   empty: "neutral",
@@ -65,6 +69,8 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
   const onConfirm = (worksheetFieldKey: string) => confirmMutation.mutate(worksheetFieldKey);
   const onEdit = (worksheetFieldKey: string, value: unknown) => editMutation.mutate({ worksheetFieldKey, value });
   const figureConfig = getSessionFigureConfig(sessionDefinitionId);
+  const ComposedWorksheet = getComposedWorksheet(sessionDefinitionId);
+  const hasPrimaryView = Boolean(figureConfig || ComposedWorksheet);
 
   return (
     <Card className="overflow-hidden">
@@ -72,6 +78,8 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
       <div className="max-h-[calc(100vh-260px)] space-y-4 overflow-auto p-4">
         {figureConfig ? (
           <FigureWorkspace config={figureConfig} view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
+        ) : ComposedWorksheet ? (
+          <ComposedWorksheet view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
         ) : (
           <div className="space-y-2">
             {view.fields.map((field) => (
@@ -87,7 +95,7 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
           </div>
         )}
 
-        {figureConfig && (
+        {hasPrimaryView && (
           <details className="rounded-panel border border-border bg-surface-subtle p-3">
             <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Advanced: field status (clinician view)</summary>
             <div className="mt-3 space-y-2">
