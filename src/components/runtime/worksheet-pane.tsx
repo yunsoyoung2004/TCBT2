@@ -4,19 +4,18 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
-import { IntraTRWorksheet } from "@/components/runtime/worksheet-renderers/intra-tr-worksheet";
+import { FigureWorkspace } from "@/components/runtime/worksheet-renderers/figure-workspace";
+import { getSessionFigureConfig } from "@/lib/worksheet/figure-registry";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
 
 // The interactive visual worksheet -- a typed projection of
 // RuntimeContext.fields (see src/lib/worksheet/worksheet-projection.ts for
-// the write-path contract). The main participant-facing view is a
-// session-specific renderer that recreates that session's original TBCT
-// figure (see SESSION_RENDERERS below); the flat field-status list further
+// the write-path contract). The main participant-facing view is the
+// session's actual source TBCT figure with a live-data overlay (see
+// FigureWorkspace + figure-registry); the flat field-status list further
 // down is kept only as a secondary/debug view, collapsed by default --
-// never the primary experience.
-const SESSION_RENDERERS: Partial<Record<string, typeof IntraTRWorksheet>> = {
-  "tbct-s03": IntraTRWorksheet,
-};
+// never the primary experience. Sessions with no figure registered yet
+// fall back to that flat list as their primary view.
 
 const STATUS_TONE: Record<WorksheetFieldStatus, "success" | "primary" | "neutral" | "warning" | "critical"> = {
   empty: "neutral",
@@ -65,14 +64,14 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
   const busy = confirmMutation.isPending || editMutation.isPending;
   const onConfirm = (worksheetFieldKey: string) => confirmMutation.mutate(worksheetFieldKey);
   const onEdit = (worksheetFieldKey: string, value: unknown) => editMutation.mutate({ worksheetFieldKey, value });
-  const FigureRenderer = SESSION_RENDERERS[sessionDefinitionId];
+  const figureConfig = getSessionFigureConfig(sessionDefinitionId);
 
   return (
     <Card className="overflow-hidden">
       <SectionHeader title="Session Worksheet" description="Fills in as you answer -- confirm a box once it looks right, or edit it." />
       <div className="max-h-[calc(100vh-260px)] space-y-4 overflow-auto p-4">
-        {FigureRenderer ? (
-          <FigureRenderer view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
+        {figureConfig ? (
+          <FigureWorkspace config={figureConfig} view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
         ) : (
           <div className="space-y-2">
             {view.fields.map((field) => (
@@ -88,7 +87,7 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
           </div>
         )}
 
-        {FigureRenderer && (
+        {figureConfig && (
           <details className="rounded-panel border border-border bg-surface-subtle p-3">
             <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Advanced: field status (clinician view)</summary>
             <div className="mt-3 space-y-2">
