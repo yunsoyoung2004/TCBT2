@@ -180,6 +180,22 @@ const en = {
       notesNotice: "These notes are visible only to clinicians.",
       sessionsHeading: "Sessions",
       notesHeading: "Clinical notes",
+      homeworkHeading: "Homework",
+    },
+    homework: {
+      empty: "No follow-up activity recorded yet.",
+      view: "View",
+      modalTitle: "Homework · {session}",
+      lastUpdated: "Last updated",
+      entries: "Entries",
+      noEntries: "No entries yet.",
+      status: {
+        not_started: "Not started",
+        in_progress: "In progress",
+        completed: "Completed",
+        ongoing: "Ongoing",
+        review_available: "Ready for review",
+      },
     },
   },
   runtimeInspector: {

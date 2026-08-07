@@ -180,6 +180,22 @@ const ko = {
       notesNotice: "이 메모는 의료진에게만 표시됩니다.",
       sessionsHeading: "세션",
       notesHeading: "임상 메모",
+      homeworkHeading: "숙제",
+    },
+    homework: {
+      empty: "아직 기록된 숙제 활동이 없습니다.",
+      view: "보기",
+      modalTitle: "숙제 · {session}",
+      lastUpdated: "최근 업데이트",
+      entries: "기록",
+      noEntries: "아직 기록이 없습니다.",
+      status: {
+        not_started: "시작 전",
+        in_progress: "진행 중",
+        completed: "완료",
+        ongoing: "진행형",
+        review_available: "검토 필요",
+      },
     },
   },
   runtimeInspector: {

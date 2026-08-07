@@ -34,6 +34,7 @@ import {
   summarizeParticipant,
   type MonitoringStatus,
 } from "@/components/pages/patient-monitoring/patient-monitoring-utils";
+import { HomeworkPanel } from "@/components/pages/patient-monitoring/homework-panel";
 import type { RuntimeMessageRole } from "@/types/runtime-session";
 
 type AuditFilter = "all" | "program" | "patient" | "notes";
@@ -464,38 +465,42 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
 
-            <Card>
-              <SectionHeader
-                title={t("patientDetail.profile.notesHeading")}
-                action={
-                  <Button size="sm" onClick={() => setNoteModalOpen(true)}>
-                    {t("patientDetail.actions.addNote")}
-                  </Button>
-                }
-              />
-              <div className="space-y-3 p-4">
-                <p className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-xs text-text-secondary">{t("patientDetail.profile.notesNotice")}</p>
-                {clinicianNotes.length === 0 ? (
-                  <EmptyState title={t("patientDetail.audit.noEntries")} />
-                ) : (
-                  clinicianNotes.map((note) => (
-                    <div key={note.id} className="rounded-panel border border-border p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="text-[11px] text-text-muted">{formatTimestamp(note.createdAt)}</div>
-                        <button
-                          type="button"
-                          onClick={() => setNoteToDelete({ id: note.id, content: note.content })}
-                          className="shrink-0 text-[11px] font-semibold text-critical hover:underline"
-                        >
-                          {t("patientDetail.note.delete")}
-                        </button>
+            <div className="space-y-4">
+              <HomeworkPanel participantId={participantId} />
+
+              <Card>
+                <SectionHeader
+                  title={t("patientDetail.profile.notesHeading")}
+                  action={
+                    <Button size="sm" onClick={() => setNoteModalOpen(true)}>
+                      {t("patientDetail.actions.addNote")}
+                    </Button>
+                  }
+                />
+                <div className="space-y-3 p-4">
+                  <p className="rounded-panel border border-border bg-surface-subtle px-3 py-2 text-xs text-text-secondary">{t("patientDetail.profile.notesNotice")}</p>
+                  {clinicianNotes.length === 0 ? (
+                    <EmptyState title={t("patientDetail.audit.noEntries")} />
+                  ) : (
+                    clinicianNotes.map((note) => (
+                      <div key={note.id} className="rounded-panel border border-border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[11px] text-text-muted">{formatTimestamp(note.createdAt)}</div>
+                          <button
+                            type="button"
+                            onClick={() => setNoteToDelete({ id: note.id, content: note.content })}
+                            className="shrink-0 text-[11px] font-semibold text-critical hover:underline"
+                          >
+                            {t("patientDetail.note.delete")}
+                          </button>
+                        </div>
+                        <div className="mt-1 text-sm text-text-primary">{note.content}</div>
                       </div>
-                      <div className="mt-1 text-sm text-text-primary">{note.content}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
+                    ))
+                  )}
+                </div>
+              </Card>
+            </div>
           </div>
         )}
       </div>
