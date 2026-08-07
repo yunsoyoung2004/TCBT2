@@ -157,6 +157,9 @@ const en = {
       placeholder: "Add a clinician-only note about this participant…",
       submit: "Save note",
       success: "Clinical note saved",
+      delete: "Delete",
+      deleteConfirmTitle: "Delete this clinical note?",
+      deleteSuccess: "Clinical note deleted",
     },
     reasons: {
       pause: "Paused by clinician from Patient Monitoring.",

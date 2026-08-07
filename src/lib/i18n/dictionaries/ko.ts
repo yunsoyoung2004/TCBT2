@@ -157,6 +157,9 @@ const ko = {
       placeholder: "이 참여자에 대한 임상의 전용 메모를 입력하세요…",
       submit: "메모 저장",
       success: "임상 메모가 저장되었습니다",
+      delete: "삭제",
+      deleteConfirmTitle: "이 임상 메모를 삭제하시겠습니까?",
+      deleteSuccess: "임상 메모가 삭제되었습니다",
     },
     reasons: {
       pause: "환자 모니터링에서 임상의가 일시중지함.",

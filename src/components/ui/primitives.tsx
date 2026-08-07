@@ -269,6 +269,7 @@ export function ConfirmActionDialog({
   title,
   description,
   confirmLabel = "Confirm",
+  confirmDisabled = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -276,12 +277,13 @@ export function ConfirmActionDialog({
   title: string;
   description: string;
   confirmLabel?: string;
+  confirmDisabled?: boolean;
 }) {
   return (
     <Modal open={open} onClose={onClose} title={title} description={description}>
       <div className="flex justify-end gap-2 p-5">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+        <Button variant="danger" disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</Button>
       </div>
     </Modal>
   );

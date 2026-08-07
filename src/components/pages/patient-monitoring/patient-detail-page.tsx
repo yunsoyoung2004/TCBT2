@@ -12,6 +12,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmActionDialog,
   EmptyState,
   Field,
   Modal,
@@ -25,7 +26,7 @@ import { useT } from "@/lib/i18n/context";
 import { getRuntimeParticipant } from "@/lib/api/participant-api";
 import { getRuntimeSession, listCanonicalTestSessions, listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
-import { addClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
+import { addClinicianNote, deleteClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
 import {
   findSessionTitle,
@@ -81,6 +82,7 @@ export function PatientMonitoringDetailPage() {
   const [activeTab, setActiveTab] = useState<"audit" | "profile">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
 
   const participantQuery = useQuery({
     queryKey: ["patient-monitoring-participant", participantId],
@@ -163,6 +165,14 @@ export function PatientMonitoringDetailPage() {
       toast.success(t("patientDetail.note.success"));
       setNoteDraft("");
       setNoteModalOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["patient-monitoring-memories", participantId] });
+    },
+  });
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => deleteClinicianNote(noteId),
+    onSuccess: async () => {
+      toast.success(t("patientDetail.note.deleteSuccess"));
+      setNoteToDelete(null);
       await queryClient.invalidateQueries({ queryKey: ["patient-monitoring-memories", participantId] });
     },
   });
@@ -470,7 +480,16 @@ export function PatientMonitoringDetailPage() {
                 ) : (
                   clinicianNotes.map((note) => (
                     <div key={note.id} className="rounded-panel border border-border p-3">
-                      <div className="text-[11px] text-text-muted">{formatTimestamp(note.createdAt)}</div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[11px] text-text-muted">{formatTimestamp(note.createdAt)}</div>
+                        <button
+                          type="button"
+                          onClick={() => setNoteToDelete({ id: note.id, content: note.content })}
+                          className="shrink-0 text-[11px] font-semibold text-critical hover:underline"
+                        >
+                          {t("patientDetail.note.delete")}
+                        </button>
+                      </div>
                       <div className="mt-1 text-sm text-text-primary">{note.content}</div>
                     </div>
                   ))
@@ -501,6 +520,16 @@ export function PatientMonitoringDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmActionDialog
+        open={Boolean(noteToDelete)}
+        onClose={() => setNoteToDelete(null)}
+        onConfirm={() => noteToDelete && deleteNoteMutation.mutate(noteToDelete.id)}
+        title={t("patientDetail.note.deleteConfirmTitle")}
+        description={noteToDelete?.content ?? ""}
+        confirmLabel={t("patientDetail.note.delete")}
+        confirmDisabled={deleteNoteMutation.isPending}
+      />
     </AppShell>
   );
 }

@@ -126,6 +126,28 @@ export async function getClinicianNotes(participantId: string) {
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
+/** Soft-deletes a clinician note (status -> "deleted"). getClinicianNotes
+ * already filters status !== "deleted", and the underlying memory row is
+ * never removed, so this only ever hides the note from clinician views --
+ * it stays in the audit trail below and in the store for later recovery
+ * if that's ever needed. */
+export async function deleteClinicianNote(memoryId: string, deletedBy = "Clinician"): Promise<LongitudinalMemory> {
+  const existing = await getLongitudinalMemory(memoryId);
+  if (!existing) throw new Error("Clinical note not found");
+  const deleted = await updateLongitudinalMemory(memoryId, { status: "deleted" });
+  await getLocalDb().auditEntries.put(
+    createMemoryAuditEntry({
+      action: "Clinical note deleted",
+      resource: `Participant ${existing.participantId}`,
+      version: "stage3",
+      previousValue: JSON.stringify(existing),
+      newValue: JSON.stringify({ status: "deleted" }),
+      reason: `Deleted by ${deletedBy} from Patient Monitoring`,
+    }),
+  );
+  return deleted;
+}
+
 export async function addClinicianNote(input: {
   participantId: string;
   projectId: string;
