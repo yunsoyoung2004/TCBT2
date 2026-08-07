@@ -31,7 +31,13 @@ const APPROVED_PATIENT_TEXT: Record<string, string> = {
   "tbct-s06-n11-p01-session-worksheet": "Your symptom hierarchy and Circuit 2 notes can be kept as a worksheet for review with your therapist.",
   "tbct-s07-n01-p01-crp-offer": "I’d like to propose that today we work through a decision that feels important but difficult using Consensual Role-Play. You will not be pressured to take the feared action; what matters is what you learn. Would you like to try it?",
   "tbct-s07-n01-p02-crp-consent": "Would you like to continue with Consensual Role-Play, knowing that ‘not ready’ is also a valid outcome?",
-  "tbct-s07-n02-p01-language-lock": "Which language would you like to use? I will keep the names of the technique and chair roles consistent.",
+  // The protocol's default is to DETECT the language from the participant's
+  // own first substantive message and lock to it silently -- asking is only
+  // a fallback for genuinely ambiguous input (tbct-source-text.generated.ts:
+  // 1319-1322). sessionLanguage/languageLocked are now captured from the
+  // crp-consent reply one step earlier (runtime-context.ts), so this step
+  // just states the lock instead of re-asking a question nothing waits for.
+  "tbct-s07-n02-p01-language-lock": "I'll continue in the language you've been using, and I'll keep the names of the technique and chair roles consistent throughout.",
   "tbct-s07-n02-p02-both-parts-healthy": "Both parts are healthy functions of the same self. Emotion protects, and Reason evaluates. Neither is superior, and the goal is not for one to defeat the other.",
   "tbct-s07-n03-p01-ambivalence-normalization": "It is normal for one part of you to want an action while another part wants to avoid it. We will listen to both without forcing a decision.",
   "tbct-s07-n05-p01-emotion-weight": "From the Emotion chair, what percentage of the weight goes to the disadvantages? The remainder goes to the advantages.",
@@ -121,6 +127,23 @@ function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext)
   }
   if (promptItem.id === "tbct-s02-n09-p01-reflect-goal-score") {
     return reflectThenAskForNextRating({ listField: fields.goals, ratingsField: fields.goalRatings, askVerb: "Using the same 0 to 5 color scale, how would you rate" });
+  }
+  // Both "cycle" confirmations hardcoded "reacts negatively" regardless of
+  // what the participant actually answered for candidateTwo/ThreeReaction
+  // -- a real "positive" answer was accepted, then directly contradicted by
+  // the next sentence. The source only writes out the negative-reaction
+  // version for candidates 2/3 (tbct-source-text.generated.ts:112,124), but
+  // candidate 1's own text (line 98) confirms the identical sentence
+  // structure already applies to a positive reaction, so this substitutes
+  // the participant's actual valence into that same verbatim structure
+  // rather than inventing new clinical wording.
+  if (promptItem.id === "tbct-s01-n05-p08-candidate-two-cycle") {
+    const reaction = fields.candidateTwoReaction === "positive" ? "positively" : "negatively";
+    return `And when the interviewer reacts ${reaction} — can you see how that would feed back and reinforce the original thought, keeping the whole cycle going?`;
+  }
+  if (promptItem.id === "tbct-s01-n06-p07-candidate-three-cycle") {
+    const reaction = fields.candidateThreeReaction === "positive" ? "positively" : "negatively";
+    return `And when the interviewer reacts ${reaction} — can you see how that confirms the original thought and keeps the whole cycle feeding itself?`;
   }
   if (promptItem.id === "tbct-s08-n10-p02-rebut-each-defense-item") {
     const evidence = firstText(fields.defenseEvidence ?? fields.evidenceAgainst) ?? "the defense evidence you gave";

@@ -261,11 +261,39 @@ function toConditionExpression(value: Record<string, unknown> | ConditionExpress
   } satisfies ConditionExpression;
 }
 
+/** validation.kind values that occur on a PASSIVE_PROMPT_TYPES-typed prompt
+ * (instruction/explanation/transition/worksheet_instruction/closing) but
+ * genuinely check something the PATIENT must supply this turn, verified
+ * against each one's own source text/context rather than assumed from the
+ * name alone (see the fix commit for the read-distortions/participation
+ * cases this was written against). Kept as a narrow allowlist rather than
+ * "any validation present" because most passive-typed validations
+ * (exact_scale_anchors, courtroom_roles_understood, ccsh_summary, ...)
+ * check the ASSISTANT's own delivered content, not a patient answer --
+ * treating those as input-requiring would recreate the exact class of
+ * deadlock this fix is for, just on different prompts. */
+const PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS = new Set([
+  "min_items",
+  "exact_circuit_structure",
+  "reject_non_green_homework",
+  "defer_new_contributor_to_next_round",
+  "boolean",
+]);
+
+/** completionEffect kinds that resolve on assistant delivery by design --
+ * a safety pause and a session-completing summary must never wait for a
+ * patient answer, even if their prompt happens to declare outputFields. */
+const IMMEDIATE_COMPLETION_EFFECTS = new Set(["pause_session", "complete_session"]);
+
 function promptRequiresPatientInput(promptItem: PromptItem) {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
   if (["calculated_problem_totals", "calculated_goal_totals"].includes(validationKind) || promptItem.id === "tbct-s02-n11-p02-recorded-summary") return false;
   if (["question", "clarification", "follow_up", "confirmation", "reflection", "rating"].includes(promptItem.type)) return true;
-  if (PASSIVE_PROMPT_TYPES.has(promptItem.type)) return false;
+  if (PASSIVE_PROMPT_TYPES.has(promptItem.type)) {
+    const completionEffectType = (promptItem as { completionEffect?: { type?: unknown } | null }).completionEffect?.type;
+    if (typeof completionEffectType === "string" && IMMEDIATE_COMPLETION_EFFECTS.has(completionEffectType)) return false;
+    return promptItem.outputFields.length > 0 && PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS.has(validationKind);
+  }
   return promptItem.outputFields.length > 0;
 }
 

@@ -256,6 +256,15 @@ export async function extractRuntimeState(input: {
   const rawText = Array.isArray(input.patientInput.value) ? input.patientInput.value.join(" ") : String(input.patientInput.value);
   const lowered = normalizeText(rawText);
   const payload: Record<string, unknown> = {};
+  // S07's language-lock node (n02) is meant to lock onto the language of the
+  // patient's first substantive message in THIS session, per the protocol's
+  // "detect, don't ask" instruction -- but by the time that node runs, the
+  // first substantive message was already this session's crp-consent reply
+  // (n01). Capture it here rather than asking a fresh meta-question later.
+  if (input.currentPromptItem?.id === "tbct-s07-n01-p02-crp-consent" && !nextFields.sessionLanguage) {
+    nextFields.sessionLanguage = detectScriptLocale(rawText);
+    nextFields.languageLocked = true;
+  }
   const validation = input.currentPromptItem?.validation as { kind?: string } | null | undefined;
   const expectedFields = input.currentPromptItem
     ? input.currentPromptItem.outputFields
