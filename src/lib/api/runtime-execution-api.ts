@@ -11,6 +11,8 @@ import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tra
 import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-validator";
 import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
 import { projectRuntimeFieldsToWorksheet } from "@/lib/worksheet/worksheet-projection";
+import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
+import { resolveBracketPlaceholders } from "@/lib/runtime/runtime-static-message";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
 import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
@@ -100,6 +102,7 @@ async function deliverClarificationTurn(input: {
   reason: string;
   missingFields?: string[];
   recentAssistantMessages?: string[];
+  recentMessages?: RuntimeMessage[];
 }) {
   const clarificationAttemptCount = (input.session.runtimeContext.clarificationAttemptCount ?? 0) + 1;
   const missing = new Set(input.missingFields ?? []);
@@ -126,7 +129,7 @@ async function deliverClarificationTurn(input: {
           "I want to make sure I understand you correctly. Are you saying that you may be thinking about dying or harming yourself, or do you mean that things feel overwhelming right now?",
           "\uc81c\uac00 \uc815\ud655\ud788 \uc774\ud574\ud588\ub294\uc9c0 \ud655\uc778\ud558\uace0 \uc2f6\uc5b4\uc694. \uc8fd\uace0 \uc2f6\uac70\ub098 \uc2a4\uc2a4\ub85c\ub97c \ud574\uce58\uace0 \uc2f6\ub2e4\ub294 \uc0dd\uac01\uc774 \ub4e0\ub2e4\ub294 \ub73b\uc778\uac00\uc694, \uc544\ub2c8\uba74 \uc9c0\uae08 \uc0c1\ud669\uc774 \uac10\ub2f9\ud558\uae30 \ud798\ub4e4\uac8c \ub290\uaef4\uc9c4\ub2e4\ub294 \ub73b\uc778\uac00\uc694?",
         )
-    : sourceSpecificClarification ?? resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.clarificationPatientText ?? input.runtimePromptItem.fallbackPatientText, input.session.locale);
+    : sourceSpecificClarification ?? resolveBracketPlaceholders(resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.clarificationPatientText ?? input.runtimePromptItem.fallbackPatientText, input.session.locale), input.session.runtimeContext);
   const normalizeMessage = (value: string) => value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, " ").trim();
   const duplicatesRecentQuestion = (input.recentAssistantMessages ?? []).slice(-3).some((message) => normalizeMessage(message) === normalizeMessage(proposedContent));
   const outputField = input.promptItem.outputFields[0] ?? "";
@@ -158,7 +161,30 @@ async function deliverClarificationTurn(input: {
                 : /Body|Sensation/i.test(outputField)
                   ? tr("What specific physical sensation did you notice in your body, such as a racing heart or shaky hands?", "\ubab8\uc5d0\uc11c \uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uac01\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \uc2ec\uc7a5\uc774 \ube68\ub9ac \ub6f0\uac70\ub098 \uc190\uc774 \ub5a8\ub9ac\ub294 \ub290\ub08c\uc774 \uc788\uc5b4\uc694.")
                   : tr("Could you answer with one brief, specific example that directly addresses the question?", "\uc9c8\ubb38\uc5d0 \ub9de\ub294 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608\ub97c \ud558\ub098 \ub4e4\uc5b4 \uc8fc\uc2dc\uaca0\uc5b4\uc694?");
-  const content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
+  let content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
+  let dialogueOutcome: Awaited<ReturnType<typeof resolveDialogueAgentMessage>> | null = null;
+  // Safety and refusal clarifications stay fully deterministic, no
+  // exceptions -- only "the participant's answer didn't satisfy this
+  // prompt" (insufficient_input) routes through the dialogue agent, and
+  // only for enabled sessions. This is exactly the "mechanically repeated
+  // clarification" / "wrong construct" / "question not understood" case
+  // the dialogue-agent spec targets; deliverClarificationTurn's own
+  // deterministic `content` above is what ships if the agent call fails or
+  // fails validation.
+  if (input.reason === "insufficient_input" && isDialogueAgentEnabled(input.node.sessionId)) {
+    dialogueOutcome = await resolveDialogueAgentMessage({
+      session: input.session,
+      node: input.node,
+      sourcePromptItem: input.promptItem,
+      runtimePromptItem: input.runtimePromptItem,
+      lastParticipantMessage: input.patientMessage.content,
+      recentMessages: input.recentMessages ?? [],
+      clarificationAttemptCount,
+      turnId: makeId("TURN"),
+      deterministicFallbackText: content,
+    });
+    content = dialogueOutcome.patientMessage;
+  }
   const sessionStatus: RuntimeSessionStatus = input.reason === "patient_refusal" || clarificationAttemptCount >= MAX_CLARIFICATION_ATTEMPTS ? "paused" : "waiting_for_input";
   const assistantMessage: RuntimeMessage = {
     id: makeId("RMSG"),
@@ -171,7 +197,7 @@ async function deliverClarificationTurn(input: {
     sourceEvidenceIds: [],
     createdAt: new Date().toISOString(),
     deliveredAt: new Date().toISOString(),
-    metadata: { turnId: makeId("TURN"), turnOutcome: "clarification", clarificationReason: input.reason },
+    metadata: { turnId: makeId("TURN"), turnOutcome: "clarification", clarificationReason: input.reason, dialogueDecision: dialogueOutcome?.decision ?? undefined, dialogueFallbackUsed: dialogueOutcome?.usedFallback },
   };
   const outputValidation = deterministicValidation(content);
   await commitRuntimeAssistantTurn({
@@ -180,13 +206,16 @@ async function deliverClarificationTurn(input: {
     providerEvent: {
       id: makeId("RPE"),
       runtimeSessionId: input.session.id,
-      provider: "deterministic",
-      model: "runtime-clarification",
+      provider: dialogueOutcome && !dialogueOutcome.usedFallback ? dialogueOutcome.provider : "deterministic",
+      model: dialogueOutcome && !dialogueOutcome.usedFallback ? (dialogueOutcome.model ?? "dialogue-agent") : "runtime-clarification",
       nodeId: input.node.id,
       promptItemId: input.promptItem.id,
       inputSummary: `clarification:${input.reason}`,
       outputText: content,
       createdAt: new Date().toISOString(),
+      dialogueResponseType: dialogueOutcome?.decision?.responseType,
+      dialogueParticipantResponseState: dialogueOutcome?.decision?.participantResponseState,
+      dialogueFallbackUsed: dialogueOutcome?.usedFallback,
     },
     validationEvent: {
       id: makeId("RVE"),
@@ -379,6 +408,9 @@ async function deliverRuntimePrompt(input: {
       outputText: generatedMessage.content,
       error: delivered.providerResult.error,
       createdAt: new Date().toISOString(),
+      dialogueResponseType: (generatedMessage.metadata?.dialogueDecision as { responseType?: string } | undefined)?.responseType,
+      dialogueParticipantResponseState: (generatedMessage.metadata?.dialogueDecision as { participantResponseState?: string } | undefined)?.participantResponseState,
+      dialogueFallbackUsed: delivered.fallbackUsed,
     },
     validationEvent: {
       id: makeId("RVE"),
@@ -933,6 +965,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       reason: "insufficient_input",
       missingFields: extracted.missingFields,
       recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
+      recentMessages: view.messages,
     });
     await saveRuntimeLog(makeLog(sessionId, "error", "skipped", "Input validation failed", { nodeId: currentNode.id, output: { missingFields: extracted.missingFields } }));
     await createRuntimeCheckpoint(sessionId);

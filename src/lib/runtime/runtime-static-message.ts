@@ -240,7 +240,7 @@ const BRACKET_PLACEHOLDER_SOURCES: Array<{ pattern: RegExp; fieldCandidates: str
  * message. Substitute a captured field value when we have one, otherwise
  * fall back to natural unbracketed wording rather than reciting "[event]".
  */
-function resolveBracketPlaceholders(text: string, context?: RuntimeContext) {
+export function resolveBracketPlaceholders(text: string, context?: { fields?: Record<string, unknown> }) {
   const fields = context?.fields ?? {};
   return BRACKET_PLACEHOLDER_SOURCES.reduce((acc, { pattern, fieldCandidates, naturalFallback }) => {
     const resolvedValue = fieldCandidates.map((field) => fields[field]).find((value) => typeof value === "string" && value.trim());

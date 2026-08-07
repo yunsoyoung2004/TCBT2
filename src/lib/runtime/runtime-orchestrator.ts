@@ -9,6 +9,7 @@ import type { OutputValidationResult, PatientProfile, RuntimeMessage, RuntimeSes
 import { resolveStaticPatientMessage } from "@/lib/runtime/runtime-static-message";
 import { recordModelUsage } from "@/lib/assessment/model-observability";
 import type { PatientRendererRequest } from "@/lib/patient-renderer/patient-renderer-contract";
+import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
 
 async function callPatientRenderer(request: PatientRendererRequest, context: { sessionId: string; turnId: string }) {
   if (typeof window === "undefined") { const { renderPatientReflection } = await import("@/lib/patient-renderer/anthropic-patient-renderer"); return renderPatientReflection(request, context); }
@@ -86,6 +87,38 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
     } };
   }
   const dynamicRequestId = makeId("REFLECT");
+
+  // Pilot: S03 routes through the protocol-bounded dialogue agent (Claude
+  // decides HOW to phrase this turn -- acknowledge / reflect_and_ask /
+  // explain_scale / etc. -- from the participant's actual last message; the
+  // deterministic engine already decided completion/transition before this
+  // function was ever called, via extractRuntimeState + the completion
+  // condition, and is untouched by whatever comes back here). Every other
+  // session keeps the exact prior behavior (personalized reflection when
+  // requiresPersonalizedResponse is set, otherwise deterministic fallback
+  // text) unchanged.
+  if (isDialogueAgentEnabled(input.session.sessionDefinitionId)) {
+    const dialogueResult = await resolveDialogueAgentMessage({
+      session: input.session,
+      node: input.sourceNode,
+      sourcePromptItem: input.sourcePromptItem,
+      runtimePromptItem: input.activeStep.promptItem,
+      lastParticipantMessage: input.session.runtimeContext.lastPatientMessage,
+      recentMessages: input.recentMessages,
+      clarificationAttemptCount: input.session.runtimeContext.clarificationAttemptCount ?? 0,
+      turnId: dynamicRequestId,
+      deterministicFallbackText: contract.fallbackPatientText,
+    });
+    const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });
+    dialogueResponse.patientMessage = dialogueResult.patientMessage;
+    dialogueResponse.providerMetadata = { provider: "mock", model: dialogueResult.usedFallback ? "deterministic-neutral" : "dialogue-agent" };
+    const dialogueValidator: OutputValidationResult = { accepted: true, corrected: false, rejected: false, issues: dialogueResult.usedFallback && dialogueResult.fallbackReason ? [dialogueResult.fallbackReason] : [], finalText: dialogueResult.patientMessage, fallbackRequired: false };
+    const dialogueReduction = reduceRuntimeState({ release: input.release, currentState: input.state, activeStep: input.activeStep, event: "assistant_delivered" });
+    return { contract, response: dialogueResponse, providerResult: { provider: dialogueResult.provider, model: dialogueResult.model ?? dialogueResponse.providerMetadata.model, latencyMs: dialogueResult.latencyMs, text: dialogueResult.patientMessage }, validator: dialogueValidator, fallbackUsed: dialogueResult.usedFallback, repairUsed: false, stateReduction: dialogueReduction, generatedMessage: {
+      id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: dialogueResult.patientMessage, status: dialogueResult.usedFallback ? "replaced_by_fallback" : "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { llmCalled: !dialogueResult.usedFallback, messageSource: "dialogue_agent", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id, dialogueDecision: dialogueResult.decision ?? undefined },
+    } };
+  }
+
   const personalized = Boolean((input.sourcePromptItem as PromptItem & { requiresPersonalizedResponse?: boolean }).requiresPersonalizedResponse);
   const rendered = personalized
     ? await callPatientRenderer({ locale: input.session.locale, patientInputExcerpt: input.session.runtimeContext.lastPatientMessage?.slice(0, 500) ?? "", reflectionGoal: input.sourceNode.clinicalPurpose || "Acknowledge the patient's answer respectfully", maxWords: input.session.locale.toLowerCase().startsWith("ko") ? 20 : 35 }, { sessionId: input.session.id, turnId: dynamicRequestId })

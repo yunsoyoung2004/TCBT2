@@ -217,6 +217,14 @@ export interface RuntimeProviderEvent {
   outputText?: string;
   createdAt: string;
   error?: string;
+  // Populated only for dialogue-agent turns (src/lib/dialogue-agent/) -- the
+  // agent's own decision classification, kept separate from provider/model
+  // above so clinical QA can query "how often did Claude think the
+  // participant was confused" without joining to message metadata. Never
+  // hidden reasoning, only the explicit structured-output fields.
+  dialogueResponseType?: string;
+  dialogueParticipantResponseState?: string;
+  dialogueFallbackUsed?: boolean;
 }
 
 export interface RuntimeValidationEvent {

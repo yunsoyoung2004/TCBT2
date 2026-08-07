@@ -2,6 +2,7 @@ import type { CompiledPromptContract, PromptSegment, RuntimeRelease } from "@/ty
 import type { PatientProfile, RuntimeMessage, RuntimeSessionState, SessionMemory } from "@/types/runtime-session";
 import type { RuntimeActiveStep } from "@/lib/runtime/runtime-step-resolver";
 import { resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
+import { resolveBracketPlaceholders } from "@/lib/runtime/runtime-static-message";
 
 export type CompileRuntimePromptInput = {
   release: RuntimeRelease;
@@ -152,7 +153,14 @@ export async function compileRuntimePrompt(input: CompileRuntimePromptInput): Pr
     systemSegments,
     runtimeContext,
     outputSchema,
-    fallbackPatientText: resolvePromptLocaleText(activeStep.promptItem.id, activeStep.promptItem.fallbackPatientText, input.locale),
+    // Bracket-resolved here (not just inside resolveStaticPatientMessage's
+    // own call chain) because this fallbackPatientText is the deterministic
+    // safety net every consumer falls back to -- the dialogue-agent
+    // validator's own unresolved-template check proved that, unresolved,
+    // this text can itself contain "[initial conclusion]"-style
+    // placeholders (feedback v2 #5), which would otherwise leak straight
+    // through as "the safe fallback."
+    fallbackPatientText: resolveBracketPlaceholders(resolvePromptLocaleText(activeStep.promptItem.id, activeStep.promptItem.fallbackPatientText, input.locale), { fields: input.state.fields }),
     contractHash: "",
   } satisfies CompiledPromptContract;
 
