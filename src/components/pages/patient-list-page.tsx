@@ -6,6 +6,7 @@ import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
+import { HOMEWORK_LABEL_BY_SESSION, hasHomeworkActivity } from "@/types/homework";
 import { useT } from "@/lib/i18n/context";
 
 type ListedSession = Awaited<ReturnType<typeof listRuntimeSessions>>[number];
@@ -125,6 +126,11 @@ function SessionRow({ session }: { session: ListedSession }) {
               can only manage/continue their own session and view its summary. */}
           <Link href={`/projects/demo/patient/sessions/${session.id}`}><Button variant="secondary">{t("patientPortal.row.open")}</Button></Link>
           <Link href={`/runtime/sessions/${session.id}/summary`}><Button variant="secondary">{t("patientPortal.row.summary")}</Button></Link>
+          {session.status === "completed" && hasHomeworkActivity(session.sessionDefinitionId) && (
+            <Link href={`/projects/demo/patient/homework/${session.id}`}>
+              <Button variant="violet">{HOMEWORK_LABEL_BY_SESSION[session.sessionDefinitionId]}</Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

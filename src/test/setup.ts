@@ -11,6 +11,8 @@ import { dispatchFakeSafetyStoreOp, resetFakeSafetyStore } from "@/test/fakes/sa
 import { dispatchFakeProtocolStudioStoreOp, resetFakeProtocolStudioStore } from "@/test/fakes/protocol-studio-store.fake";
 import { WORKSHEET_STORE_ENDPOINT } from "@/lib/runtime/worksheet-store-ops";
 import { dispatchFakeWorksheetStoreOp, resetFakeWorksheetStore } from "@/test/fakes/worksheet-store.fake";
+import { HOMEWORK_STORE_ENDPOINT } from "@/lib/runtime/homework-store-ops";
+import { dispatchFakeHomeworkStoreOp, resetFakeHomeworkStore } from "@/test/fakes/homework-store.fake";
 import { dispatchFakeDialogueAgent } from "@/test/fakes/dialogue-agent.fake";
 import { dialogueContractSchema } from "@/lib/dialogue-agent/dialogue-agent-contract";
 
@@ -32,6 +34,7 @@ const FAKE_STORES: Array<{ endpoint: string; dispatch: (op: unknown) => Promise<
   { endpoint: SAFETY_STORE_ENDPOINT, dispatch: dispatchFakeSafetyStoreOp as (op: unknown) => Promise<unknown> },
   { endpoint: PROTOCOL_STUDIO_STORE_ENDPOINT, dispatch: dispatchFakeProtocolStudioStoreOp as (op: unknown) => Promise<unknown> },
   { endpoint: WORKSHEET_STORE_ENDPOINT, dispatch: dispatchFakeWorksheetStoreOp as (op: unknown) => Promise<unknown> },
+  { endpoint: HOMEWORK_STORE_ENDPOINT, dispatch: dispatchFakeHomeworkStoreOp as (op: unknown) => Promise<unknown> },
 ];
 
 // /api/dialogue-agent has a different body shape ({contract, context}, not
@@ -73,6 +76,7 @@ beforeEach(() => {
   resetFakeSafetyStore();
   resetFakeProtocolStudioStore();
   resetFakeWorksheetStore();
+  resetFakeHomeworkStore();
 });
 
 afterEach(() => {
@@ -81,4 +85,5 @@ afterEach(() => {
   resetFakeSafetyStore();
   resetFakeProtocolStudioStore();
   resetFakeWorksheetStore();
+  resetFakeHomeworkStore();
 });
