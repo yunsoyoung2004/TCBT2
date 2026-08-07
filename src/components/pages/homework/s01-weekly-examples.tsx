@@ -26,7 +26,7 @@ interface ExampleEntryData {
 export function WeeklyExamplesHomework({ homework }: { session: RuntimeSession; homework: HomeworkRecord; label: string }) {
   const { t } = useT();
   const queryClient = useQueryClient();
-  const entriesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "example"], queryFn: () => listHomeworkEntries(homework.id, "example") });
+  const entriesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "example"], queryFn: () => listHomeworkEntries(homework.id, "example"), refetchInterval: 4000 });
   const entries = entriesQuery.data ?? [];
 
   const [situation, setSituation] = useState("");

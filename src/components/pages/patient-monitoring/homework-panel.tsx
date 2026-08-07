@@ -71,6 +71,7 @@ export function HomeworkPanel({ participantId }: { participantId: string }) {
     queryKey: ["patient-monitoring-homework", participantId],
     queryFn: () => listHomeworkRecordsByParticipant(participantId),
     enabled: Boolean(participantId),
+    refetchInterval: 4000,
   });
   const records = useMemo(() => recordsQuery.data ?? [], [recordsQuery.data]);
 
@@ -98,6 +99,7 @@ export function HomeworkPanel({ participantId }: { participantId: string }) {
     queryKey: ["patient-monitoring-homework-entries", openRecord?.id],
     queryFn: () => listHomeworkEntries(openRecord!.id),
     enabled: Boolean(openRecord && HOMEWORK_CATEGORY_BY_SESSION[openRecord.sessionDefinitionId] === "ongoing"),
+    refetchInterval: 4000,
   });
 
   return (

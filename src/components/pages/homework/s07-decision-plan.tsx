@@ -33,7 +33,7 @@ function ReadyView({ session, homework }: { session: RuntimeSession; homework: H
   const [outcome, setOutcome] = useState<ReadyOutcome | null>(null);
   const [whatHappened, setWhatHappened] = useState("");
 
-  const outcomesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "outcome"], queryFn: () => listHomeworkEntries(homework.id, "outcome") });
+  const outcomesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "outcome"], queryFn: () => listHomeworkEntries(homework.id, "outcome"), refetchInterval: 4000 });
   const outcomes = (outcomesQuery.data ?? []).map((entry) => entry.data as unknown as OutcomeEntryData);
 
   const saveOutcome = useMutation({

@@ -31,7 +31,7 @@ export function ActionPlanHomework({ session, homework }: { session: RuntimeSess
   const fields = session.runtimeContext.fields;
   const plannedActions = Array.isArray(fields.plannedActions) ? (fields.plannedActions as string[]) : fields.plannedActions ? [String(fields.plannedActions)] : [];
 
-  const attemptsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "attempt"], queryFn: () => listHomeworkEntries(homework.id, "attempt") });
+  const attemptsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "attempt"], queryFn: () => listHomeworkEntries(homework.id, "attempt"), refetchInterval: 4000 });
   const attempts = (attemptsQuery.data ?? []).map((entry) => entry.data as unknown as AttemptEntryData);
 
   const [outcome, setOutcome] = useState<TryOutcome | null>(null);

@@ -48,7 +48,7 @@ export function CheckInHomework({ session, homework }: { session: RuntimeSession
   const baselineProblemRatings = Array.isArray(session.runtimeContext.fields.problemRatings) ? (session.runtimeContext.fields.problemRatings as number[]) : [];
   const baselineGoalRatings = Array.isArray(session.runtimeContext.fields.goalRatings) ? (session.runtimeContext.fields.goalRatings as number[]) : [];
 
-  const roundsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "checkin_round"], queryFn: () => listHomeworkEntries(homework.id, "checkin_round") });
+  const roundsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "checkin_round"], queryFn: () => listHomeworkEntries(homework.id, "checkin_round"), refetchInterval: 4000 });
   const rounds = useMemo(() => (roundsQuery.data ?? []).map((entry) => entry.data as unknown as CheckInRoundData), [roundsQuery.data]);
 
   const [draft, setDraft] = useState<Record<string, number>>({});

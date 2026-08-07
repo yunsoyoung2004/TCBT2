@@ -37,6 +37,7 @@ export function HomeworkPage() {
     queryKey: ["homework-record", sessionId],
     queryFn: () => (session ? ensureHomeworkForSession(session) : Promise.resolve(undefined)),
     enabled: Boolean(session),
+    refetchInterval: 4000,
   });
 
   if (sessionQuery.isLoading || homeworkQuery.isLoading) return <PatientShell title={t("homework.loading")}><PageSkeleton /></PatientShell>;

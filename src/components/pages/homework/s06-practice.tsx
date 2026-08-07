@@ -49,7 +49,7 @@ export function PracticeHomework({ session, homework }: { session: RuntimeSessio
   const [noticedBehaviors, setNoticedBehaviors] = useState<string[]>([]);
   const [whatLearned, setWhatLearned] = useState("");
 
-  const triesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "try"], queryFn: () => listHomeworkEntries(homework.id, "try") });
+  const triesQuery = useQuery({ queryKey: ["homework-entries", homework.id, "try"], queryFn: () => listHomeworkEntries(homework.id, "try"), refetchInterval: 4000 });
   const tries = (triesQuery.data ?? []).map((entry) => entry.data as unknown as TryEntryData);
 
   const addTry = useMutation({

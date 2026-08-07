@@ -31,7 +31,7 @@ export function AppealRecordHomework({ session, homework }: { session: RuntimeSe
   const charge = fields.charge ? String(fields.charge) : undefined;
   const baselineBelief = typeof fields.originalChargeFinalBeliefPercent === "number" ? fields.originalChargeFinalBeliefPercent : undefined;
 
-  const appealsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "appeal"], queryFn: () => listHomeworkEntries(homework.id, "appeal") });
+  const appealsQuery = useQuery({ queryKey: ["homework-entries", homework.id, "appeal"], queryFn: () => listHomeworkEntries(homework.id, "appeal"), refetchInterval: 4000 });
   const appeals = (appealsQuery.data ?? []).map((entry) => entry.data as unknown as AppealEntryData);
   const latestBelief = appeals.length ? appeals[appeals.length - 1].beliefAfter : baselineBelief;
 
