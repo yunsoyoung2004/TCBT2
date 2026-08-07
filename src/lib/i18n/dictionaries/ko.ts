@@ -124,7 +124,11 @@ const ko = {
     sessionSelector: "세션",
     tabs: {
       auditLog: "기록 로그",
+      worksheet: "워크시트",
       profile: "환자 프로필",
+    },
+    worksheet: {
+      unavailable: "이 세션에는 실시간 워크시트가 없습니다.",
     },
     summary: {
       currentSession: "현재 세션",
@@ -181,6 +185,8 @@ const ko = {
       sessionsHeading: "세션",
       notesHeading: "임상 메모",
       homeworkHeading: "숙제",
+      runsLabel: "{count}회 진행",
+      openSession: "열기",
     },
     homework: {
       empty: "아직 기록된 숙제 활동이 없습니다.",

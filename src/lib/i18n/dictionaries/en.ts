@@ -124,7 +124,11 @@ const en = {
     sessionSelector: "Session",
     tabs: {
       auditLog: "Audit Log",
+      worksheet: "Worksheet",
       profile: "Patient Profile",
+    },
+    worksheet: {
+      unavailable: "This session has no live worksheet.",
     },
     summary: {
       currentSession: "Current Session",
@@ -181,6 +185,8 @@ const en = {
       sessionsHeading: "Sessions",
       notesHeading: "Clinical notes",
       homeworkHeading: "Homework",
+      runsLabel: "{count} run(s)",
+      openSession: "Open",
     },
     homework: {
       empty: "No follow-up activity recorded yet.",

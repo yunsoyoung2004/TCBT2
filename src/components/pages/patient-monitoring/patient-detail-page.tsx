@@ -29,13 +29,17 @@ import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } fr
 import { addClinicianNote, deleteClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
 import {
+  deriveMonitoringStatus,
   findSessionTitle,
   findStepTitle,
+  isOpenSafetyEvent,
   summarizeParticipant,
   type MonitoringStatus,
 } from "@/components/pages/patient-monitoring/patient-monitoring-utils";
 import { HomeworkPanel } from "@/components/pages/patient-monitoring/homework-panel";
-import type { RuntimeMessageRole } from "@/types/runtime-session";
+import { WorksheetPane } from "@/components/runtime/worksheet-pane";
+import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
+import type { RuntimeMessageRole, RuntimeSession } from "@/types/runtime-session";
 
 type AuditFilter = "all" | "program" | "patient" | "notes";
 
@@ -80,7 +84,7 @@ export function PatientMonitoringDetailPage() {
   const reducedMotion = useReducedMotionPreference();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
-  const [activeTab, setActiveTab] = useState<"audit" | "profile">("audit");
+  const [activeTab, setActiveTab] = useState<"audit" | "worksheet" | "profile">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
@@ -93,7 +97,27 @@ export function PatientMonitoringDetailPage() {
 
   const participant = participantQuery.data;
   const sessionIds = participant?.runtimeSessionIds ?? [];
-  const effectiveSessionId = selectedSessionId ?? sessionIds.at(-1) ?? "";
+
+  const safetyQuery = useQuery({
+    queryKey: ["patient-monitoring-safety-events", participantId],
+    queryFn: getSafetyEvents,
+    enabled: Boolean(participantId),
+    refetchInterval: 5000,
+  });
+
+  const canonicalSessionsQuery = useQuery({ queryKey: ["patient-monitoring-canonical-sessions"], queryFn: listCanonicalTestSessions });
+
+  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
+
+  const summary = useMemo(
+    () => summarizeParticipant(participantId, allRuntimeSessionsQuery.data ?? [], safetyQuery.data ?? [], participant?.updatedAt),
+    [participantId, allRuntimeSessionsQuery.data, safetyQuery.data, participant?.updatedAt],
+  );
+
+  // Prefers the smartest "current" pick (skips terminal sessions when a
+  // live one exists); falls back to the participant record's own session
+  // list only while summary.sessions hasn't loaded yet.
+  const effectiveSessionId = selectedSessionId ?? summary.currentSession?.id ?? sessionIds.at(-1) ?? "";
 
   const sessionViewQuery = useQuery({
     queryKey: ["patient-monitoring-session-view-detail", effectiveSessionId],
@@ -112,21 +136,31 @@ export function PatientMonitoringDetailPage() {
     enabled: Boolean(participantId),
   });
 
-  const safetyQuery = useQuery({
-    queryKey: ["patient-monitoring-safety-events", participantId],
-    queryFn: getSafetyEvents,
-    enabled: Boolean(participantId),
-    refetchInterval: 5000,
-  });
+  // Every individual session run for this participant, grouped by session
+  // definition and newest-first -- the "Sessions" list used to show only
+  // one aggregated status per definition, which hid every earlier attempt
+  // at the same session (e.g. repeated test runs of S01).
+  const sessionsByDefinition = useMemo(() => {
+    const map = new Map<string, RuntimeSession[]>();
+    for (const item of summary.sessions) {
+      const list = map.get(item.sessionDefinitionId) ?? [];
+      list.push(item);
+      map.set(item.sessionDefinitionId, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return map;
+  }, [summary.sessions]);
 
-  const canonicalSessionsQuery = useQuery({ queryKey: ["patient-monitoring-canonical-sessions"], queryFn: listCanonicalTestSessions });
+  const runStatus = (item: RuntimeSession): MonitoringStatus =>
+    deriveMonitoringStatus(item.status, (safetyQuery.data ?? []).some((event) => event.runtimeSessionId === item.id && isOpenSafetyEvent(event)));
 
-  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
+  const sessionLabel = (item: RuntimeSession) =>
+    `${findSessionTitle(item.sessionDefinitionId) ?? item.sessionDefinitionId} · ${t(`patientMonitoring.status.${runStatus(item)}`)} · ${formatTimestamp(item.updatedAt)}`;
 
-  const summary = useMemo(
-    () => summarizeParticipant(participantId, allRuntimeSessionsQuery.data ?? [], safetyQuery.data ?? [], participant?.updatedAt),
-    [participantId, allRuntimeSessionsQuery.data, safetyQuery.data, participant?.updatedAt],
-  );
+  const openSession = (sessionId: string, tab: "audit" | "worksheet" | "profile" = "audit") => {
+    setSelectedSessionId(sessionId);
+    setActiveTab(tab);
+  };
 
   const invalidateSession = async () => {
     await queryClient.invalidateQueries({ queryKey: ["patient-monitoring-session-view-detail", effectiveSessionId] });
@@ -315,13 +349,14 @@ export function PatientMonitoringDetailPage() {
 
       <div className="border-b border-border bg-surface px-4 lg:px-6">
         <div className="flex gap-2 py-2 sm:hidden">
-          <select className={inputClass} value={activeTab} onChange={(event) => setActiveTab(event.target.value as "audit" | "profile")}>
+          <select className={inputClass} value={activeTab} onChange={(event) => setActiveTab(event.target.value as "audit" | "worksheet" | "profile")}>
             <option value="audit">{t("patientDetail.tabs.auditLog")}</option>
+            <option value="worksheet">{t("patientDetail.tabs.worksheet")}</option>
             <option value="profile">{t("patientDetail.tabs.profile")}</option>
           </select>
         </div>
         <div className="hidden gap-1 pt-2 sm:flex">
-          {(["audit", "profile"] as const).map((tab) => (
+          {(["audit", "worksheet", "profile"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -330,19 +365,19 @@ export function PatientMonitoringDetailPage() {
                 activeTab === tab ? "border-clinical-blue text-clinical-blue" : "border-transparent text-text-secondary hover:text-text-primary"
               }`}
             >
-              {tab === "audit" ? t("patientDetail.tabs.auditLog") : t("patientDetail.tabs.profile")}
+              {tab === "audit" ? t("patientDetail.tabs.auditLog") : tab === "worksheet" ? t("patientDetail.tabs.worksheet") : t("patientDetail.tabs.profile")}
             </button>
           ))}
         </div>
       </div>
 
       <div className="space-y-4 p-4 lg:p-6">
-        {sessionIds.length > 1 && (
+        {summary.sessions.length > 1 && (
           <Field label={t("patientDetail.sessionSelector")}>
             <select className={inputClass} value={effectiveSessionId} onChange={(event) => setSelectedSessionId(event.target.value)}>
-              {sessionIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {[...summary.sessions].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {sessionLabel(item)}
                 </option>
               ))}
             </select>
@@ -437,6 +472,20 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
           </div>
+        ) : activeTab === "worksheet" ? (
+          <div>
+            {session && hasWorksheetBindings(session.sessionDefinitionId) ? (
+              <WorksheetPane
+                runtimeSessionId={effectiveSessionId}
+                sessionDefinitionId={session.sessionDefinitionId}
+                activeCanonicalFieldKey={sessionViewQuery.data?.currentPromptItem?.outputFields?.[0]}
+              />
+            ) : (
+              <Card>
+                <EmptyState title={t("patientDetail.worksheet.unavailable")} description="" />
+              </Card>
+            )}
+          </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-[1fr_.85fr]">
             <Card>
@@ -453,15 +502,45 @@ export function PatientMonitoringDetailPage() {
               </div>
               <SectionHeader title={t("patientDetail.profile.sessionsHeading")} />
               <div className="space-y-2 p-4">
-                {sessionProgress.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between rounded-panel border border-border px-3 py-2">
-                    <div>
-                      <div className="text-xs font-semibold text-text-muted">S{String(item.number).padStart(2, "0")}</div>
-                      <div className="text-sm text-text-primary">{item.title}</div>
+                {sessionProgress.map((item) => {
+                  const runs = sessionsByDefinition.get(item.id) ?? [];
+                  const header = (
+                    <div className="flex items-center justify-between gap-2 rounded-panel border border-border px-3 py-2">
+                      <div>
+                        <div className="text-xs font-semibold text-text-muted">S{String(item.number).padStart(2, "0")}</div>
+                        <div className="text-sm text-text-primary">{item.title}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {runs.length > 0 && (
+                          <span className="text-[11px] text-text-muted">{t("patientDetail.profile.runsLabel", { count: runs.length })}</span>
+                        )}
+                        <Badge tone={STATUS_TONE[item.status]}>{t(`patientMonitoring.status.${item.status}`)}</Badge>
+                      </div>
                     </div>
-                    <Badge tone={STATUS_TONE[item.status]}>{t(`patientMonitoring.status.${item.status}`)}</Badge>
-                  </div>
-                ))}
+                  );
+                  if (runs.length === 0) return <div key={item.id}>{header}</div>;
+                  return (
+                    <details key={item.id} className="group rounded-panel">
+                      <summary className="cursor-pointer list-none">{header}</summary>
+                      <div className="mt-1.5 space-y-1.5 pl-3">
+                        {runs.map((run) => (
+                          <div key={run.id} className="flex items-center justify-between gap-2 rounded-panel border border-dashed border-border px-3 py-1.5">
+                            <div>
+                              <div className="text-[11px] font-mono text-text-muted">{run.id}</div>
+                              <div className="text-xs text-text-secondary">{formatTimestamp(run.updatedAt)}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge tone={STATUS_TONE[runStatus(run)]}>{t(`patientMonitoring.status.${runStatus(run)}`)}</Badge>
+                              <Button size="sm" variant="secondary" onClick={() => openSession(run.id, "audit")}>
+                                {t("patientDetail.profile.openSession")}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  );
+                })}
               </div>
             </Card>
 
