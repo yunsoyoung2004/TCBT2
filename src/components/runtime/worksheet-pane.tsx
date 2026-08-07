@@ -4,22 +4,21 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
-import { FigureWorkspace } from "@/components/runtime/worksheet-renderers/figure-workspace";
-import { getSessionFigureConfig } from "@/lib/worksheet/figure-registry";
 import { getComposedWorksheet } from "@/lib/worksheet/composed-worksheet-registry";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
 
 // The interactive visual worksheet -- a typed projection of
 // RuntimeContext.fields (see src/lib/worksheet/worksheet-projection.ts for
-// the write-path contract). The main participant-facing view is a
-// recreation of that session's own source TBCT figure, either as a
-// coordinate-mapped photo overlay (session 3 only -- see FigureWorkspace +
-// figure-registry) or, for every other session with bindings, a composed
-// component that rebuilds the figure's structure in real HTML/CSS (see
-// composed-worksheet-registry.ts). The flat field-status list further down
-// is kept only as a secondary/debug view, collapsed by default -- never the
-// primary experience. Sessions with neither registered yet fall back to
-// that flat list as their primary view.
+// the write-path contract). The main participant-facing view is a composed
+// component that rebuilds that session's own source TBCT figure in real
+// HTML/CSS (see composed-worksheet-registry.ts) -- every session (s01-s08)
+// has one. A previous pass tried a coordinate-mapped photo overlay of the
+// scanned figure for S03 instead; that was retired in favor of the same
+// HTML-recreation approach every other session uses, for consistency. The
+// flat field-status list further down is kept only as a secondary/debug
+// view, collapsed by default -- never the primary experience. A session
+// with no composed worksheet registered yet falls back to that flat list
+// as its primary view.
 
 const STATUS_TONE: Record<WorksheetFieldStatus, "success" | "primary" | "neutral" | "warning" | "critical"> = {
   empty: "neutral",
@@ -68,17 +67,14 @@ export function WorksheetPane({ runtimeSessionId, sessionDefinitionId, activeCan
   const busy = confirmMutation.isPending || editMutation.isPending;
   const onConfirm = (worksheetFieldKey: string) => confirmMutation.mutate(worksheetFieldKey);
   const onEdit = (worksheetFieldKey: string, value: unknown) => editMutation.mutate({ worksheetFieldKey, value });
-  const figureConfig = getSessionFigureConfig(sessionDefinitionId);
   const ComposedWorksheet = getComposedWorksheet(sessionDefinitionId);
-  const hasPrimaryView = Boolean(figureConfig || ComposedWorksheet);
+  const hasPrimaryView = Boolean(ComposedWorksheet);
 
   return (
     <Card className="overflow-hidden">
       <SectionHeader title="Session Worksheet" description="Fills in as you answer -- confirm a box once it looks right, or edit it." />
       <div className="max-h-[calc(100vh-260px)] space-y-4 overflow-auto p-4">
-        {figureConfig ? (
-          <FigureWorkspace config={figureConfig} view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
-        ) : ComposedWorksheet ? (
+        {ComposedWorksheet ? (
           <ComposedWorksheet view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} />
         ) : (
           <div className="space-y-2">
