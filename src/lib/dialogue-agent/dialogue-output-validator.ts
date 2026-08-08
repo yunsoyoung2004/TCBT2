@@ -1,5 +1,6 @@
 import type { DialogueContract, DialogueDecision } from "@/lib/dialogue-agent/dialogue-agent-contract";
 import { hasUnresolvedTemplateVariable } from "@/lib/dialogue-agent/unresolved-template-detector";
+import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-validator";
 
 export type DialogueValidationResult = { accepted: true } | { accepted: false; reason: string };
 
@@ -22,6 +23,18 @@ export function validateDialogueDecision(decision: DialogueDecision, contract: D
   if (hasUnresolvedTemplateVariable(text)) return { accepted: false, reason: "unresolved_template_variable" };
   if (!text.trim()) return { accepted: false, reason: "empty_message" };
   if (text.length > 700) return { accepted: false, reason: "message_too_long" };
+  // The older structured-output validator (runtime-output-validator.ts) has
+  // always rejected a locale mismatch -- this dialogue-agent path grew
+  // independently and never carried that check over, so a Korean session
+  // could silently ship an English Claude reply (or vice versa) with
+  // nothing here to catch it before display. (A near-duplicate-message
+  // check was considered too, mirroring that same older validator, but a
+  // repeat_until prompt -- e.g. "what is one specific example of X
+  // evidence?" asked 2-4 times to collect a list -- legitimately repeats
+  // near-identical text across iterations, so a blanket duplicate check
+  // over recent assistant turns rejects correct behavior; see the
+  // simulated-patient audit's fallback counts before ruling this back in.)
+  if (!isPatientFacingLocaleConsistent(text, contract.locale)) return { accepted: false, reason: "locale_mismatch" };
   if (DIAGNOSIS_PATTERN.test(text)) return { accepted: false, reason: "diagnosis_language" };
   if (TREATMENT_ADVICE_PATTERN.test(text)) return { accepted: false, reason: "unsolicited_treatment_advice" };
   if (PROTOCOL_STATE_PATTERN.test(text)) return { accepted: false, reason: "protocol_state_language" };

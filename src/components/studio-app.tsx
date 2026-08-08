@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 
-const DashboardPage = dynamic(() => import("@/components/pages/dashboard-page").then((mod) => mod.DashboardPage), { ssr: false });
 const AssetsPage = dynamic(() => import("@/components/pages/assets-page").then((mod) => mod.AssetsPage), { ssr: false });
 const ClinicalAssetRegistrationPage = dynamic(() => import("@/components/pages/clinical-asset-registration-page").then((mod) => mod.ClinicalAssetRegistrationPage), { ssr: false });
 const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page").then((mod) => mod.ExtractionPage), { ssr: false });
@@ -109,7 +108,12 @@ const studioRoutes: StudioRoute[] = [
 export function StudioApp() {
   const pathname = usePathname();
   const route = studioRoutes.find(({ matches }) => matches(pathname));
-  const Page = route?.Page ?? DashboardPage;
+  // The "Protocol Overview" dashboard used to be the fallback for any
+  // unmatched path (including "/" and the old "/dashboard" URL). It's been
+  // removed outright, so the fallback is now the Protocol Editor -- the
+  // clinician's other primary nav destination -- rather than a page that no
+  // longer exists.
+  const Page = route?.Page ?? ProtocolPage;
 
   return <Page />;
 }

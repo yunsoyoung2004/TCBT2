@@ -142,7 +142,12 @@ function isLocaleConsistentFallbackText(value: string, locale: string) {
 // source corpus or per-prompt hand translation, a separate, larger effort
 // from this pass.
 const REVIEWED_KOREAN_PROMPT_TEXT: Record<string, string> = {
-  "tbct-s01-n01-p01-warm-acknowledgement": "많은 것을 감당해 오신 것 같아요. 여기 와 주셔서 감사합니다. 이 모든 일을 함께 더 분명하게 살펴보는 데 도움이 되는 것부터 시작하겠습니다.",
+  // "많은 것을 감당해 오신 것 같아요" (mirroring the English fallback fix in
+  // runtime-static-message.ts's APPROVED_PATIENT_TEXT) used to open every
+  // Korean session by claiming a burden the participant never described --
+  // the source manual's "That sounds like a lot to be carrying" is one
+  // worked example's acknowledgment, not universal script text.
+  "tbct-s01-n01-p01-warm-acknowledgement": "여기 와 주셔서 감사합니다. 이 모든 일을 함께 더 분명하게 살펴보는 데 도움이 되는 것부터 시작하겠습니다.",
   "tbct-s02-n03-p01-offer-private-placeholders": "문제를 평가하기 전에, 어떤 분들은 자세히 이야기하고 싶지 않은 개인적인 문제가 있을 수 있어요. 그런 경우라면 자세히 설명하지 않아도 괜찮아요 — 그냥 X, Y, Z라고 부르셔도 되고, 그래도 함께 평가할 수 있어요. 그런 문제를 추가하시고 싶으신가요?",
   "tbct-s02-n04-p02-six-anchor-problem-scale": "각 문제에 대해 이 0~5 척도를 사용해 주세요: 0 연한 파란색—작거나 더 이상 문제가 아님; 1 진한 파란색—불편하지만 비교적 쉽게 해결 가능; 2 연한 초록색—명확한 불편감이 있고/있거나 해결이 어려움; 3 진한 초록색—상당한 불편감이 있고/있거나 해결이 매우 어려움; 4 노란색—괴로움을 느끼고 해결이 매우 어려움; 5 빨간색—해결책이 보이지 않을 만큼 괴로움.",
   "tbct-s02-n04-p03-discomfort-distress-distinction": "0~3점은 아직 감당할 수 있는 불편감을 의미해요. 4~5점은 감당하기 힘든 괴로움을 의미하고, 치료에서 우선적으로 다뤄야 할 부분이에요. 이 구분이 이해되시나요?",
@@ -204,10 +209,17 @@ function localizedSourcePromptText(promptItem: PromptItem, locale: string, fallb
 }
 
 export function resolveLocaleFallbackPatientText(value: string | undefined, locale: string) {
-  // A source-specific prompt is safer than a generic question that changes the
-  // clinical task. Locale mismatch remains visible to validation/audit and must
-  // never silently turn into a generic protocol substitute.
-  return isPatientSafeFallbackText(value) ? value!.trim() : defaultFallbackPatientText(locale);
+  if (!isPatientSafeFallbackText(value)) return defaultFallbackPatientText(locale);
+  const trimmed = value!.trim();
+  // A source-specific prompt used to ship even when it didn't match the
+  // session's language, on the theory that the mismatch would stay visible
+  // to validation/audit rather than silently becoming a generic substitute.
+  // In practice this is the deterministic safety net -- the literal text a
+  // Korean-speaking patient sees when nothing else worked -- so shipping it
+  // in English anyway defeated the point of calling it a safety net. The
+  // already-localized generic line is the safer default when the
+  // source-specific text isn't in the session's language.
+  return isLocaleConsistentFallbackText(trimmed, locale) ? trimmed : defaultFallbackPatientText(locale);
 }
 
 export function isPatientSafeFallbackText(value: string | undefined) {

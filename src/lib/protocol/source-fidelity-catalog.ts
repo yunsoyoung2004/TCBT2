@@ -1816,7 +1816,17 @@ const SESSION_07_TO_08_SPECS: SessionSpec[] = [
         requiredFields: ["courtroomOrientationAcknowledged", "charge"],
         restrictions: [sourceText([1549, 1574])],
         prompts: [
-          { slug: "state-charge", type: "explanation", source: [1580, 1580], marker: "The charge is", outputFields: ["charge"] },
+          // No `marker` here on purpose: Step 3's source line only offers
+          // "The charge is: I am a failure." as an illustrative example of
+          // the pattern, not literal script text, but marker-extraction
+          // can't tell the difference -- it would otherwise become this
+          // prompt's verbatim/fallback text and get spoken to every
+          // participant regardless of what core belief they actually gave
+          // in Step 1. runtime-static-message.ts's contextualPatientText
+          // builds the real, participant-specific charge from the
+          // coreBelief field instead; the completionEffect below persists
+          // that same value into the charge field once delivered.
+          { slug: "state-charge", type: "explanation", source: [1580, 1580], outputFields: ["charge"], completionEffect: { type: "copy_field", from: "coreBelief", to: "charge" } },
           { slug: "roles-orientation", type: "instruction", source: [1580, 1580], patientText: "We will examine this charge in a symbolic internal courtroom. You will move through the roles of defendant, prosecutor, defense attorney, and juror while I guide the process.", outputFields: ["courtroomOrientationAcknowledged"], validation: { kind: "courtroom_roles_understood" } },
         ],
       },

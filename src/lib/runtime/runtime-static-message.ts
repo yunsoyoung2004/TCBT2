@@ -5,6 +5,20 @@ import type { RuntimeContext } from "@/types/runtime-session";
 export type StaticMessageResult = { patientMessage: string; source: "approved_static"; llmCalled: false };
 
 const APPROVED_PATIENT_TEXT: Record<string, string> = {
+  // Source (tbct-source-text.generated.ts:57-69) gives a single worked
+  // "Example:" of this mandatory opening move -- a hypothetical participant
+  // who opens with anxiety/couples-therapy/nursing content, acknowledged
+  // with "That sounds like a lot to be carrying." The marker-extraction in
+  // source-fidelity-catalog previously pulled that example's therapist line
+  // out verbatim as this prompt's fallback text, so every participant's
+  // session opened with a fabricated acknowledgment of content they never
+  // said. This runtime has no captured field for whatever a participant
+  // volunteers before Step 1 (unlike S08's charge, which reuses the
+  // already-collected coreBelief), so there's nothing patient-specific to
+  // substitute in -- a warm, content-neutral opening that doesn't claim
+  // anything false is the safe reading of "acknowledge warmly... then
+  // redirect immediately to the Step 1 opening question."
+  "tbct-s01-n01-p01-warm-acknowledgement": "Thank you for being here. I'd like us to start with something that will help us look at everything more clearly together.",
   "tbct-s02-n03-p01-offer-private-placeholders": "Before we rate your problems, some people have something private they'd rather not describe in detail. If that's true for you, you don't have to explain it — you can just call it X, Y, or Z instead, and we'll still rate it. Would you like to add a problem like that?",
   "tbct-s02-n04-p02-six-anchor-problem-scale": "Use this 0–5 scale for each problem: 0 Light blue—small or no longer a problem; 1 Dark blue—uncomfortable but relatively easy to solve; 2 Light green—clear discomfort and/or difficult to solve; 3 Dark green—much discomfort and/or very difficult to solve; 4 Yellow—distressing and very difficult to solve; 5 Red—so distressing that you cannot see a solution.",
   "tbct-s02-n04-p03-discomfort-distress-distinction": "Scores 0–3 describe discomfort that you can still manage. Scores 4–5 describe distress that feels overwhelming and deserves priority in therapy. Does that distinction make sense?",
@@ -122,8 +136,25 @@ const SAFETY_PAUSE_EXERCISE_NAME: Record<string, string> = {
   "tbct-s08-n22-p01-stop-trial": "the trial",
 };
 
-function contextualPatientText(promptItem: PromptItem, context?: RuntimeContext) {
+function contextualPatientText(promptItem: PromptItem, context: RuntimeContext | undefined, locale: string) {
   const fields = context?.fields ?? {};
+  // Step 3's own source line (tbct-source-text.generated.ts:1584) states the
+  // charge with an illustrative example -- 'For example: "The charge is: I
+  // am a failure."' -- and the marker-extraction in source-fidelity-catalog
+  // captured that example quote verbatim as this prompt's fallback/verbatim
+  // text, so every participant heard the textbook example instead of the
+  // core belief they themselves gave two steps earlier (downward-arrow's
+  // coreBelief). The "charge" field also had no writer anywhere -- nothing
+  // ever copied coreBelief into it -- so the worksheet's Defendant box
+  // stayed empty even after this line was delivered. Build the real charge
+  // from the participant's own coreBelief instead; runtime-execution-api.ts's
+  // "copy_field" completion effect persists the same value into the charge
+  // field once this turn is delivered.
+  if (promptItem.id === "tbct-s08-n03-p01-state-charge") {
+    const charge = firstText(fields.coreBelief);
+    if (!charge) return undefined;
+    return locale.toLowerCase().startsWith("ko") ? `이 법정에서 다뤄질 혐의는 이것입니다 — "${charge}"` : `The charge is: "${charge}."`;
+  }
   const safetyPauseExercise = SAFETY_PAUSE_EXERCISE_NAME[promptItem.id];
   if (safetyPauseExercise) {
     return `Let's pause ${safetyPauseExercise} here for a moment. If you're feeling distressed or unsafe right now, please reach out to your therapist or a crisis line right away -- that matters more than continuing this exercise. We can pick this back up together once you're safe.`;
@@ -249,7 +280,7 @@ export function resolveBracketPlaceholders(text: string, context?: { fields?: Re
 }
 
 export function resolveStaticPatientMessage(promptItem: PromptItem, locale: string, context?: RuntimeContext): StaticMessageResult | null {
-  const approved = contextualPatientText(promptItem, context);
+  const approved = contextualPatientText(promptItem, context, locale);
   if (approved) return { patientMessage: resolveBracketPlaceholders(resolvePromptLocaleText(promptItem.id, approved, locale), context), source: "approved_static", llmCalled: false };
   // fallbackPatientText on a canonical PromptItem is already reviewed patient
   // content by the time the release is built (see

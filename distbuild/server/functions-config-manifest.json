@@ -1,9 +1,16 @@
 {
   "version": 1,
   "functions": {
-    "/api/audit/session-snapshot": {},
     "/api/assessment/input": {},
+    "/api/dialogue-agent": {},
+    "/api/audit/session-snapshot": {},
+    "/api/homework/store": {},
+    "/api/participants/store": {},
+    "/api/protocol-studio/store": {},
     "/api/patient-reflection": {},
-    "/api/speech/transcribe": {}
+    "/api/runtime/session-store": {},
+    "/api/speech/transcribe": {},
+    "/api/safety/store": {},
+    "/api/worksheets/store": {}
   }
 }

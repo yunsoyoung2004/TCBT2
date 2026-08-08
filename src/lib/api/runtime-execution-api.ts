@@ -69,6 +69,16 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
     return { ...runtimeContext, fields: { ...runtimeContext.fields, totalGoalsScore: ratings.reduce((sum, value) => sum + value, 0), yellowRedGoalsCount: ratings.filter((value) => value >= 4).length } };
   }
   const effect = promptItem.completionEffect;
+  // Copies an already-confirmed field's value into a second field this
+  // prompt is nominally "about" but never independently collects -- e.g.
+  // S08's state-charge explanation restates the core belief (captured back
+  // in Step 1) as the formal charge, so the charge field needs the same
+  // value rather than a fresh, never-asked-for participant answer.
+  if (effect?.type === "copy_field" && typeof effect.from === "string" && typeof effect.to === "string") {
+    const sourceValue = runtimeContext.fields[effect.from];
+    if (sourceValue === undefined || sourceValue === "") return runtimeContext;
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, [effect.to]: sourceValue } };
+  }
   if (effect?.type === "set_field" && typeof effect.field === "string") {
     return { ...runtimeContext, fields: { ...runtimeContext.fields, [effect.field]: effect.value } };
   }

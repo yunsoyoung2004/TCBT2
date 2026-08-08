@@ -12,7 +12,6 @@ import {
   FlaskConical,
   Globe,
   HelpCircle,
-  LayoutDashboard,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -45,7 +44,11 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: "nav.patientMonitoring", href: "/patients", icon: Users, audience: "clinician" },
   // Internal/engineering routes: still implemented and reachable by direct URL,
   // just hidden from the standard clinician sidebar and command palette.
-  { labelKey: "Overview", href: "/dashboard", icon: LayoutDashboard, audience: "internal" },
+  // The old "Overview" dashboard was removed entirely (studio-app.tsx now
+  // falls back to the Protocol Editor for any unmatched path, including the
+  // old "/dashboard" URL) rather than kept as a hidden internal route --
+  // unlike the routes below, it had no unique content worth preserving
+  // behind a direct link once its own page component was deleted.
   { labelKey: "Clinical Assets", href: "/projects/demo/assets", icon: FileStack, audience: "internal" },
   { labelKey: "Extraction Review", href: "/projects/demo/extraction", icon: Sparkles, audience: "internal" },
   { labelKey: "Safety Rules", href: "/projects/demo/protocols/tbct-br-001/safety", icon: ShieldCheck, audience: "internal" },
@@ -63,13 +66,12 @@ function isClinicianAudience(_role: string) {
 }
 
 function isActive(pathname: string, href: string) {
-  if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard";
   return pathname.startsWith(href);
 }
 
 function buildBreadcrumb(pathname: string) {
   const tokens = pathname.split("/").filter(Boolean);
-  if (!tokens.length) return ["Overview"];
+  if (!tokens.length) return ["Protocol Editor"];
   return tokens
     .map((token) => token.replaceAll("-", " "))
     .map((token) => token.replace(/\b\w/g, (char) => char.toUpperCase()));
@@ -123,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="flex w-full flex-col">
           <div className="flex h-[68px] items-center justify-between gap-2 border-b border-white/10 px-4">
-            <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
+            <Link href="/projects/demo/protocols/tbct-br-001/canvas" className="flex min-w-0 flex-1 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-panel bg-white text-navy-900">
                 <FlaskConical className="h-5 w-5" />
               </span>
