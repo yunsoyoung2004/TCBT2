@@ -99,6 +99,16 @@ select:focus-visible {
   background-size: 22px 22px;
 }
 
+/* Mobile Protocol Editor "Flow" tab only (see
+   protocol-editor/mobile/mobile-flow-view.tsx) -- this class is never
+   applied anywhere in the desktop/tablet tree, so this rule can't affect
+   the existing canvas. Bumps React Flow's built-in zoom/fit-view/lock
+   buttons to a touch-friendly ~44px target. */
+.mobile-flow-view .react-flow__controls-button {
+  width: 44px;
+  height: 44px;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);

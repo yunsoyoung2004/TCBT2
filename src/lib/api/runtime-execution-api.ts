@@ -902,9 +902,15 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: initialSession.runtimeContext, locale: initialSession.locale });
   // Worksheet projection is a best-effort read-side mirror of the canonical
   // extracted fields (src/lib/worksheet/worksheet-projection.ts) -- never
-  // allowed to block or fail a real turn, and a no-op for sessions with no
-  // registered worksheet bindings.
-  projectRuntimeFieldsToWorksheet({ runtimeSessionId: sessionId, sessionDefinitionId: initialSession.sessionDefinitionId, fields: extracted.fields, sourceTurnId: patientMessage.id }).catch(() => {});
+  // allowed to FAIL a real turn (errors are swallowed below), but it IS
+  // awaited: this used to be fire-and-forget, which raced the client's own
+  // post-turn cache invalidation (see patient-session-page.tsx's refresh())
+  // -- the turn's HTTP response could come back and trigger a worksheet
+  // refetch before this write had actually landed, so a long conversation
+  // would visibly lag behind what the patient just said. Awaiting it here
+  // (still a cheap, local write) means "the turn finished" now reliably
+  // means "the worksheet projection for it is already there to refetch."
+  await projectRuntimeFieldsToWorksheet({ runtimeSessionId: sessionId, sessionDefinitionId: initialSession.sessionDefinitionId, fields: extracted.fields, sourceTurnId: patientMessage.id }).catch(() => {});
   const safetyContext = {
     ...initialSession.runtimeContext,
     riskLevel: extracted.riskLevel,

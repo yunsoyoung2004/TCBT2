@@ -58,3 +58,18 @@ export const highlightPulse = {
     transition: { duration: motionDuration.deliberate, repeat: Infinity, ease: motionEase.standard },
   },
 };
+
+// One-shot "worksheet field just got filled" flourish -- see useJustFilled
+// in worksheet-renderers/shared.tsx. Unlike highlightPulse (infinite, marks
+// the currently-active field), this plays exactly once on the false->true
+// transition and settles back to rest; its total duration should match the
+// timeout useJustFilled uses to clear the "just filled" flag.
+export const questComplete: Variants = {
+  initial: { opacity: 0, scale: 0.5, y: 6 },
+  animate: {
+    opacity: [0, 1, 1, 0],
+    scale: [0.5, 1.15, 1, 1],
+    y: 0,
+    transition: { duration: 1.3, times: [0, 0.25, 0.75, 1], ease: motionEase.standard },
+  },
+};

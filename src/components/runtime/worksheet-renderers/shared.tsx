@@ -1,10 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { CheckCircle2 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/primitives";
-import { fadeScale, fadeUp, highlightPulse } from "@/lib/motion/motion-variants";
+import { fadeScale, fadeUp, highlightPulse, questComplete } from "@/lib/motion/motion-variants";
 import type { WorksheetFieldView } from "@/types/worksheet";
+
+// How long the one-shot "just filled" flourish stays flagged -- matches
+// questComplete's own animation duration (motion-variants.ts) so the badge
+// has fully faded out before this flips back off.
+const JUST_FILLED_MS = 1300;
+
+/** Detects a field's one-shot false->true "just got filled" transition, not
+ * "is filled" (which callers already compute themselves) -- so the "quest
+ * complete" flourish plays exactly once per fill instead of replaying on
+ * every unrelated re-render/poll while the field stays filled. A field that
+ * is already filled on first mount (e.g. reopening a session mid-way
+ * through) never triggers it -- only a live false->true flip does. */
+export function useJustFilled(filled: boolean, reducedMotion: boolean) {
+  const previousRef = useRef(filled);
+  const [justFilled, setJustFilled] = useState(false);
+  useEffect(() => {
+    const wasFilled = previousRef.current;
+    previousRef.current = filled;
+    if (reducedMotion || !filled || wasFilled) return undefined;
+    setJustFilled(true);
+    const timeout = setTimeout(() => setJustFilled(false), JUST_FILLED_MS);
+    return () => clearTimeout(timeout);
+  }, [filled, reducedMotion]);
+  return justFilled;
+}
+
+/** The "quest complete" badge itself -- a small overlay, not a layout
+ * element, so callers just need `position: relative` on the cell shell. */
+export function QuestCompleteBadge() {
+  return (
+    <motion.span
+      className="pointer-events-none absolute -right-2 -top-2 z-10 inline-flex items-center gap-1 rounded-full border border-success bg-success-light px-2 py-0.5 text-[11px] font-semibold text-success shadow-sm"
+      variants={questComplete}
+      initial="initial"
+      animate="animate"
+    >
+      <CheckCircle2 className="h-3 w-3" />
+      Filled
+    </motion.span>
+  );
+}
 
 // Small generic building blocks shared across the per-session composed
 // worksheets (s01-worksheet.tsx .. s08-worksheet.tsx). These are UI atoms,
@@ -107,16 +149,18 @@ export function WorksheetCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(field?.value?.displayValue ?? "");
+  const filled = Boolean(field) && field!.value !== null && field!.value.value !== undefined && field!.value.value !== "";
+  const justFilled = useJustFilled(filled, reducedMotion);
   if (!field) return null;
-  const filled = field.value !== null && field.value.value !== undefined && field.value.value !== "";
   const confirmed = field.value?.status === "participant_confirmed";
   const draftPending = field.value?.status === "draft_extracted";
 
-  const shell = `rounded-panel p-3 transition ${borderless ? "" : `border ${emphasized ? "border-warning/50 bg-warning-light/15" : tone === "neutral" ? "border-border bg-surface" : "border-border bg-surface"}`} ${active ? "ring-2 ring-clinical-blue border-clinical-blue" : ""} ${!filled ? "border-dashed opacity-70" : ""}`;
+  const shell = `relative rounded-panel p-3 transition ${borderless ? "" : `border ${emphasized ? "border-warning/50 bg-warning-light/15" : tone === "neutral" ? "border-border bg-surface" : "border-border bg-surface"}`} ${active ? "ring-2 ring-clinical-blue border-clinical-blue" : justFilled ? "ring-2 ring-success border-success" : ""} ${!filled ? "border-dashed opacity-70" : ""}`;
 
   const cellVariants = active ? highlightPulse : fadeUp;
   return (
     <motion.div className={shell} variants={reducedMotion ? undefined : cellVariants} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
+      {justFilled && <QuestCompleteBadge />}
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">{label ?? `Q${q}`}</div>
         {confirmed && <Badge tone="success">confirmed</Badge>}

@@ -89,6 +89,13 @@ const ko = {
     backToSessionFlow: "세션 흐름으로 돌아가기",
     session: "세션",
     manual: "매뉴얼",
+    mobile: {
+      stepsTab: "단계",
+      flowTab: "흐름도",
+      promptTab: "질문",
+      selectStepHint: "먼저 단계를 선택하면 이곳에서 질문을 편집할 수 있어요.",
+      noStepsYet: "이 세션에는 아직 단계가 없습니다.",
+    },
   },
   patientMonitoring: {
     title: "환자 모니터링",

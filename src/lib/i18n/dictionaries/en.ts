@@ -89,6 +89,13 @@ const en = {
     backToSessionFlow: "Back to Session Flow",
     session: "Session",
     manual: "Manual",
+    mobile: {
+      stepsTab: "Steps",
+      flowTab: "Flow",
+      promptTab: "Prompt",
+      selectStepHint: "Select a step first, then edit its prompt here.",
+      noStepsYet: "This session has no steps yet.",
+    },
   },
   patientMonitoring: {
     title: "Patient Monitoring",

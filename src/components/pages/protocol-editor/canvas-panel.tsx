@@ -67,14 +67,23 @@ interface CanvasPanelProps {
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onConnect: (connection: Connection) => void;
   onEdgeDoubleClick: (edgeId: string) => void;
+  /** Overrides the canvas viewport's height classes. Defaults to the
+   * original desktop-tuned value below, so every existing (desktop/tablet)
+   * call site that omits this prop renders exactly as before -- only the
+   * mobile "Flow" tab passes a full-viewport override. */
+  heightClassName?: string;
+  /** Extra class on the outer Card, used by the mobile "Flow" tab to scope
+   * touch-target CSS (see globals.css's .mobile-flow-view rule) without any
+   * selector that could ever match the desktop tree. */
+  className?: string;
 }
 
-export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChange, onNodeClick, onNodeDragStart, onNodeDragStop, onConnect, onEdgeDoubleClick }: CanvasPanelProps) {
+export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChange, onNodeClick, onNodeDragStart, onNodeDragStop, onConnect, onEdgeDoubleClick, heightClassName, className }: CanvasPanelProps) {
   const { t } = useT();
   return (
-    <Card className="min-w-0 flex-1 overflow-hidden">
+    <Card className={cn("min-w-0 flex-1 overflow-hidden", className)}>
       <SectionHeader title={t("protocolEditor.protocolCanvas")} />
-      <div className="relative h-[calc(100vh-330px)] min-h-[520px] w-full dot-grid">
+      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-330px)] min-h-[520px]")}>
         <ReactFlowProvider>
           <div className="absolute inset-0 h-full w-full">
             <ReactFlow

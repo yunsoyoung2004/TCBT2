@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Badge, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
 import { statusTransition } from "@/lib/motion/motion-variants";
 import { useT } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 import { summarizeCondition } from "./types";
 import type { ProtocolGraphNode, ProtocolValidationRun } from "@/types/protocol-runtime";
 import type { PromptItem, SessionCommonRules } from "@/lib/session-catalog";
@@ -46,6 +47,14 @@ export interface InspectorPanelProps {
   safetyRules: Array<{ id: string; title: string }>;
   onAttachSafetyRule: (ruleId: string) => void;
   focusSourceEvidence?: boolean;
+  /** Overrides the Card's width/shrink classes. Defaults to the original
+   * desktop-tuned value below, so every existing (desktop/tablet) call site
+   * that omits this prop renders exactly as before -- only the mobile
+   * "Prompt" tab passes a full-width override. */
+  cardClassName?: string;
+  /** Overrides the scrollable body's max-height class, same default-preserving
+   * pattern as cardClassName above. */
+  bodyHeightClassName?: string;
 }
 
 export function InspectorPanel(props: InspectorPanelProps) {
@@ -55,11 +64,14 @@ export function InspectorPanel(props: InspectorPanelProps) {
     onUpdatePromptItem,
     sessionCommonRules, onSaveSessionCommonRules,
     validationRun, fieldErrors,
+    cardClassName, bodyHeightClassName,
   } = props;
+  const resolvedCardClassName = cardClassName ?? "min-w-[320px] max-w-[480px] shrink-0 overflow-hidden xl:w-[380px]";
+  const resolvedBodyHeightClassName = bodyHeightClassName ?? "max-h-[calc(100vh-330px)]";
 
   if (!draft) {
     return (
-      <Card className="min-w-[320px] max-w-[480px] shrink-0 overflow-hidden xl:w-[380px]">
+      <Card className={resolvedCardClassName}>
         <SectionHeader title={t("protocolEditor.nodeInspector")} />
         <EmptyState title={t("protocolEditor.noStepSelected")} description={t("protocolEditor.selectStepPrompt")} />
       </Card>
@@ -69,9 +81,9 @@ export function InspectorPanel(props: InspectorPanelProps) {
   const nodeValidationIssues = validationRun?.issues.filter((issue) => issue.nodeId === draft.id) ?? [];
 
   return (
-    <Card className="min-w-[320px] max-w-[480px] shrink-0 overflow-hidden xl:w-[380px]">
+    <Card className={resolvedCardClassName}>
       <SectionHeader title={t("protocolEditor.nodeInspector")} description={draft.data.title} />
-      <motion.div key={draft.id} className="max-h-[calc(100vh-330px)] space-y-4 overflow-auto p-4" variants={statusTransition} initial="initial" animate="animate">
+      <motion.div key={draft.id} className={cn("space-y-4 overflow-auto p-4", resolvedBodyHeightClassName)} variants={statusTransition} initial="initial" animate="animate">
         <Field label={t("protocolEditor.stepName")}>
           <input value={draft.data.title} readOnly={immutableSourceView} onChange={(event) => onDraftChange({ ...draft, data: { ...draft.data, title: event.target.value } })} className={inputClass} />
         </Field>

@@ -168,14 +168,21 @@ export function PageHeader({
   meta?: ReactNode;
   actions?: ReactNode;
 }) {
+  // Mobile (<640px) gets a denser title/spacing tier so more of the page's
+  // actual content is visible without scrolling; every value below has a
+  // "sm:" twin equal to today's unconditional value, so >=640px (tablet and
+  // desktop) resolves to the exact same classes as before this change.
   return (
-    <div className="flex flex-col gap-4 border-b border-border bg-surface px-4 py-5 lg:px-6">
+    <div className="flex flex-col gap-3 border-b border-border bg-surface px-4 py-3 sm:gap-4 sm:py-5 lg:px-6">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
           {eyebrow && <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-clinical-blue">{eyebrow}</div>}
-          <h1 className="mt-2 text-[26px] font-semibold tracking-tight text-text-primary">{title}</h1>
-          <p className="mt-1 text-[13px] text-text-secondary">{description}</p>
-          {meta && <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div>}
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:mt-2 sm:text-[26px]">{title}</h1>
+          {/* Descriptive copy is nice-to-have on a full page, but on mobile
+              it's pure vertical cost competing with the actual content/tabs
+              below it (brief §16) -- still shown unchanged at >=640px. */}
+          <p className="mt-1 hidden text-[13px] text-text-secondary sm:block">{description}</p>
+          {meta && <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-3">{meta}</div>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

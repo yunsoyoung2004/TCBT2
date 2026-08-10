@@ -165,3 +165,24 @@ export interface WorksheetView {
   templateVersion: WorksheetTemplateVersionRecord;
   fields: WorksheetFieldView[];
 }
+
+/** Cross-run "progress over time" read model for a repeatable list+scores
+ * field pair (e.g. S06's Symptom Hierarchy, re-scored across separate runs
+ * of the same session -- see that session's own manual). One row per
+ * distinct item text seen in ANY run, one column per run, chronological. */
+export interface WorksheetHistoryRun {
+  runtimeSessionId: string;
+  runLabel: string;
+  startedAt?: string;
+}
+
+export interface WorksheetHistoryRow {
+  item: string;
+  scoresByRunId: Record<string, number | null>;
+}
+
+export interface WorksheetHistoryView {
+  runs: WorksheetHistoryRun[];
+  rows: WorksheetHistoryRow[];
+  totalsByRunId: Record<string, number | null>;
+}

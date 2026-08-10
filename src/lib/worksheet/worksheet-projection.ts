@@ -21,7 +21,7 @@
 // the participant themselves) but should not be treated as equivalent to a
 // real turn's validation until that's addressed.
 
-import { getRuntimeSession } from "@/lib/api/runtime-session-api";
+import { getRuntimeSession, listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { TBCT_SOURCE_TEXT_HASH } from "@/lib/protocol/tbct-source-text.generated";
 import { getWorksheetBindings, hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
@@ -36,7 +36,7 @@ import {
   replaceWorksheetCollectionItems,
   upsertWorksheetFieldValue,
 } from "@/lib/repositories/worksheet-repository";
-import type { WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetView } from "@/types/worksheet";
+import type { WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetHistoryRow, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
 
 const TEMPLATE_VERSION = 1;
 
@@ -134,6 +134,85 @@ export async function getWorksheetView(runtimeSessionId: string, sessionDefiniti
       binding: bindingByWorksheetKey.get(definition.worksheetFieldKey)!,
       value: valueByDefinitionId.get(definition.id) ?? null,
     })),
+  };
+}
+
+/**
+ * Cross-run "progress over time" view for a repeatable list+scores field
+ * pair -- currently only S06's Symptom Hierarchy has one (see that
+ * session's own manual's "Seeing your progress over time" sample sheet).
+ * Not folded into getWorksheetView's generic per-run read model: aligning
+ * "this item in run 3" with "the same item in run 1" needs a stable
+ * identity, and the only one available is the item's own text, so this is
+ * parameterized by a specific items/scores field-key pair rather than made
+ * a general worksheet capability.
+ *
+ * Returns null if the current run's session can't be found, or if (somehow)
+ * no run at all matches -- the caller decides whether a single-run result
+ * (no real "history" yet) is worth rendering.
+ */
+export async function getListScoreHistory(input: {
+  runtimeSessionId: string;
+  sessionDefinitionId: string;
+  itemsWorksheetFieldKey: string;
+  scoresWorksheetFieldKey: string;
+}): Promise<WorksheetHistoryView | null> {
+  const current = await getRuntimeSession(input.runtimeSessionId);
+  if (!current) return null;
+  const { participantId, sessionDefinitionId } = current.session;
+  const allSessions = await listRuntimeSessions();
+  const runs = allSessions
+    .filter((session) => session.participantId === participantId && session.sessionDefinitionId === sessionDefinitionId)
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  if (!runs.length) return null;
+
+  const perRun = await Promise.all(runs.map(async (run) => {
+    const view = await getWorksheetView(run.id, sessionDefinitionId);
+    const itemsField = view?.fields.find((field) => field.definition.worksheetFieldKey === input.itemsWorksheetFieldKey);
+    const scoresField = view?.fields.find((field) => field.definition.worksheetFieldKey === input.scoresWorksheetFieldKey);
+    const items = Array.isArray(itemsField?.value?.value) ? (itemsField!.value!.value as unknown[]).map((item) => String(item)) : [];
+    const scores = Array.isArray(scoresField?.value?.value) ? (scoresField!.value!.value as unknown[]) : [];
+    return { run, items, scores };
+  }));
+
+  // Union of every item text seen in any run, in first-seen order --
+  // matched case/whitespace-insensitively so a minor rewording across runs
+  // doesn't silently split into two rows, but the ORIGINAL wording (from
+  // whichever run first introduced it) is what's displayed.
+  const itemOrder: string[] = [];
+  const seenKeys = new Set<string>();
+  for (const { items } of perRun) {
+    for (const item of items) {
+      const key = item.trim().toLowerCase();
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
+        itemOrder.push(item);
+      }
+    }
+  }
+
+  const rows: WorksheetHistoryRow[] = itemOrder.map((item) => {
+    const key = item.trim().toLowerCase();
+    const scoresByRunId: Record<string, number | null> = {};
+    for (const { run, items, scores } of perRun) {
+      const index = items.findIndex((candidate) => candidate.trim().toLowerCase() === key);
+      const rawScore = index >= 0 ? scores[index] : undefined;
+      const parsed = rawScore !== undefined ? Number(rawScore) : NaN;
+      scoresByRunId[run.id] = Number.isFinite(parsed) ? parsed : null;
+    }
+    return { item, scoresByRunId };
+  });
+
+  const totalsByRunId: Record<string, number | null> = {};
+  for (const { run } of perRun) {
+    const values = rows.map((row) => row.scoresByRunId[run.id]).filter((value): value is number => value !== null);
+    totalsByRunId[run.id] = values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+  }
+
+  return {
+    runs: perRun.map(({ run }, index) => ({ runtimeSessionId: run.id, runLabel: `S${index + 1}`, startedAt: run.startedAt ?? run.createdAt })),
+    rows,
+    totalsByRunId,
   };
 }
 

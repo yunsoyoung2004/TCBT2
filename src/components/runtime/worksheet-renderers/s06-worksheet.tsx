@@ -1,14 +1,20 @@
 "use client";
 
-import { SCORE_SCALE_COLORS, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { useQuery } from "@tanstack/react-query";
+import { ScoreChip, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
-import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
+import { getListScoreHistory } from "@/lib/worksheet/worksheet-projection";
+import type { WorksheetFieldView, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
 
 // Recreates the TBCT Session 6 Color-Coded Symptoms Hierarchy (CCSH): a
-// severity-ordered list of situations (0-5, same color scale as S02's
-// hierarchies, but drawn here as left-border bars rather than chips to
-// keep this figure visually distinct), the green-only homework selection,
-// and the safety-behavior/underlying-assumption circuit box.
+// severity-ordered list of situations, each scored 0-5 on the same color
+// scale as the manual's own Annex card (bold chip, not a subtle tint --
+// see ScoreChip), the green-only homework selection, the safety-behavior/
+// underlying-assumption circuit box, and (when the participant has run
+// this session more than once) the manual's own "seeing your progress
+// over time" cross-run tracking table.
+
+const SESSION_DEFINITION_ID = "tbct-s06";
 
 export function S06Worksheet({
   view,
@@ -16,21 +22,36 @@ export function S06Worksheet({
   onConfirm,
   onEdit,
   busy,
+  runtimeSessionId,
 }: {
   view: WorksheetView;
   activeCanonicalFieldKey?: string;
   onConfirm: (worksheetFieldKey: string) => void;
   onEdit: (worksheetFieldKey: string, value: unknown) => void;
   busy: boolean;
+  runtimeSessionId: string;
 }) {
   const reducedMotion = Boolean(useReducedMotionPreference());
   const byKey = new Map(view.fields.map((field) => [field.binding.worksheetFieldKey, field]));
   const get = (key: string) => byKey.get(key);
   const isActive = (field?: WorksheetFieldView) => Boolean(field && field.binding.canonicalFieldKey === activeCanonicalFieldKey);
 
+  const historyQuery = useQuery({
+    queryKey: ["worksheet-history", SESSION_DEFINITION_ID, runtimeSessionId],
+    queryFn: () => getListScoreHistory({
+      runtimeSessionId,
+      sessionDefinitionId: SESSION_DEFINITION_ID,
+      itemsWorksheetFieldKey: "symptomItems",
+      scoresWorksheetFieldKey: "symptomItemScores",
+    }),
+    refetchInterval: 4000,
+  });
+
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
       <SymptomHierarchy itemsField={get("symptomItems")} scoresField={get("symptomItemScores")} active={isActive(get("symptomItems")) || isActive(get("symptomItemScores"))} onConfirm={onConfirm} />
+
+      {historyQuery.data && historyQuery.data.runs.length > 1 && <SymptomHistoryTable history={historyQuery.data} />}
 
       <div className="rounded-panel border-2 border-success/40 bg-success-light/15 p-3 sm:p-4">
         <div className="mb-2 flex items-center gap-2">
@@ -82,12 +103,14 @@ function SymptomHierarchy({
       {filled ? (
         <ul className="space-y-1.5">
           {items.map((item, index) => {
+            // Bold chip (same colors as the manual's own 0-5 Annex card),
+            // not the subtler left-border tint this used to draw -- the
+            // point of this scale is that the color reads at a glance.
             const score = scores[index] !== undefined ? Number(scores[index]) : null;
-            const color = score !== null && score >= 0 && score <= 5 ? SCORE_SCALE_COLORS[score] : "var(--border)";
             return (
-              <li key={index} className="flex items-center gap-2.5 rounded-panel border border-border bg-surface-subtle py-1.5 pl-0 pr-2.5" style={{ borderLeft: `4px solid ${color}` }}>
-                <span className="pl-2.5 text-sm text-text-primary">{String(item)}</span>
-                <span className="ml-auto text-xs font-semibold text-text-muted">{score ?? "?"}</span>
+              <li key={index} className="flex items-center gap-2.5 rounded-panel border border-border bg-surface-subtle px-2.5 py-1.5">
+                <ScoreChip score={score} />
+                <span className="text-sm text-text-primary">{String(item)}</span>
               </li>
             );
           })}
@@ -104,6 +127,54 @@ function SymptomHierarchy({
           Confirm
         </button>
       )}
+    </div>
+  );
+}
+
+/** The manual's own "seeing your progress over time" sample sheet (a
+ * per-item row, one column per past run of this session, colored score
+ * chips, a TOTAL row) -- only shown once there's more than one run to
+ * compare (see the historyQuery.data.runs.length > 1 gate above this
+ * component's call site). overflow-x-auto guards against a wide run count
+ * pushing the page itself sideways on a narrow viewport. */
+function SymptomHistoryTable({ history }: { history: WorksheetHistoryView }) {
+  return (
+    <div className="rounded-panel border border-border bg-surface p-3 sm:p-4">
+      <div className="mb-1 text-sm font-semibold text-text-primary">Seeing your progress over time</div>
+      <div className="mb-3 text-xs text-text-secondary">The same items, scored again each time you&apos;ve run this session — watch reds and yellows drift toward greens and blues.</div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] text-sm">
+          <thead>
+            <tr>
+              <th className="px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-[0.05em] text-text-muted">Item</th>
+              {history.runs.map((run) => (
+                <th key={run.runtimeSessionId} className="px-2 py-1.5 text-center text-xs font-semibold uppercase tracking-[0.05em] text-text-muted">
+                  {run.runLabel}
+                  {run.startedAt && <div className="mt-0.5 font-normal normal-case text-[10px] text-text-muted">{new Date(run.startedAt).toLocaleDateString()}</div>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {history.rows.map((row) => (
+              <tr key={row.item} className="border-t border-border">
+                <td className="px-2 py-1.5 text-text-primary">{row.item}</td>
+                {history.runs.map((run) => (
+                  <td key={run.runtimeSessionId} className="px-2 py-1.5 text-center">
+                    <ScoreChip score={row.scoresByRunId[run.runtimeSessionId] ?? null} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr className="border-t-2 border-border-strong font-semibold">
+              <td className="px-2 py-1.5 text-text-primary">Total</td>
+              {history.runs.map((run) => (
+                <td key={run.runtimeSessionId} className="px-2 py-1.5 text-center text-text-primary">{history.totalsByRunId[run.runtimeSessionId] ?? "—"}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

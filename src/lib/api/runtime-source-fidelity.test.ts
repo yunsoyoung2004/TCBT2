@@ -5,6 +5,7 @@ import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protoco
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { listRuntimeExecutionTraces, saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
 import { promptRequiresPatientInput } from "@/lib/runtime/source-fidelity-prompt-progression";
+import { getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 
 describe("canonical source-fidelity runtime", () => {
   beforeEach(async () => {
@@ -270,6 +271,36 @@ describe("canonical source-fidelity runtime", () => {
       expect(latestAssistantMessage?.promptItemId).toBe(after?.session.currentPromptItemId);
       expect(traces.length).toBeGreaterThan(0);
       expect(traces.every((trace) => trace.releaseId === published.release.id && Boolean(trace.contractHash))).toBe(true);
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("reflects a filled worksheet field immediately after the turn resolves, not after a later poll", async () => {
+    // Regression test for the worksheet-lag bug: projectRuntimeFieldsToWorksheet
+    // used to be fire-and-forget inside submitPatientInput (see
+    // runtime-execution-api.ts), so a turn's HTTP response could return before
+    // its worksheet write had actually landed -- the patient-facing
+    // WorksheetPane (which only re-checks on its own poll or on an explicit
+    // cache invalidation right after this same call) could visibly lag behind
+    // what the patient had just answered. This asserts the field this exact
+    // input fills (tbct-s01's situationThoughtDistinction, the first patient
+    // turn of the canonical S01 flow -- see "keeps release-pinned runtime
+    // state aligned..." above for the same input/field pairing) is already
+    // reflected in getWorksheetView the instant submitPatientInput resolves,
+    // with no wait/poll of any kind in between.
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+
+      await submitPatientInput(session.id, { kind: "text", value: "This is a current situation, not only an interpretation." });
+      const view = await getWorksheetView(session.id, "tbct-s01");
+      const situationField = view?.fields.find((field) => field.definition.worksheetFieldKey === "situationThoughtDistinction");
+
+      expect(situationField?.value?.value).toBeTruthy();
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;

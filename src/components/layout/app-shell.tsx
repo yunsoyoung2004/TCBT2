@@ -241,7 +241,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className={cn("transition-all", sidebarWidth)}>
         <header className="sticky top-0 z-30 flex h-[56px] items-center gap-3 border-b border-border bg-surface/96 px-4 backdrop-blur lg:px-5">
-          <Button size="icon" variant="ghost" className="lg:hidden" onClick={() => setMobileOpen(true)}>
+          {/* Mobile (<640px) drops the hamburger entirely -- bottom nav is the
+              top-level mobile navigation (see the "sm:hidden" nav below).
+              Tablet (640-1024px) keeps today's drawer trigger unchanged, and
+              it's already hidden >=1024px (fixed sidebar) same as before. */}
+          <Button size="icon" variant="ghost" className="hidden sm:inline-flex lg:hidden" onClick={() => setMobileOpen(true)}>
             <Menu className="h-4 w-4" />
           </Button>
           <div className="hidden w-[132px] shrink-0 items-center text-xs text-text-secondary 2xl:flex">
@@ -257,7 +261,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="mx-auto flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-panel border border-border bg-surface-subtle px-3 text-sm text-text-secondary hover:bg-surface md:max-w-[560px] [&>span:last-child]:hidden"
           >
             <Search className="h-4 w-4" />
-            <span className="flex-1 truncate text-left">Search protocol, assets, or Step ID</span>
+            {/* Same search entry point/scope at every width -- only the label
+                text is shorter below 640px so it doesn't clip. */}
+            <span className="flex-1 truncate text-left">
+              <span className="sm:hidden">Search…</span>
+              <span className="hidden sm:inline">Search protocol, assets, or Step ID</span>
+            </span>
             <span className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px]">⌘K</span>
           </button>
 
@@ -275,12 +284,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <main className="pb-16 sm:pb-0">{children}</main>
+        {/* Extra bottom clearance for the fixed mobile nav below, plus the
+            iOS home-indicator safe area on top of that. Unchanged >=640px
+            (no bottom nav there). */}
+        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">{children}</main>
       </div>
 
       {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}
       {!showFullNav && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface sm:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden">
           {clinicianNavItems.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -288,7 +300,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1 py-2 text-[11px]",
+                  "flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px]",
                   active ? "text-clinical-blue" : "text-text-secondary",
                 )}
               >

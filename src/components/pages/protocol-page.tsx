@@ -12,6 +12,8 @@ import {
   sessionCatalog,
   togglePromptItemStatus,
   updatePromptItem,
+  type PromptItem,
+  type SessionCommonRules,
 } from "@/lib/session-catalog";
 
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyNodeChanges, type Connection, type NodeChange } from "@xyflow/react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Button, Modal, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState, Modal, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { useT } from "@/lib/i18n/context";
 import {
@@ -46,6 +48,9 @@ import { SessionPanel } from "./protocol-editor/session-panel";
 import { CanvasPanel } from "./protocol-editor/canvas-panel";
 import { InspectorPanel, type NextStepOption } from "./protocol-editor/inspector-panel";
 import { toEdges, toNodes, type FlowNode } from "./protocol-editor/types";
+import { MobileContextBar } from "./protocol-editor/mobile/mobile-context-bar";
+import { MobileProtocolTabs, type MobileProtocolTab } from "./protocol-editor/mobile/mobile-protocol-tabs";
+import { MobileStepList } from "./protocol-editor/mobile/mobile-step-list";
 
 export function ProtocolPage() {
   const router = useRouter();
@@ -66,6 +71,7 @@ export function ProtocolPage() {
   const [flowNodes, setFlowNodes] = useState<FlowNode[]>([]);
   const [definitionForm, setDefinitionForm] = useState<Partial<ProtocolDefinition>>({});
   const [sessionPanelCollapsed, setSessionPanelCollapsed] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileProtocolTab>("steps");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<"question" | "nextStep" | "closingPath" | "generic", string>>>({});
   const reducedMotion = useReducedMotionPreference();
 
@@ -406,77 +412,133 @@ export function ProtocolPage() {
         }
       />
 
-      <div className="flex flex-col gap-4 p-4 xl:flex-row lg:p-6">
-        <SessionPanel
-          sessionTitle={selectedSessionMeta?.title ?? selectedSessionId}
-          nodes={sessionFlowNodes}
-          selectedStepId={selectedStepId}
-          onSelect={setSelectedStepId}
-          collapsed={sessionPanelCollapsed}
-          onToggleCollapsed={() => setSessionPanelCollapsed((current) => !current)}
-          reducedMotion={Boolean(reducedMotion)}
-        />
-
-        <CanvasPanel
-          flowNodes={flowNodes}
-          edges={sessionFlowEdges}
-          immutableSourceView={immutableSourceView}
-          onNodesChange={(changes: NodeChange[]) => setFlowNodes((currentNodes) => applyNodeChanges(changes, currentNodes) as FlowNode[])}
-          onNodeClick={(nodeId) => setSelectedStepId(nodeId)}
-          onNodeDragStart={(nodeId) => {
+      {/* canvasPanelProps/inspectorPanelProps are shared verbatim between the
+          desktop 3-panel row below and the mobile Flow/Prompt tabs further
+          down, so mobile can never drift from what desktop actually wires
+          up -- only layout-only props (heightClassName/cardClassName/etc.,
+          all optional with desktop-preserving defaults) differ per call site. */}
+      {(() => {
+        const canvasPanelProps = {
+          flowNodes,
+          edges: sessionFlowEdges,
+          immutableSourceView,
+          onNodesChange: (changes: NodeChange[]) => setFlowNodes((currentNodes) => applyNodeChanges(changes, currentNodes) as FlowNode[]),
+          onNodeClick: (nodeId: string) => setSelectedStepId(nodeId),
+          onNodeDragStart: (nodeId: string) => {
             setSaveState("saving");
             logProtocolAction("node drag start", { nodeId });
-          }}
-          onNodeDragStop={(nodeId, position) => {
+          },
+          onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => {
             if (immutableSourceView) return;
             const current = sessionFlowNodes.find((item) => item.id === nodeId)?.data.step;
             if (!current) return;
             logProtocolAction("node drag stop", { nodeId, title: current.data.title, from: current.position, to: position });
             void saveNodeMutation.mutate({ ...current, position });
-          }}
-          onConnect={(connection: Connection) => {
+          },
+          onConnect: (connection: Connection) => {
             if (immutableSourceView) return;
             if (!connection.source || !connection.target) return;
             createEdgeMutation.mutate(connection);
-          }}
-          onEdgeDoubleClick={(edgeId) => {
+          },
+          onEdgeDoubleClick: (edgeId: string) => {
             if (!immutableSourceView) deleteEdgeMutation.mutate(edgeId);
-          }}
-        />
+          },
+        };
+        const inspectorPanelProps = {
+          draft,
+          onDraftChange: setDraft,
+          immutableSourceView,
+          sessionPrompts,
+          selectedPromptItem,
+          onSelectPromptItem: setSelectedPromptItemId,
+          onRestoreVerbatim: (id: string) => { const next = restorePromptItemFromVerbatim(id); if (next) setSelectedPromptItemId(next.id); },
+          onToggleStatus: (id: string) => { const next = togglePromptItemStatus(id); if (next) setSelectedPromptItemId(next.id); },
+          onMovePromptItem: (id: string, direction: -1 | 1) => { const next = movePromptItem(id, direction); if (next) setSelectedPromptItemId(next.id); },
+          onUpdatePromptItem: (id: string, patch: Partial<PromptItem>) => { updatePromptItem(id, patch); savePromptItems(sessionPrompts.map((item) => (item.id === id ? { ...item, ...patch } : item))); },
+          sessionCommonRules,
+          onSaveSessionCommonRules: (next: SessionCommonRules) => saveSessionCommonRules(selectedSessionMeta.id, next),
+          nextStepOptions,
+          compiledPreviewText,
+          validationRun,
+          fieldErrors,
+          onSave: handleSave,
+          onPreview: () => runtimeMutation.mutate(),
+          saving: saveNodeMutation.isPending || validationMutation.isPending,
+          previewing: runtimeMutation.isPending,
+          onDuplicate: () => draft && duplicateNodeMutation.mutate(draft.id),
+          onDelete: handleDelete,
+          availableEvidence,
+          selectedEvidenceId,
+          onSelectedEvidenceIdChange: setSelectedEvidenceId,
+          onAttachEvidence: () => attachEvidenceMutation.mutate(),
+          attachingEvidence: attachEvidenceMutation.isPending,
+          safetyRules: (safetyRulesQuery.data ?? []).map((rule) => ({ id: rule.id, title: rule.title })),
+          onAttachSafetyRule: (ruleId: string) => draft && attachSafetyMutation.mutate({ nodeId: draft.id, ruleId }),
+          focusSourceEvidence: shouldFocusSourceEvidence,
+        };
+        return (
+          <>
+            {/* Desktop/tablet (>=640px): unchanged 3-panel row, byte-identical
+                to before this pass -- only hidden below 640px, where the
+                mobile tabbed view below takes over. */}
+            <div className="hidden gap-4 p-4 sm:flex sm:flex-col xl:flex-row lg:p-6">
+              <SessionPanel
+                sessionTitle={selectedSessionMeta?.title ?? selectedSessionId}
+                nodes={sessionFlowNodes}
+                selectedStepId={selectedStepId}
+                onSelect={setSelectedStepId}
+                collapsed={sessionPanelCollapsed}
+                onToggleCollapsed={() => setSessionPanelCollapsed((current) => !current)}
+                reducedMotion={Boolean(reducedMotion)}
+              />
+              <CanvasPanel {...canvasPanelProps} />
+              <InspectorPanel {...inspectorPanelProps} />
+            </div>
 
-        <InspectorPanel
-          draft={draft}
-          onDraftChange={setDraft}
-          immutableSourceView={immutableSourceView}
-          sessionPrompts={sessionPrompts}
-          selectedPromptItem={selectedPromptItem}
-          onSelectPromptItem={setSelectedPromptItemId}
-          onRestoreVerbatim={(id) => { const next = restorePromptItemFromVerbatim(id); if (next) setSelectedPromptItemId(next.id); }}
-          onToggleStatus={(id) => { const next = togglePromptItemStatus(id); if (next) setSelectedPromptItemId(next.id); }}
-          onMovePromptItem={(id, direction) => { const next = movePromptItem(id, direction); if (next) setSelectedPromptItemId(next.id); }}
-          onUpdatePromptItem={(id, patch) => { updatePromptItem(id, patch); savePromptItems(sessionPrompts.map((item) => (item.id === id ? { ...item, ...patch } : item))); }}
-          sessionCommonRules={sessionCommonRules}
-          onSaveSessionCommonRules={(next) => saveSessionCommonRules(selectedSessionMeta.id, next)}
-          nextStepOptions={nextStepOptions}
-          compiledPreviewText={compiledPreviewText}
-          validationRun={validationRun}
-          fieldErrors={fieldErrors}
-          onSave={handleSave}
-          onPreview={() => runtimeMutation.mutate()}
-          saving={saveNodeMutation.isPending || validationMutation.isPending}
-          previewing={runtimeMutation.isPending}
-          onDuplicate={() => draft && duplicateNodeMutation.mutate(draft.id)}
-          onDelete={handleDelete}
-          availableEvidence={availableEvidence}
-          selectedEvidenceId={selectedEvidenceId}
-          onSelectedEvidenceIdChange={setSelectedEvidenceId}
-          onAttachEvidence={() => attachEvidenceMutation.mutate()}
-          attachingEvidence={attachEvidenceMutation.isPending}
-          safetyRules={(safetyRulesQuery.data ?? []).map((rule) => ({ id: rule.id, title: rule.title }))}
-          onAttachSafetyRule={(ruleId) => draft && attachSafetyMutation.mutate({ nodeId: draft.id, ruleId })}
-          focusSourceEvidence={shouldFocusSourceEvidence}
-        />
-      </div>
+            {/* Mobile (<640px): context bar + Steps/Flow/Prompt secondary nav
+                (brief §4/§8) instead of one long stacked page. Same state,
+                same mutations, same CanvasPanel/InspectorPanel components as
+                above -- only the surrounding chrome differs. */}
+            {/* Fixed viewport-relative heights below (not flex-fill) --
+                React Flow measures its container once on mount for fitView,
+                and a flex column whose height resolves after that first
+                measurement leaves it fit to a near-zero size that never
+                recovers. calc(100vh-...) is available synchronously on
+                first paint, so it doesn't hit that race. The subtracted
+                pixel count is the header + context bar + tabs actually
+                measured at 390px width -- generous rather than exact, since
+                slightly short is far safer here than a blank canvas. */}
+            <div className="sm:hidden">
+              <MobileContextBar sessionTitle={selectedSessionMeta?.title ?? selectedSessionId} stepTitle={selectedSessionNode?.data.step.data.title} />
+              <MobileProtocolTabs active={mobileTab} onChange={setMobileTab} />
+              {mobileTab === "steps" && (
+                <div className="p-4">
+                  <MobileStepList
+                    nodes={sessionFlowNodes}
+                    selectedStepId={selectedStepId}
+                    onSelect={(stepId) => {
+                      setSelectedStepId(stepId);
+                      setMobileTab("prompt");
+                    }}
+                  />
+                </div>
+              )}
+              {mobileTab === "flow" && (
+                <CanvasPanel {...canvasPanelProps} className="mobile-flow-view rounded-none border-x-0" heightClassName="h-[calc(100vh-136px)]" />
+              )}
+              {mobileTab === "prompt" && (
+                <div className="p-4">
+                  {draft ? (
+                    <InspectorPanel {...inspectorPanelProps} cardClassName="w-full max-w-none" bodyHeightClassName="max-h-[calc(100vh-260px)]" />
+                  ) : (
+                    <EmptyState title={t("protocolEditor.noStepSelected")} description={t("protocolEditor.mobile.selectStepHint")} />
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       <Modal open={importPreviewOpen} onClose={() => setImportPreviewOpen(false)} title="Import Preview" description="Candidate conflicts must be resolved before final import." width="max-w-4xl">
         <div className="grid gap-4 p-5 lg:grid-cols-2">

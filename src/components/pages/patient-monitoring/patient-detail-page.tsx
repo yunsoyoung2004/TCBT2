@@ -347,13 +347,30 @@ export function PatientMonitoringDetailPage() {
         }
       />
 
+      {/* Mobile (<640px): compact "who/what" context line so it's never lost
+          while scrolling a long tab (brief §13), then a tap-strip covering
+          the same three tabs/state as the desktop buttons below -- so the
+          clinician sees Profile/Sessions/Worksheet exist immediately. */}
+      <div className="border-b border-border bg-surface px-4 py-2 sm:hidden">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="truncate font-semibold text-text-primary">{participant.alias}</span>
+          <span className="shrink-0 text-text-muted">{formatTimestamp(session?.updatedAt ?? participant.updatedAt)}</span>
+        </div>
+      </div>
       <div className="border-b border-border bg-surface px-4 lg:px-6">
-        <div className="flex gap-2 py-2 sm:hidden">
-          <select className={inputClass} value={activeTab} onChange={(event) => setActiveTab(event.target.value as "audit" | "worksheet" | "profile")}>
-            <option value="audit">{t("patientDetail.tabs.auditLog")}</option>
-            <option value="worksheet">{t("patientDetail.tabs.worksheet")}</option>
-            <option value="profile">{t("patientDetail.tabs.profile")}</option>
-          </select>
+        <div className="flex gap-1 py-2 sm:hidden">
+          {(["profile", "audit", "worksheet"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`min-h-[44px] flex-1 rounded-panel border text-xs font-semibold transition ${
+                activeTab === tab ? "border-clinical-blue bg-clinical-blue-light text-clinical-blue" : "border-border text-text-secondary"
+              }`}
+            >
+              {tab === "audit" ? t("patientDetail.tabs.auditLog") : tab === "worksheet" ? t("patientDetail.tabs.worksheet") : t("patientDetail.tabs.profile")}
+            </button>
+          ))}
         </div>
         <div className="hidden gap-1 pt-2 sm:flex">
           {(["audit", "worksheet", "profile"] as const).map((tab) => (
@@ -479,6 +496,7 @@ export function PatientMonitoringDetailPage() {
                 runtimeSessionId={effectiveSessionId}
                 sessionDefinitionId={session.sessionDefinitionId}
                 activeCanonicalFieldKey={sessionViewQuery.data?.currentPromptItem?.outputFields?.[0]}
+                variant="clinician"
               />
             ) : (
               <Card>
@@ -619,10 +637,15 @@ export function PatientMonitoringDetailPage() {
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
+  // Below 640px this stacks label above value (brief §12 -- the previous
+  // unconditional horizontal row let a long ID/title push the value off the
+  // right edge of a narrow viewport). At 640px and up, flex-row/items-center/
+  // justify-between/gap-3 are the exact same classes this div always had, so
+  // desktop/tablet render identically to before.
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="flex flex-col gap-0.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <span className="text-text-secondary">{label}</span>
-      <span className="font-semibold text-text-primary">{value}</span>
+      <span className="min-w-0 break-words font-semibold text-text-primary">{value}</span>
     </div>
   );
 }

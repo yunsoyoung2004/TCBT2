@@ -94,14 +94,23 @@ export function PatientListPage() {
     <AppShell>
       <PageHeader eyebrow="Clinician" title={t("patientMonitoring.title")} description="Caseload overview across active, paused, and completed protocol sessions." />
       <div className="space-y-4 p-4 lg:p-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* Desktop/tablet (>=640px): unchanged 4-card grid. */}
+        <div className="hidden grid-cols-2 gap-3 sm:grid lg:grid-cols-4">
           <SummaryStat label={t("patientMonitoring.summary.inProgress")} value={summaryCounts.inProgress} tone="primary" />
           <SummaryStat label={t("patientMonitoring.summary.paused")} value={summaryCounts.paused} tone="warning" />
           <SummaryStat label={t("patientMonitoring.summary.needsReview")} value={summaryCounts.needsReview} tone="critical" />
           <SummaryStat label={t("patientMonitoring.summary.completed")} value={summaryCounts.completed} tone="success" />
         </div>
+        {/* Mobile (<640px): same counts/labels, one compact row instead of 4 large cards (brief §9). */}
+        <Card className="flex items-center gap-3 overflow-x-auto p-3 text-xs sm:hidden">
+          <CompactSummaryStat label={t("patientMonitoring.summary.inProgress")} value={summaryCounts.inProgress} tone="primary" />
+          <CompactSummaryStat label={t("patientMonitoring.summary.paused")} value={summaryCounts.paused} tone="warning" />
+          <CompactSummaryStat label={t("patientMonitoring.summary.needsReview")} value={summaryCounts.needsReview} tone="critical" />
+          <CompactSummaryStat label={t("patientMonitoring.summary.completed")} value={summaryCounts.completed} tone="success" />
+        </Card>
 
-        <Card className="p-3">
+        {/* Desktop/tablet (>=640px): unchanged filter bar. */}
+        <Card className="hidden p-3 sm:block">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
@@ -137,6 +146,43 @@ export function PatientListPage() {
           </div>
         </Card>
 
+        {/* Mobile (<640px): same search/filter/sort state and handlers, compact layout (brief §10). */}
+        <Card className="space-y-2 p-3 sm:hidden">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <input
+              className={cn(inputClass, "pl-9")}
+              placeholder={t("patientMonitoring.search")}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select className={inputClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} aria-label={t("patientMonitoring.statusFilter")}>
+              <option value="all">{t("common.all")}</option>
+              <option value="inProgress">{t("patientMonitoring.status.inProgress")}</option>
+              <option value="paused">{t("patientMonitoring.status.paused")}</option>
+              <option value="needsReview">{t("patientMonitoring.status.needsReview")}</option>
+              <option value="completed">{t("patientMonitoring.status.completed")}</option>
+              <option value="notStarted">{t("patientMonitoring.status.notStarted")}</option>
+            </select>
+            <select className={inputClass} value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)} aria-label={t("patientMonitoring.sessionFilter")}>
+              <option value="all">{t("common.all")}</option>
+              {sessionOptions.map((id) => (
+                <option key={id} value={id}>{findSessionTitle(id) ?? id}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSortDescending((value) => !value)}
+              className="col-span-2 inline-flex h-9 items-center justify-center gap-2 rounded-panel border border-border bg-surface px-3 text-xs font-medium text-text-secondary hover:bg-surface-hover"
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {t("patientMonitoring.sortByLastActivity")}
+            </button>
+          </div>
+        </Card>
+
         {!filteredRows.length ? (
           <Card><EmptyState title="No participants match the current filters" /></Card>
         ) : (
@@ -161,17 +207,20 @@ export function PatientListPage() {
               </table>
             </Card>
 
-            {/* Narrow screens: stacked cards */}
+            {/* Narrow screens (phone + tablet, both already <lg today): stacked
+                cards -- unchanged design, only defensive overflow classes
+                (min-w-0/truncate/shrink-0) added so long aliases/titles can
+                never push this card past the viewport (brief §17). */}
             <div className="grid gap-3 lg:hidden">
               {filteredRows.map(({ participant, summary }) => (
                 <Link key={participant.id} href={`/patients/${participant.id}`}>
-                  <Card className="p-4">
+                  <Card className="min-w-0 p-4">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-text-primary">{participant.alias}</div>
-                      <Badge tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
+                      <div className="min-w-0 truncate text-sm font-semibold text-text-primary">{participant.alias}</div>
+                      <Badge className="shrink-0" tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
                     </div>
-                    <div className="mt-2 text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</div>
-                    <div className="mt-1 text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</div>
+                    <div className="mt-2 truncate text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</div>
+                    <div className="mt-1 truncate text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</div>
                     <div className="mt-2 text-[11px] text-text-muted">{formatTimestamp(summary.lastActivity)}</div>
                   </Card>
                 </Link>
@@ -190,6 +239,17 @@ function SummaryStat({ label, value, tone }: { label: string; value: number; ton
       <Badge tone={tone}>{label}</Badge>
       <div className="mt-3 text-2xl font-semibold text-text-primary">{value}</div>
     </Card>
+  );
+}
+
+// Same counts/labels as SummaryStat above, just laid out as one dense row
+// instead of four large cards -- see brief §9 ("compact status summary").
+function CompactSummaryStat({ label, value, tone }: { label: string; value: number; tone: "primary" | "warning" | "critical" | "success" }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+      <span className="text-text-secondary">{label}</span>
+      <Badge tone={tone}>{value}</Badge>
+    </div>
   );
 }
 

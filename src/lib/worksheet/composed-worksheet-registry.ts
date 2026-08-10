@@ -15,6 +15,11 @@ export interface ComposedWorksheetProps {
   onConfirm: (worksheetFieldKey: string) => void;
   onEdit: (worksheetFieldKey: string, value: unknown) => void;
   busy: boolean;
+  // Only S06Worksheet currently reads this (its cross-run progress-over-time
+  // table needs to look up the participant's other runs of this same
+  // session -- see getListScoreHistory). Every other session component
+  // simply doesn't destructure it.
+  runtimeSessionId: string;
 }
 
 // Session-specific "recreate the figure in real HTML/CSS" worksheets --

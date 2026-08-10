@@ -42,6 +42,14 @@ export function PatientSessionPage() {
     await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] });
     await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
     await queryClient.invalidateQueries({ queryKey: ["safety-events"] });
+    // WorksheetPane (see worksheet-pane.tsx) polls on its own 4s timer,
+    // independent of the chat turn that actually fills its fields -- with
+    // nothing here, a long conversation could sit up to 4s (or, before the
+    // await fix in runtime-execution-api.ts, indefinitely) behind what the
+    // patient just answered. Invalidating its exact query key right after
+    // every turn makes it refetch immediately instead of waiting on its own
+    // poll.
+    await queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] });
     const auditView = await getRuntimeSession(sessionId);
     if (auditView) {
       try { await saveRemoteSessionAuditSnapshot(auditView); }
@@ -261,6 +269,7 @@ export function PatientSessionPage() {
             runtimeSessionId={activeSession.id}
             sessionDefinitionId={activeSession.sessionDefinitionId}
             activeCanonicalFieldKey={currentPromptItem?.outputFields?.[0]}
+            variant="patient"
           />
         )}
       </div>
