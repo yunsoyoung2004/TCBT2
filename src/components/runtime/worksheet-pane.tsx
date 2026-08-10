@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { CheckCircle2, Circle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 import { getComposedWorksheet } from "@/lib/worksheet/composed-worksheet-registry";
 import { QuestCompleteBadge, useJustFilled } from "@/components/runtime/worksheet-renderers/shared";
-import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
+import { fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
 
@@ -57,11 +57,16 @@ export function WorksheetPane({
   sessionDefinitionId,
   activeCanonicalFieldKey,
   variant,
+  locale = "en-US",
 }: {
   runtimeSessionId: string;
   sessionDefinitionId: string;
   activeCanonicalFieldKey?: string;
   variant: "clinician" | "patient";
+  /** Only read by variant="patient" (picks labelKo vs label, and the
+   * checklist's own header/status copy). The clinician composed worksheets
+   * are English-only regardless of session locale, unchanged. */
+  locale?: string;
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["worksheet-view", runtimeSessionId];
@@ -84,11 +89,15 @@ export function WorksheetPane({
   if (!view) return null;
 
   if (variant === "patient") {
+    const isKorean = locale.toLowerCase().startsWith("ko");
     return (
       <Card className="overflow-hidden">
-        <SectionHeader title="Your Progress" description="Fills in as we talk — nothing here is graded, and you already said all of it in the chat." />
+        <SectionHeader
+          title={isKorean ? "진행 상황" : "Your Progress"}
+          description={isKorean ? "대화하면서 채워져요 — 평가하는 게 아니고, 이미 채팅에서 말씀하신 내용이에요." : "Fills in as we talk — nothing here is graded, and you already said all of it in the chat."}
+        />
         <div className="max-h-[calc(100vh-260px)] overflow-auto p-4">
-          <PatientProgressFeed fields={view.fields} />
+          <PatientProgressFeed fields={view.fields} isKorean={isKorean} />
         </div>
       </Card>
     );
@@ -143,52 +152,62 @@ export function WorksheetPane({
   );
 }
 
-/** variant="patient" only -- a chronological "this got recorded" feed, never
- * the field's actual value (the participant already has that: it's what
- * they just typed in the chat transcript right next to this panel). A field
- * appearing here at all already means it's filled, so each row's own
- * AnimatePresence entrance IS the "just completed" moment -- no separate
- * before/after transition to detect the way WorksheetCell's
- * useJustFilled does for a cell that's always rendered, filled or not. */
-function PatientProgressFeed({ fields }: { fields: WorksheetFieldView[] }) {
+/** variant="patient" only -- a full checklist of everything this session
+ * expects (every bound field, in the same displayOrder the clinician's own
+ * composed worksheet uses), never a field's actual value -- the participant
+ * already has that, it's what they just typed in the chat transcript right
+ * next to this panel. Unfilled items show an outline circle; a filled item
+ * gets a checkmark immediately to the right of its own label, in place,
+ * rather than a growing feed of only-completed items appended elsewhere. */
+function PatientProgressFeed({ fields, isKorean }: { fields: WorksheetFieldView[]; isKorean: boolean }) {
   const reducedMotion = Boolean(useReducedMotionPreference());
-  const filledFields = fields
-    .filter((field) => field.value !== null && field.value.value !== undefined && field.value.value !== "")
-    .sort((left, right) => (left.value!.updatedAt).localeCompare(right.value!.updatedAt));
+  const orderedFields = [...fields].sort((left, right) => left.binding.displayOrder - right.binding.displayOrder);
 
-  if (!filledFields.length) {
-    return <div className="rounded-panel border border-dashed border-border bg-surface-subtle/60 p-4 text-center text-sm text-text-muted">Nothing recorded yet — it will show up here as we go.</div>;
+  if (!orderedFields.length) {
+    return (
+      <div className="rounded-panel border border-dashed border-border bg-surface-subtle/60 p-4 text-center text-sm text-text-muted">
+        {isKorean ? "이 세션에는 기록할 항목이 없어요." : "Nothing to record for this session."}
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-2">
-      <AnimatePresence initial={!reducedMotion}>
-        {filledFields.map((field) => (
-          <ProgressFeedRow key={field.definition.id} field={field} reducedMotion={reducedMotion} />
-        ))}
-      </AnimatePresence>
+    <div className="space-y-1.5">
+      {orderedFields.map((field) => (
+        <ProgressChecklistRow key={field.definition.id} field={field} isKorean={isKorean} reducedMotion={reducedMotion} />
+      ))}
     </div>
   );
 }
 
-function ProgressFeedRow({ field, reducedMotion }: { field: WorksheetFieldView; reducedMotion: boolean }) {
+function ProgressChecklistRow({ field, isKorean, reducedMotion }: { field: WorksheetFieldView; isKorean: boolean; reducedMotion: boolean }) {
+  const filled = field.value !== null && field.value.value !== undefined && field.value.value !== "";
+  const justFilled = useJustFilled(filled, reducedMotion);
   const confirmed = field.value?.status === "participant_confirmed";
   const timestamp = field.value?.updatedAt;
+  const label = isKorean ? (field.binding.labelKo ?? field.binding.label) : field.binding.label;
+
   return (
     <motion.div
-      className="flex items-center gap-3 rounded-panel border border-success/40 bg-success-light/25 px-3 py-2"
-      variants={reducedMotion ? undefined : fadeScale}
+      className={`relative flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : "border-dashed border-border bg-surface-subtle/50"}`}
+      variants={reducedMotion ? undefined : fadeUp}
       initial={reducedMotion ? false : "initial"}
       animate={reducedMotion ? undefined : "animate"}
-      exit={reducedMotion ? undefined : "exit"}
     >
-      <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-semibold uppercase tracking-[0.05em] text-text-muted">{field.binding.label}</div>
-        <div className="text-[11px] text-text-secondary">
-          {confirmed ? "Confirmed" : "Recorded"}
-          {timestamp && ` · ${new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
-        </div>
+      {justFilled && <QuestCompleteBadge />}
+      <div className="min-w-0 flex-1 truncate text-sm text-text-primary">{label}</div>
+      <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-text-secondary">
+        {filled ? (
+          <>
+            <span className="whitespace-nowrap">
+              {confirmed ? (isKorean ? "확인됨" : "Confirmed") : (isKorean ? "기록됨" : "Recorded")}
+              {timestamp && ` · ${new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+            </span>
+            <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
+          </>
+        ) : (
+          <Circle className="h-4 w-4 text-border-strong" aria-hidden />
+        )}
       </div>
     </motion.div>
   );

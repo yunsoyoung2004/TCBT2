@@ -294,11 +294,16 @@ export function resolveStaticPatientMessage(promptItem: PromptItem, locale: stri
   const obviousInternalDocument = /^(?:---\s*)?(?:#{1,6}\s*)?(?:interaction style|role and purpose|safety and clinical guardrails|important guidelines)\b/i.test(fallback)
     || /^(?:```|[-*]\s+(?:use|do not|never|always|close by)\b)/i.test(fallback);
   if (fallback && !obviousInternalDocument) {
-    const localized = resolvePromptLocaleText(promptItem.id, fallback, locale);
-    const patientMessage = localized.includes("천천히 생각해 보셔도 괜찮습니다")
-      ? fallback
-      : localized;
-    return { patientMessage: resolveBracketPlaceholders(patientMessage, context), source: "approved_static", llmCalled: false };
+    // NOT "prefer the raw English fallback whenever the locale-safe path
+    // would land on the generic Korean line" -- that used to be exactly
+    // what this did (recognizing the generic line by its own text and
+    // reverting to `fallback` instead), which silently shipped raw English
+    // to a Korean session on every PromptItem outside REVIEWED_KOREAN_PROMPT_TEXT
+    // whose source text has no Hangul in it -- precisely the case
+    // resolvePromptLocaleText's own generic-fallback behavior exists to
+    // prevent (see isLocaleConsistentFallbackText's comment). Trust its
+    // decision instead of second-guessing it back to English here.
+    return { patientMessage: resolveBracketPlaceholders(resolvePromptLocaleText(promptItem.id, fallback, locale), context), source: "approved_static", llmCalled: false };
   }
   return null;
 }

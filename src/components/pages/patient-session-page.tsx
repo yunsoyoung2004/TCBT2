@@ -270,6 +270,7 @@ export function PatientSessionPage() {
             sessionDefinitionId={activeSession.sessionDefinitionId}
             activeCanonicalFieldKey={currentPromptItem?.outputFields?.[0]}
             variant="patient"
+            locale={activeSession.locale}
           />
         )}
       </div>

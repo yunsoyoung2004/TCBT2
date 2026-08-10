@@ -68,6 +68,11 @@ export interface WorksheetBinding {
   confirmationRequired: boolean;
   displayMode: WorksheetDisplayMode;
   label: string;
+  /** Korean translation of `label`, used for the patient-facing progress
+   * checklist (see PatientProgressFeed in worksheet-pane.tsx) when the
+   * session locale is Korean. The clinician-facing composed worksheets
+   * keep using `label` (English) unconditionally, unchanged. */
+  labelKo?: string;
   sourceSection?: string;
   displayOrder: number;
 }
