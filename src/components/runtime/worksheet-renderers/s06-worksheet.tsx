@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ScoreChip, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { ScoreChip, SessionSignals, WorksheetCell, capturedStatus, listCount } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { getListScoreHistory } from "@/lib/worksheet/worksheet-projection";
 import type { WorksheetFieldView, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
@@ -49,6 +49,14 @@ export function S06Worksheet({
 
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <SessionSignals
+        items={[
+          { label: "Items tracked", value: listCount(get("symptomItems")) },
+          { label: "Green practice selected", value: listCount(get("greenHomeworkItems")) },
+          { label: "Safety behaviors noted", value: listCount(get("safetyBehaviors")) },
+          { label: "Underlying assumption", value: capturedStatus(get("underlyingAssumption")) },
+        ]}
+      />
       <SymptomHierarchy itemsField={get("symptomItems")} scoresField={get("symptomItemScores")} active={isActive(get("symptomItems")) || isActive(get("symptomItemScores"))} onConfirm={onConfirm} />
 
       {historyQuery.data && historyQuery.data.runs.length > 1 && <SymptomHistoryTable history={historyQuery.data} />}

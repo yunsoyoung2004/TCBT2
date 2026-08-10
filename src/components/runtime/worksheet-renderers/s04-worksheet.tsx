@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ChoicePills, CycleArrow, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { ArrowDown, ChoicePills, CycleArrow, FocusLine, SessionSignals, WorksheetCell, capturedStatus, directionalValue } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
@@ -34,8 +34,22 @@ export function S04Worksheet({
   const get = (key: string) => byKey.get(key);
   const isActive = (field?: WorksheetFieldView) => Boolean(field && field.binding.canonicalFieldKey === activeCanonicalFieldKey);
 
+  const myEmotionText = get("patientEmotion")?.value?.displayValue;
+  const myEmotionIntensity = get("patientEmotionIntensityPercent")?.value?.displayValue;
+  const myEmotionSignal = myEmotionText ? (myEmotionIntensity ? `${myEmotionText} · ${myEmotionIntensity}%` : String(myEmotionText)) : "—";
+
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <FocusLine text={get("interpersonalSituation")?.value?.displayValue} />
+      <SessionSignals
+        items={[
+          { label: "My initial belief", value: directionalValue(get("patientAutomaticThoughtBeliefPercent"), get("revisedPatientAutomaticThoughtBeliefPercent")) },
+          { label: "My emotion", value: myEmotionSignal },
+          { label: "Leverage point", value: capturedStatus(get("locusOfControlRecognition")) },
+          { label: "Action plan", value: capturedStatus(get("plannedActions")) },
+        ]}
+      />
+
       <div className="rounded-panel border border-clinical-blue/30 bg-clinical-blue-light/10 p-2 sm:p-3">
         <div className="mb-2 inline-flex items-center rounded-full bg-clinical-blue px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-white">Me</div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
@@ -60,11 +74,11 @@ export function S04Worksheet({
       <div className="rounded-panel border border-border bg-surface p-2 sm:p-3">
         <div className="mb-2 inline-flex items-center rounded-full bg-text-secondary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-white">The other person</div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
-          <WorksheetCell field={get("otherPersonLikelyThought")} q="5" label="Their likely thought" compact active={isActive(get("otherPersonLikelyThought"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+          <WorksheetCell field={get("otherPersonLikelyThought")} q="5" label="Their likely thought" compact inferred active={isActive(get("otherPersonLikelyThought"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
           <CycleArrow reducedMotion={reducedMotion} />
-          <WorksheetCell field={get("otherPersonLikelyEmotion")} q="6" label="Their likely emotion" compact active={isActive(get("otherPersonLikelyEmotion"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+          <WorksheetCell field={get("otherPersonLikelyEmotion")} q="6" label="Their likely emotion" compact inferred active={isActive(get("otherPersonLikelyEmotion"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
           <CycleArrow reducedMotion={reducedMotion} />
-          <WorksheetCell field={get("otherPersonLikelyBehavior")} q="7" label="Their likely behavior" compact active={isActive(get("otherPersonLikelyBehavior"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+          <WorksheetCell field={get("otherPersonLikelyBehavior")} q="7" label="Their likely behavior" compact inferred active={isActive(get("otherPersonLikelyBehavior"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
         </div>
       </div>
 

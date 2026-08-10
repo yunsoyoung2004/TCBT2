@@ -132,6 +132,7 @@ const ko = {
     tabs: {
       auditLog: "기록 로그",
       worksheet: "워크시트",
+      progress: "진행 추이",
       profile: "환자 프로필",
     },
     worksheet: {
@@ -194,6 +195,7 @@ const ko = {
       homeworkHeading: "숙제",
       runsLabel: "{count}회 진행",
       openSession: "열기",
+      viewWorksheet: "워크시트 보기",
     },
     homework: {
       empty: "아직 기록된 숙제 활동이 없습니다.",

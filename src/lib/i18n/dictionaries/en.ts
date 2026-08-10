@@ -132,6 +132,7 @@ const en = {
     tabs: {
       auditLog: "Audit Log",
       worksheet: "Worksheet",
+      progress: "Progress",
       profile: "Patient Profile",
     },
     worksheet: {
@@ -194,6 +195,7 @@ const en = {
       homeworkHeading: "Homework",
       runsLabel: "{count} run(s)",
       openSession: "Open",
+      viewWorksheet: "View Worksheet",
     },
     homework: {
       empty: "No follow-up activity recorded yet.",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
-import { CycleArrow, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { CycleArrow, FocusLine, SessionSignals, WorksheetCell, capturedStatus, listCount } from "@/components/runtime/worksheet-renderers/shared";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
 // Recreates the TBCT Session 1 "Conceptualization Diagram" (three-person
@@ -34,9 +34,26 @@ export function S01Worksheet({
   const byKey = new Map(view.fields.map((field) => [field.binding.worksheetFieldKey, field]));
   const get = (key: string) => byKey.get(key);
   const isActive = (field?: WorksheetFieldView) => Boolean(field && field.binding.canonicalFieldKey === activeCanonicalFieldKey);
+  const isFilled = (field?: WorksheetFieldView) => field?.value?.value !== undefined && field?.value?.value !== null && field?.value?.value !== "";
+
+  // S01 has no belief/emotion-intensity percent fields at all (see
+  // tbct-s01.ts) -- its signals are structural completion counts instead of
+  // ratings, sourced only from fields already bound above.
+  const candidatesComplete = CANDIDATES.filter((c) => isFilled(get(c.thought)) && isFilled(get(c.emotion)) && isFilled(get(c.behavior))).length;
+  const personalLinksComplete = [get("personalThoughtEmotionLink"), get("personalEmotionBehaviorLink"), get("personalBehaviorSituationLink")].filter(isFilled).length;
 
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <FocusLine text={get("situationThoughtDistinction")?.value?.displayValue} />
+      <SessionSignals
+        items={[
+          { label: "Candidates explored", value: `${candidatesComplete} of 3` },
+          { label: "Personal cycle links", value: `${personalLinksComplete} of 3` },
+          { label: "Summary", value: capturedStatus(get("participantSummary")) },
+          { label: "Distortions recognized", value: listCount(get("participantSelectedDistortions")) },
+        ]}
+      />
+
       {/* One shared Situation feeding three parallel candidate branches */}
       <WorksheetCell field={get("situationThoughtDistinction")} q="1" active={isActive(get("situationThoughtDistinction"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} label="The shared situation" />
 

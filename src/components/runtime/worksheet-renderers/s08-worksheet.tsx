@@ -1,6 +1,6 @@
 "use client";
 
-import { CycleArrow, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { CycleArrow, FocusLine, SessionSignals, WorksheetCell, capturedStatus, directionalValue, listCount } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
@@ -35,6 +35,16 @@ export function S08Worksheet({
 
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <FocusLine text={chargeField?.value?.displayValue} />
+      <SessionSignals
+        items={[
+          { label: "Charge belief", value: directionalValue(get("coreBeliefBaselinePercent"), get("defendantPostVerdictBeliefPercent")) },
+          { label: "Verdict", value: get("verdict")?.value?.displayValue ? String(get("verdict")?.value?.displayValue) : "—" },
+          { label: "New belief", value: capturedStatus(get("positiveBelief")) },
+          { label: "Appeal evidence", value: listCount(get("appealEvidence")) },
+        ]}
+      />
+
       {/* The courtroom -- Judge above, Prosecutor/Defendant/Defense in the middle row, Jury below */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <RoleBox className="col-span-3" title="Judge" caption="Sets the ground rules for the trial" />

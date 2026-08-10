@@ -7,10 +7,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 import { getComposedWorksheet } from "@/lib/worksheet/composed-worksheet-registry";
-import { QuestCompleteBadge, useJustFilled } from "@/components/runtime/worksheet-renderers/shared";
+import { QuestCompleteBadge, WorksheetSourceProvider, useJustFilled } from "@/components/runtime/worksheet-renderers/shared";
 import { fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
+import type { RuntimeMessage } from "@/types/runtime-session";
 
 // The interactive visual worksheet -- a typed projection of
 // RuntimeContext.fields (see src/lib/worksheet/worksheet-projection.ts for
@@ -58,6 +59,8 @@ export function WorksheetPane({
   activeCanonicalFieldKey,
   variant,
   locale = "en-US",
+  messages,
+  sessionMeta,
 }: {
   runtimeSessionId: string;
   sessionDefinitionId: string;
@@ -67,6 +70,17 @@ export function WorksheetPane({
    * checklist's own header/status copy). The clinician composed worksheets
    * are English-only regardless of session locale, unchanged. */
   locale?: string;
+  /** Clinician-only. This session's own chat messages, already fetched by
+   * the caller (Patient Monitoring already loads them for the Audit Log
+   * tab) -- lets every WorksheetCell offer a real "View source" link back
+   * to the message that produced its value (see shared.tsx's
+   * WorksheetSourceProvider). Omit to render without source links. */
+  messages?: RuntimeMessage[];
+  /** Clinician-only. A compact "which session, whose, when" line shown
+   * above the figure -- purely presentational strings the caller already
+   * has (session number/technique, run status, date, patient identifier);
+   * WorksheetPane doesn't fetch or derive any of it itself. */
+  sessionMeta?: { sessionLabel: string; statusLabel: string; dateLabel: string; patientLabel: string; incomplete: boolean };
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["worksheet-view", runtimeSessionId];
@@ -112,28 +126,21 @@ export function WorksheetPane({
   return (
     <Card className="overflow-hidden">
       <SectionHeader title="Session Worksheet" description="Fills in as you answer -- confirm a box once it looks right, or edit it." />
+      {sessionMeta && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-surface-subtle/60 px-4 py-2 text-xs text-text-secondary">
+          <span className="font-semibold text-text-primary">{sessionMeta.sessionLabel}</span>
+          <span>{sessionMeta.statusLabel}</span>
+          {sessionMeta.incomplete && <Badge tone="warning">Incomplete session</Badge>}
+          <span>{sessionMeta.dateLabel}</span>
+          <span>{sessionMeta.patientLabel}</span>
+        </div>
+      )}
       <div className="max-h-[calc(100vh-260px)] space-y-4 overflow-auto p-4">
-        {ComposedWorksheet ? (
-          <ComposedWorksheet view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} runtimeSessionId={runtimeSessionId} />
-        ) : (
-          <div className="space-y-2">
-            {view.fields.map((field) => (
-              <WorksheetFieldRow
-                key={field.definition.id}
-                field={field}
-                isActive={field.binding.canonicalFieldKey === activeCanonicalFieldKey}
-                onConfirm={() => onConfirm(field.definition.worksheetFieldKey)}
-                onEdit={(value) => onEdit(field.definition.worksheetFieldKey, value)}
-                busy={busy}
-              />
-            ))}
-          </div>
-        )}
-
-        {hasPrimaryView && (
-          <details className="rounded-panel border border-border bg-surface-subtle p-3">
-            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Advanced: field status (clinician view)</summary>
-            <div className="mt-3 space-y-2">
+        <WorksheetSourceProvider messages={messages ?? []}>
+          {ComposedWorksheet ? (
+            <ComposedWorksheet view={view} activeCanonicalFieldKey={activeCanonicalFieldKey} onConfirm={onConfirm} onEdit={onEdit} busy={busy} runtimeSessionId={runtimeSessionId} />
+          ) : (
+            <div className="space-y-2">
               {view.fields.map((field) => (
                 <WorksheetFieldRow
                   key={field.definition.id}
@@ -145,8 +152,26 @@ export function WorksheetPane({
                 />
               ))}
             </div>
-          </details>
-        )}
+          )}
+
+          {hasPrimaryView && (
+            <details className="rounded-panel border border-border bg-surface-subtle p-3">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Advanced: field status (clinician view)</summary>
+              <div className="mt-3 space-y-2">
+                {view.fields.map((field) => (
+                  <WorksheetFieldRow
+                    key={field.definition.id}
+                    field={field}
+                    isActive={field.binding.canonicalFieldKey === activeCanonicalFieldKey}
+                    onConfirm={() => onConfirm(field.definition.worksheetFieldKey)}
+                    onEdit={(value) => onEdit(field.definition.worksheetFieldKey, value)}
+                    busy={busy}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </WorksheetSourceProvider>
       </div>
     </Card>
   );

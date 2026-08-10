@@ -37,6 +37,7 @@ import {
   type MonitoringStatus,
 } from "@/components/pages/patient-monitoring/patient-monitoring-utils";
 import { HomeworkPanel } from "@/components/pages/patient-monitoring/homework-panel";
+import { SessionProgressPanel, sessionSupportsProgressTab } from "@/components/pages/patient-monitoring/session-progress-panel";
 import { WorksheetPane } from "@/components/runtime/worksheet-pane";
 import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
 import type { RuntimeMessageRole, RuntimeSession } from "@/types/runtime-session";
@@ -84,7 +85,7 @@ export function PatientMonitoringDetailPage() {
   const reducedMotion = useReducedMotionPreference();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
-  const [activeTab, setActiveTab] = useState<"audit" | "worksheet" | "profile">("audit");
+  const [activeTab, setActiveTab] = useState<"audit" | "worksheet" | "profile" | "progress">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
@@ -157,7 +158,7 @@ export function PatientMonitoringDetailPage() {
   const sessionLabel = (item: RuntimeSession) =>
     `${findSessionTitle(item.sessionDefinitionId) ?? item.sessionDefinitionId} · ${t(`patientMonitoring.status.${runStatus(item)}`)} · ${formatTimestamp(item.updatedAt)}`;
 
-  const openSession = (sessionId: string, tab: "audit" | "worksheet" | "profile" = "audit") => {
+  const openSession = (sessionId: string, tab: "audit" | "worksheet" | "profile" | "progress" = "audit") => {
     setSelectedSessionId(sessionId);
     setActiveTab(tab);
   };
@@ -324,6 +325,41 @@ export function PatientMonitoringDetailPage() {
   const canResume = session?.status === "paused";
   const canEnd = Boolean(session) && session?.status !== "completed" && session?.status !== "terminated";
 
+  // "Progress" (longitudinal ratings across repeated runs) only makes sense
+  // for the handful of sessions with a real item-matched history read-model
+  // -- see session-progress-panel.tsx. Hidden entirely for every other
+  // session rather than shown with a permanent "not available" tab.
+  const progressSupported = Boolean(session && sessionSupportsProgressTab(session.sessionDefinitionId));
+  const tabLabel = (tab: "audit" | "worksheet" | "profile" | "progress") =>
+    tab === "audit"
+      ? t("patientDetail.tabs.auditLog")
+      : tab === "worksheet"
+        ? t("patientDetail.tabs.worksheet")
+        : tab === "progress"
+          ? t("patientDetail.tabs.progress")
+          : t("patientDetail.tabs.profile");
+  const mobileTabOrder: Array<"profile" | "audit" | "worksheet" | "progress"> = progressSupported
+    ? ["profile", "audit", "worksheet", "progress"]
+    : ["profile", "audit", "worksheet"];
+  const desktopTabOrder: Array<"audit" | "worksheet" | "progress" | "profile"> = progressSupported
+    ? ["audit", "worksheet", "progress", "profile"]
+    : ["audit", "worksheet", "profile"];
+
+  // Compact "which session, whose, when" line WorksheetPane shows above the
+  // figure (clinician variant only) -- built from data this page already
+  // has, not fetched again inside WorksheetPane itself.
+  const activeSessionDefinition = sessionProgress.find((item) => item.id === session?.sessionDefinitionId);
+  const worksheetMeta =
+    session && activeSessionDefinition
+      ? {
+          sessionLabel: `S${String(activeSessionDefinition.number).padStart(2, "0")} · ${activeSessionDefinition.title}`,
+          statusLabel: t(`patientMonitoring.status.${runStatus(session)}`),
+          dateLabel: formatTimestamp(session.completedAt ?? session.updatedAt),
+          patientLabel: participant.alias,
+          incomplete: session.status !== "completed" && session.status !== "terminated",
+        }
+      : undefined;
+
   return (
     <AppShell>
       <PageHeader
@@ -359,7 +395,7 @@ export function PatientMonitoringDetailPage() {
       </div>
       <div className="border-b border-border bg-surface px-4 lg:px-6">
         <div className="flex gap-1 py-2 sm:hidden">
-          {(["profile", "audit", "worksheet"] as const).map((tab) => (
+          {mobileTabOrder.map((tab) => (
             <button
               key={tab}
               type="button"
@@ -368,12 +404,12 @@ export function PatientMonitoringDetailPage() {
                 activeTab === tab ? "border-clinical-blue bg-clinical-blue-light text-clinical-blue" : "border-border text-text-secondary"
               }`}
             >
-              {tab === "audit" ? t("patientDetail.tabs.auditLog") : tab === "worksheet" ? t("patientDetail.tabs.worksheet") : t("patientDetail.tabs.profile")}
+              {tabLabel(tab)}
             </button>
           ))}
         </div>
         <div className="hidden gap-1 pt-2 sm:flex">
-          {(["audit", "worksheet", "profile"] as const).map((tab) => (
+          {desktopTabOrder.map((tab) => (
             <button
               key={tab}
               type="button"
@@ -382,7 +418,7 @@ export function PatientMonitoringDetailPage() {
                 activeTab === tab ? "border-clinical-blue text-clinical-blue" : "border-transparent text-text-secondary hover:text-text-primary"
               }`}
             >
-              {tab === "audit" ? t("patientDetail.tabs.auditLog") : tab === "worksheet" ? t("patientDetail.tabs.worksheet") : t("patientDetail.tabs.profile")}
+              {tabLabel(tab)}
             </button>
           ))}
         </div>
@@ -497,7 +533,19 @@ export function PatientMonitoringDetailPage() {
                 sessionDefinitionId={session.sessionDefinitionId}
                 activeCanonicalFieldKey={sessionViewQuery.data?.currentPromptItem?.outputFields?.[0]}
                 variant="clinician"
+                messages={sessionViewQuery.data?.messages}
+                sessionMeta={worksheetMeta}
               />
+            ) : (
+              <Card>
+                <EmptyState title={t("patientDetail.worksheet.unavailable")} description="" />
+              </Card>
+            )}
+          </div>
+        ) : activeTab === "progress" ? (
+          <div>
+            {session ? (
+              <SessionProgressPanel runtimeSessionId={effectiveSessionId} sessionDefinitionId={session.sessionDefinitionId} />
             ) : (
               <Card>
                 <EmptyState title={t("patientDetail.worksheet.unavailable")} description="" />
@@ -549,6 +597,11 @@ export function PatientMonitoringDetailPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge tone={STATUS_TONE[runStatus(run)]}>{t(`patientMonitoring.status.${runStatus(run)}`)}</Badge>
+                              {hasWorksheetBindings(run.sessionDefinitionId) && (
+                                <Button size="sm" variant="secondary" onClick={() => openSession(run.id, "worksheet")}>
+                                  {t("patientDetail.profile.viewWorksheet")}
+                                </Button>
+                              )}
                               <Button size="sm" variant="secondary" onClick={() => openSession(run.id, "audit")}>
                                 {t("patientDetail.profile.openSession")}
                               </Button>

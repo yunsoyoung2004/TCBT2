@@ -1,6 +1,6 @@
 "use client";
 
-import { WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { SessionSignals, WorksheetCell, directionalValue, displayOrDash, listCount } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
@@ -29,6 +29,14 @@ export function S05Worksheet({
 
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <SessionSignals
+        items={[
+          { label: "Guilt belief", value: directionalValue(get("guiltBeliefBaseline"), get("guiltBeliefFinal")) },
+          { label: "Shame intensity", value: directionalValue(get("shameIntensityBaseline"), get("shameIntensityFinal")) },
+          { label: "My participation share (R1)", value: get("participantParticipationRound1")?.value?.displayValue ? `${displayOrDash(get("participantParticipationRound1"))}%` : "—" },
+          { label: "Contributors listed", value: listCount(get("contributors")) },
+        ]}
+      />
       <ParticipationGrid
         contributorsField={get("contributors")}
         ratingsField={get("participationRatingsRound1")}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/primitives";
-import { ScoreChip } from "@/components/runtime/worksheet-renderers/shared";
+import { ScoreChip, SessionSignals, displayOrDash, listCount } from "@/components/runtime/worksheet-renderers/shared";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
 // Recreates the TBCT Session 2 Color-Coded Problem Hierarchy (CCPH) and
@@ -29,6 +29,14 @@ export function S02Worksheet({
 
   return (
     <div className="space-y-6 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <SessionSignals
+        items={[
+          { label: "Total problem score", value: displayOrDash(get("totalProblemScore")) },
+          { label: "Total goals score", value: displayOrDash(get("totalGoalsScore")) },
+          { label: "Problems tracked", value: listCount(get("problems")) },
+          { label: "Goals tracked", value: listCount(get("goals")) },
+        ]}
+      />
       <HierarchyBoard
         title="Color-Coded Problem Hierarchy"
         itemsField={get("problems")}

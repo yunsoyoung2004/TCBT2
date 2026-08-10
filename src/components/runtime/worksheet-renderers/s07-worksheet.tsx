@@ -1,6 +1,6 @@
 "use client";
 
-import { ChoicePills, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { ChoicePills, SessionSignals, WorksheetCell, capturedStatus } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
@@ -32,8 +32,25 @@ export function S07Worksheet({
   const get = (key: string) => byKey.get(key);
   const isActive = (field?: WorksheetFieldView) => Boolean(field && field.binding.canonicalFieldKey === activeCanonicalFieldKey);
 
+  const readinessRaw = get("implementationReadiness")?.value?.value;
+  const readinessLabel = READINESS_OPTIONS.find((option) => option.value === readinessRaw)?.label ?? "—";
+  const initialEmotionWeight = get("emotionDisadvantageWeight")?.value?.displayValue;
+  const initialReasonWeight = get("reasonAdvantageWeight")?.value?.displayValue;
+  const initialWeightSignal = initialEmotionWeight && initialReasonWeight ? `Emotion ${initialEmotionWeight}% / Reason ${initialReasonWeight}%` : "—";
+  const consensusAdv = get("consensusAdvantageWeight")?.value?.displayValue;
+  const consensusDis = get("consensusDisadvantageWeight")?.value?.displayValue;
+  const consensusWeightSignal = consensusAdv && consensusDis ? `Advantages ${consensusAdv}% / Disadvantages ${consensusDis}%` : "—";
+
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <SessionSignals
+        items={[
+          { label: "Decision", value: readinessLabel },
+          { label: "Initial weight", value: initialWeightSignal },
+          { label: "Consensus weight", value: consensusWeightSignal },
+          { label: "Action plan", value: capturedStatus(get("proposedActions")) },
+        ]}
+      />
       <div className="rounded-panel border-2 border-clinical-blue/40 bg-clinical-blue-light/20 p-1">
         <WorksheetCell field={get("desiredOrFearedAction")} q="1" label="The desired / feared action" borderless active={isActive(get("desiredOrFearedAction"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
       </div>

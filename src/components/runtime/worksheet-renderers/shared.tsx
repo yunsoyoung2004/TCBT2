@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/primitives";
 import { fadeScale, fadeUp, highlightPulse, questComplete } from "@/lib/motion/motion-variants";
 import type { WorksheetFieldView } from "@/types/worksheet";
+import type { RuntimeMessage, RuntimeMessageRole } from "@/types/runtime-session";
 
 // How long the one-shot "just filled" flourish stays flagged -- matches
 // questComplete's own animation duration (motion-variants.ts) so the badge
@@ -46,6 +47,146 @@ export function QuestCompleteBadge() {
       Filled
     </motion.span>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Source traceability -- a WorksheetFieldValueRecord's optional
+// `sourceTurnId` is literally the id of the RuntimeMessage that produced it
+// (see runtime-execution-api.ts's submitPatientInput -> projectRuntimeFieldsToWorksheet
+// call, `sourceTurnId: patientMessage.id`). WorksheetPane resolves the
+// clinician's session messages once and provides them here via context, so
+// every WorksheetCell in every session figure can offer a real "View
+// source" link with zero prop-threading through 8 bespoke layouts. When a
+// field has no sourceTurnId (e.g. system-calculated totals) or the message
+// can't be found, nothing renders -- no fake/guessed mapping is ever shown.
+const WorksheetSourceContext = createContext<Map<string, RuntimeMessage>>(new Map());
+
+export function WorksheetSourceProvider({ messages, children }: { messages: RuntimeMessage[]; children: React.ReactNode }) {
+  const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
+  return <WorksheetSourceContext.Provider value={byId}>{children}</WorksheetSourceContext.Provider>;
+}
+
+function useSourceMessage(sourceTurnId?: string): RuntimeMessage | undefined {
+  const byId = useContext(WorksheetSourceContext);
+  return sourceTurnId ? byId.get(sourceTurnId) : undefined;
+}
+
+const SOURCE_SPEAKER_LABEL: Record<RuntimeMessageRole, string> = {
+  patient: "Patient",
+  clinician: "Clinician",
+  assistant: "Program",
+  system: "Program",
+};
+
+function formatSourceTimestamp(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Renders nothing unless the originating chat message can actually be
+ * resolved -- see the module comment above. */
+function SourceTrace({ sourceTurnId }: { sourceTurnId?: string }) {
+  const message = useSourceMessage(sourceTurnId);
+  const [open, setOpen] = useState(false);
+  if (!message) return null;
+  return (
+    <div className="mt-2">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="text-[11px] font-semibold text-clinical-blue hover:underline">
+        {open ? "Hide source" : "View source"}
+      </button>
+      {open && (
+        <div className="mt-1.5 rounded-panel border border-border bg-surface-subtle/70 p-2.5">
+          <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-text-muted">
+            <span>{SOURCE_SPEAKER_LABEL[message.role]}</span>
+            <span>{formatSourceTimestamp(message.createdAt)}</span>
+          </div>
+          <div className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary">{message.content}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** S04's "the other person" cells estimate what someone else may have
+ * thought/felt/done -- the participant's inference, not a fact about that
+ * person. This flags that distinction inline wherever it applies, per the
+ * data-layering rule (patient-reported vs. structured vs. patient-inferred). */
+export function InferredBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-border bg-surface-subtle px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-text-secondary">
+      Possible · Patient-inferred
+    </span>
+  );
+}
+
+/** A single line near the top of a session figure naming what the session
+ * actually dealt with -- only rendered when the session has a real,
+ * already-bound field to source it from (a genuine situation/event/charge
+ * field). Sessions without one (S02, S05, S06, S07 -- see each renderer's
+ * own comment) simply never call this rather than showing an always-empty
+ * placeholder. */
+export function FocusLine({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <div className="rounded-panel border border-dashed border-border bg-surface-subtle/60 px-3 py-2">
+      <span className="mr-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">Focus</span>
+      <span className="text-sm text-text-primary">{text}</span>
+    </div>
+  );
+}
+
+/** Up to 4 structured, factual signals for this session -- no clinical
+ * interpretation, ever (see each renderer's own signal list for exactly
+ * which already-bound fields back each one). Values missing from the
+ * underlying data show "—", never a fabricated placeholder. */
+export function SessionSignals({ items }: { items: Array<{ label: string; value: string }> }) {
+  const visible = items.slice(0, 4);
+  if (!visible.length) return null;
+  return (
+    <div className="rounded-panel border border-border bg-surface p-3 sm:p-4">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">Session Signals</div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {visible.map((item) => (
+          <div key={item.label} className="rounded-panel border border-border/70 bg-surface-subtle/60 px-2.5 py-1.5">
+            <div className="text-[10px] uppercase tracking-[0.05em] text-text-muted">{item.label}</div>
+            <div className="mt-0.5 text-sm font-semibold text-text-primary">{item.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Neutral "before → after" text for a percentage pair -- no color-coding
+ * for improvement/decline, just the two numbers in order. Falls back
+ * gracefully when only one side (or neither) has a value yet. */
+export function directionalValue(from?: WorksheetFieldView, to?: WorksheetFieldView): string {
+  const fromValue = from?.value?.displayValue;
+  const toValue = to?.value?.displayValue;
+  if (fromValue && toValue) return `${fromValue}% → ${toValue}%`;
+  if (fromValue) return `${fromValue}%`;
+  if (toValue) return `${toValue}%`;
+  return "—";
+}
+
+/** Item count for a text_list field, or "—" when empty/unfilled. */
+export function listCount(field?: WorksheetFieldView): string {
+  const value = field?.value?.value;
+  if (!Array.isArray(value) || value.length === 0) return "—";
+  return String(value.length);
+}
+
+/** "Captured" / "Not captured" for a field that's either filled or not --
+ * a structured status, not a clinical judgment (see brief §14's own
+ * "Balanced conclusion: Captured" example). */
+export function capturedStatus(field?: WorksheetFieldView): string {
+  const filled = Boolean(field) && field!.value !== null && field!.value!.value !== undefined && field!.value!.value !== "";
+  return filled ? "Captured" : "Not captured";
+}
+
+/** Plain text/percentage display value, or "—" when unfilled. */
+export function displayOrDash(field?: WorksheetFieldView): string {
+  return field?.value?.displayValue ? String(field.value.displayValue) : "—";
 }
 
 // Small generic building blocks shared across the per-session composed
@@ -129,6 +270,7 @@ export function WorksheetCell({
   borderless,
   label,
   tone,
+  inferred,
 }: {
   field?: WorksheetFieldView;
   q: string;
@@ -146,6 +288,10 @@ export function WorksheetCell({
   borderless?: boolean;
   label?: string;
   tone?: "neutral";
+  /** This value is the participant's own guess about someone else, not an
+   * observed fact -- shows the POSSIBLE/PATIENT-INFERRED badge next to the
+   * label (see InferredBadge above). Used by S04's "other person" cells. */
+  inferred?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(field?.value?.displayValue ?? "");
@@ -162,7 +308,10 @@ export function WorksheetCell({
     <motion.div className={shell} variants={reducedMotion ? undefined : cellVariants} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"}>
       {justFilled && <QuestCompleteBadge />}
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">{label ?? `Q${q}`}</div>
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-text-muted">
+          <span>{label ?? `Q${q}`}</span>
+          {inferred && <InferredBadge />}
+        </div>
         {confirmed && <Badge tone="success">confirmed</Badge>}
       </div>
       {editing ? (
@@ -205,6 +354,7 @@ export function WorksheetCell({
               <span className="text-sm font-semibold text-text-primary">{gauge.value.displayValue}%</span>
             </div>
           )}
+          <SourceTrace sourceTurnId={field.value?.sourceTurnId} />
           <div className="mt-2 flex gap-2">
             {draftPending && <Button size="sm" onClick={() => onConfirm(field.definition.worksheetFieldKey)} disabled={busy}>Confirm</Button>}
             <Button size="sm" variant="ghost" onClick={() => { setDraft(field.value?.displayValue ?? ""); setEditing(true); }} disabled={busy}>Edit</Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ChoicePills, CycleArrow, WorksheetCell } from "@/components/runtime/worksheet-renderers/shared";
+import { ArrowDown, ChoicePills, CycleArrow, FocusLine, SessionSignals, WorksheetCell, capturedStatus, directionalValue } from "@/components/runtime/worksheet-renderers/shared";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
@@ -45,8 +45,22 @@ export function S03Worksheet({
   const get = (key: string) => byKey.get(key);
   const isActive = (field?: WorksheetFieldView) => Boolean(field && field.binding.canonicalFieldKey === activeCanonicalFieldKey);
 
+  const primaryEmotionText = get("primaryEmotion")?.value?.displayValue;
+  const primaryEmotionIntensity = get("primaryEmotionIntensityPercent")?.value?.displayValue;
+  const primaryEmotionSignal = primaryEmotionText ? (primaryEmotionIntensity ? `${primaryEmotionText} · ${primaryEmotionIntensity}%` : String(primaryEmotionText)) : "—";
+
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
+      <FocusLine text={get("situation")?.value?.displayValue} />
+      <SessionSignals
+        items={[
+          { label: "Original belief", value: directionalValue(get("automaticThoughtBeliefPercent"), get("revisedAutomaticThoughtBeliefPercent")) },
+          { label: "Primary emotion", value: primaryEmotionSignal },
+          { label: "Balanced conclusion", value: capturedStatus(get("balancedConclusion")) },
+          { label: "Intended actions", value: capturedStatus(get("intendedActions")) },
+        ]}
+      />
+
       {/* Top cycle: Situation -> Automatic Thought -> Emotion -> Behavior & Body, looping back */}
       <div className="relative">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-stretch">
