@@ -8,6 +8,7 @@ import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card } from "@/components/ui/primitives";
 import { createCanonicalTestRuntimeSession, listCanonicalTestSessions } from "@/lib/api/runtime-session-api";
 import { startRuntimeSession } from "@/lib/api/runtime-execution-api";
+import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
 import { useT } from "@/lib/i18n/context";
 
 // The product now runs a single TCBT flow (no protocol/manual picker before a
@@ -17,13 +18,20 @@ export function PatientNewSessionPage() {
   const { t } = useT();
   const router = useRouter();
   const sessionsQuery = useQuery({ queryKey: ["canonical-test-runtime-sessions"], queryFn: listCanonicalTestSessions });
+  // createCanonicalTestRuntimeSession defaults locale to "ko-KR" when none
+  // is passed -- every new session used to start Korean regardless of what
+  // the patient's own profile locale was set to (see patient-list-page.tsx,
+  // which shows that same participant.locale next to the patient's name),
+  // so changing it there had no visible effect on anything actually started
+  // afterward. New sessions now inherit the participant's current locale.
+  const participantQuery = useQuery({ queryKey: ["runtime-participant-demo"], queryFn: getOrCreateDemoParticipant });
   const sessions = sessionsQuery.data ?? [];
   const [startingSessionId, setStartingSessionId] = useState<string | null>(null);
 
   const handleStartSession = async (sessionDefinitionId: string) => {
     setStartingSessionId(sessionDefinitionId);
     try {
-      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId });
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale });
       await startRuntimeSession(session.id);
       router.push(`/projects/demo/patient/sessions/${session.id}`);
     } catch (error) {
@@ -41,7 +49,7 @@ export function PatientNewSessionPage() {
           <h2 className="text-lg font-semibold text-text-primary">{t("patientNewSession.heading")}</h2>
           <p className="mt-1 text-sm text-text-secondary">{t("patientNewSession.subheading")}</p>
         </div>
-        {sessionsQuery.isLoading ? (
+        {sessionsQuery.isLoading || participantQuery.isLoading ? (
           <Card className="p-4 text-sm text-text-secondary">{t("patientNewSession.loading")}</Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
