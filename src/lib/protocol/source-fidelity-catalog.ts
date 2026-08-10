@@ -510,7 +510,21 @@ const SESSION_01_TO_04_SPECS: SessionSpec[] = [
         restrictions: [sourceText([66, 74])],
         participantRationale: "This helps separate what actually happened from the thought your mind added about it — that difference is the foundation the rest of this program builds on.",
         prompts: [
-          { slug: "situation-or-thought", type: "clarification", source: [66, 74], marker: "That's interesting", outputFields: ["situationThoughtDistinction"] },
+          // NOT outputFields: ["situationThoughtDistinction"] -- source
+          // (tbct-source-text.generated.ts:71-76) is explicit that this
+          // step is a Socratic check on whether the participant can TELL
+          // situation apart from thought ("gently explore whether what
+          // they said was a description (situation) or an interpretation
+          // (thought)"), unconditionally re-asked after the real situation
+          // answer from telegraphic-situation above. Unlike every other
+          // "re-ask the same field" clarification in this catalog (e.g.
+          // specific-moment/emotion-to-thought-redirect below), this one had
+          // no activationCondition gating it to only the cases that
+          // actually needed correcting -- it ran for every participant and
+          // overwrote the worksheet's "My situation" box with whatever they
+          // said in reply to "is that a situation or a thought?" (e.g. "I
+          // think it's a situation"), discarding their real answer.
+          { slug: "situation-or-thought", type: "clarification", source: [66, 74], marker: "That's interesting" },
           { slug: "personal-example-redirect", type: "transition", source: [73, 74], marker: "That's a great example", completionEffect: { type: "redirect_to_three_person_example" } },
         ],
       },

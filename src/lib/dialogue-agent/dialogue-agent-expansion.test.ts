@@ -127,7 +127,16 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
 
   it("carries the node's participantRationale through to the contract", () => {
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
-    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+    // Not outputFields.includes("situationThoughtDistinction") -- this
+    // node's own "situation-or-thought" prompt no longer declares that
+    // outputField (see source-fidelity-catalog.ts's fix comment on it); it
+    // was an unconditional re-ask of the *same* field a genuinely
+    // conditional clarification (like specific-moment/emotion-to-thought-redirect)
+    // would use, and it silently overwrote the participant's real situation
+    // answer with whatever they said in reply to "is that a situation or a
+    // thought?" instead. Locate it by slug, same as other tests in this
+    // file do for prompts with no output field to search by.
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.id.includes("situation-or-thought"))!;
 
     const contract = compileDialogueContract({
       session: minimalSession(),
@@ -192,7 +201,10 @@ describe("revision_request: honest handling depends on worksheetEditAvailable", 
     // still a real S01 pair -- compileDialogueContract looks up bindings by
     // session.sessionDefinitionId independently of node.sessionId.
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
-    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+    // No outputFields on this node's own prompt to search by (see the fix
+    // comment on "situation-or-thought" in source-fidelity-catalog.ts) --
+    // locate it by slug instead, same as the earlier test in this file does.
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.id.includes("situation-or-thought"))!;
     const contract = compileDialogueContract({
       session: minimalSession({ sessionDefinitionId: "unregistered-session-definition" }),
       node,
@@ -213,7 +225,10 @@ describe("revision_request: honest handling depends on worksheetEditAvailable", 
 describe("explain_rationale: answers 'why are you asking this' using the node's own rationale", () => {
   it("uses participantRationale instead of the generic objective-based repair when one exists", () => {
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Step 1 - Distinguish Situation"))!;
-    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.outputFields.includes("situationThoughtDistinction"))!;
+    // No outputFields on this node's own prompt to search by (see the fix
+    // comment on "situation-or-thought" in source-fidelity-catalog.ts) --
+    // locate it by slug instead, same as the earlier test in this file does.
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id && item.id.includes("situation-or-thought"))!;
     const contract = compileDialogueContract({
       session: minimalSession(),
       node,

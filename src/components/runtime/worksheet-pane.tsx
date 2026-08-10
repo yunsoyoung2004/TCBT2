@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Circle } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -186,9 +186,21 @@ function ProgressChecklistRow({ field, isKorean, reducedMotion }: { field: Works
   const confirmed = field.value?.status === "participant_confirmed";
   const timestamp = field.value?.updatedAt;
   const label = isKorean ? (field.binding.labelKo ?? field.binding.label) : field.binding.label;
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Keep the checklist scrolled to wherever the conversation actually is --
+  // the two panels have no shared scroll position (independent transcripts
+  // of very different heights), so the practical way to keep "the item that
+  // just got filled" visible alongside "the message that just filled it" is
+  // to bring THIS row into view the moment it completes, rather than trying
+  // to compute a matching pixel offset between two unrelated layouts.
+  useEffect(() => {
+    if (justFilled) rowRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+  }, [justFilled, reducedMotion]);
 
   return (
     <motion.div
+      ref={rowRef}
       className={`relative flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : "border-dashed border-border bg-surface-subtle/50"}`}
       variants={reducedMotion ? undefined : fadeUp}
       initial={reducedMotion ? false : "initial"}
