@@ -700,7 +700,17 @@ export async function resumeRuntimeSession(sessionId: string) {
   const view = await getRuntimeSession(sessionId);
   if (!view) throw new Error("Runtime session not found");
   if (view.session.status !== "paused") throw new Error("Resume is not allowed in the current state");
-  await setRuntimeSessionStatus(sessionId, "active", { resumedAt: new Date().toISOString() });
+  await setRuntimeSessionStatus(sessionId, "active", {
+    resumedAt: new Date().toISOString(),
+    // A pause reached via MAX_CLARIFICATION_ATTEMPTS left
+    // clarificationAttemptCount sitting at 3+ -- without resetting it here,
+    // Resume would only ever grant ONE more attempt before immediately
+    // re-pausing on the very next clarification (3+1 >= 3 again), no
+    // matter how complete the participant's next answer actually is. A
+    // resume is meant to give a genuinely fresh attempt budget, same as
+    // any prompt being encountered for the first time.
+    runtimeContext: { ...view.session.runtimeContext, clarificationAttemptCount: 0, lastClarificationReason: undefined },
+  });
   await saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session resumed"));
   return executeCurrentNode(sessionId);
 }

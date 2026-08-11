@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRuntimeSession, getRuntimeSession, listCanonicalTestSessions, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
-import { startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
+import { resumeRuntimeSession, startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
 import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { listRuntimeExecutionTraces, saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
@@ -146,6 +146,49 @@ describe("canonical source-fidelity runtime", () => {
       expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
       expect(after?.session.runtimeContext.clarificationAttemptCount).toBe(3);
       expect(after?.session.runtimeContext.lastClarificationReason).toBe("maximum_clarification_attempts");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("resume grants a genuinely fresh clarification budget, not just one more attempt", async () => {
+    // Regression test: resumeRuntimeSession used to only flip status back
+    // to "active" without resetting clarificationAttemptCount, which stays
+    // at 3 (or more) from the pause. The very next insufficient answer
+    // after resuming would then compute 3+1=4 >= MAX_CLARIFICATION_ATTEMPTS
+    // and immediately pause again -- so a resumed session only ever got
+    // ONE more try, no matter how good the participant's next answer was,
+    // instead of a real fresh 3-attempt budget like any other prompt gets.
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      const paused = await getRuntimeSession(session.id);
+      expect(paused?.session.status).toBe("paused");
+      expect(paused?.session.runtimeContext.clarificationAttemptCount).toBe(3);
+
+      await resumeRuntimeSession(session.id);
+      const resumed = await getRuntimeSession(session.id);
+      // executeCurrentNode (called at the end of resume) re-delivers the
+      // same prompt fresh, landing on "waiting_for_input" like any normal
+      // delivered turn -- the important assertion here is the counter.
+      expect(resumed?.session.status).not.toBe("paused");
+      expect(resumed?.session.runtimeContext.clarificationAttemptCount).toBe(0);
+
+      // Two more insufficient answers should NOT re-pause -- a fresh
+      // budget of 3 was granted, this is only attempt 1 and 2 of it.
+      await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      const afterOne = await getRuntimeSession(session.id);
+      expect(afterOne?.session.status).not.toBe("paused");
+
+      const afterTwo = await submitPatientInput(session.id, { kind: "text", value: "hi" });
+      expect(afterTwo.sessionStatus).not.toBe("paused");
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;
