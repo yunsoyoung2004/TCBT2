@@ -34,7 +34,21 @@ export function PatientInputControls({
       : [];
   const kind = String((payload?.kind ?? payload?.inputKind ?? (promptValidationKind === "enum" ? "single_choice" : promptValidationKind)) || "text");
   const promptKind = String(promptItem?.type ?? "");
-  if (/^paired_ratings/.test(promptValidationKind)) {
+  // "consensus_weights" (S07's Consensus-chair re-weighing: advantage % +
+  // disadvantage %, must sum to 100 -- see SUM_TO_100_PAIR_KINDS in
+  // runtime-context.ts) is a genuine two-number answer, same shape as
+  // paired_ratings, but didn't match that prefix check -- so this prompt's
+  // type:"rating" fell through to the single-value RatingInput below,
+  // which can only ever submit ONE number for a two-field requirement.
+  // extractRuntimeState always rejected that as insufficient (needs 2
+  // numbers, got 1), so this step could never actually complete -- the
+  // dialogue agent kept generating a plausible-sounding "noted, that
+  // closes the exercise" reply around a deterministic fallback that was
+  // itself never accepted, looping indefinitely. Confirmed live in
+  // production. extractRuntimeState assigns numericValues[0]/[1] to
+  // outputFields[0]/[1] in that order (line ~441), matching the order
+  // PairedRatingInput renders and submits its two inputs in.
+  if (/^paired_ratings/.test(promptValidationKind) || promptValidationKind === "consensus_weights") {
     return <PairedRatingInput disabled={disabled} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
   }
   if (kind === "single_choice") {
@@ -82,6 +96,8 @@ export function PatientInputControls({
 function readableFieldLabel(field: string, index: number) {
   if (/belief/i.test(field)) return "Belief in the charge (%)";
   if (/emotion|intensity/i.test(field)) return "Emotion intensity (%)";
+  if (/advantage/i.test(field)) return "Advantages weight (%)";
+  if (/disadvantage/i.test(field)) return "Disadvantages weight (%)";
   return `Rating ${index + 1} (%)`;
 }
 
