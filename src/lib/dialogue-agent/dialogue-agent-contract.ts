@@ -57,6 +57,26 @@ export const dialogueContractSchema = z.object({
   safetyStatus: z.string(),
   locale: z.string(),
   clarificationAttemptCount: z.number().int().min(0),
+  // True only for the very first prompt of the very first node of the
+  // session (no node completed yet) -- lets Claude add one short "here's
+  // what today's session is about" welcome sentence, grounded in
+  // therapeuticObjective, before the actual first task. False for every
+  // later turn, including later first-prompts-of-a-node (see
+  // isFirstPromptOfNode below). Never true for a safety-critical opening
+  // prompt (e.g. S03's safety-check) -- those are excluded from the
+  // dialogue agent entirely and never reach this contract.
+  isFirstPromptOfSession: z.boolean(),
+  // True for the first prompt of ANY node (including the session's first --
+  // isFirstPromptOfSession implies this too), i.e. the participant is
+  // moving into a new step/part of the session. Lets Claude add one short
+  // "we're moving into the next part" sentence before the actual task,
+  // grounded in therapeuticObjective, instead of asking the task cold.
+  isFirstPromptOfNode: z.boolean(),
+  // True when sourcePromptItem.type === "role_transition" (e.g. S07's
+  // empty-chair/Consensus-chair moves, S08's courtroom role entries) --
+  // combined with isFirstPromptOfNode, tells Claude to explicitly name the
+  // role/perspective switch instead of a generic "next part" framing.
+  isRoleTransitionPrompt: z.boolean(),
 });
 export type DialogueContract = z.infer<typeof dialogueContractSchema>;
 

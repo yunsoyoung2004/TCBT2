@@ -71,6 +71,8 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
       runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id, fallbackPatientText: promptItem.fallbackPatientText ?? "What comes to mind?" }),
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
 
     expect(contract.targetField).toBe("candidateOneThought");
@@ -95,6 +97,8 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
       runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
 
     expect(contract.participantOwned).toBe(false);
@@ -118,6 +122,8 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
       runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
 
     expect(contract.expectedInputType).toBe("integer_0_5");
@@ -145,6 +151,8 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
       runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
 
     expect(contract.participantRationale).toContain("separate what actually happened");
@@ -166,6 +174,8 @@ describe("safety-critical prompts are excluded from the dialogue agent", () => {
       clarificationAttemptCount: 0,
       turnId: "turn-1",
       deterministicFallbackText: "Before we start, how are you doing today?",
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
 
     expect(result.decision).toBeNull();
@@ -185,6 +195,8 @@ describe("revision_request: honest handling depends on worksheetEditAvailable", 
       lastParticipantMessage: "Actually, can I go back and change what I said earlier?",
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
     expect(contract.worksheetEditAvailable).toBe(true);
     const decision = fakeDialogueDecision(contract);
@@ -213,12 +225,82 @@ describe("revision_request: honest handling depends on worksheetEditAvailable", 
       lastParticipantMessage: "I want to change my earlier answer.",
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
     expect(contract.worksheetEditAvailable).toBe(false);
     const decision = fakeDialogueDecision(contract);
     expect(decision.participantResponseState).toBe("revision_request");
     expect(decision.patientFacingMessage).toMatch(/isn't automated|don't have a way/);
     expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: true });
+  });
+});
+
+describe("transition framing signals (isFirstPromptOfSession / isFirstPromptOfNode / isRoleTransitionPrompt)", () => {
+  it("passes isFirstPromptOfSession and isFirstPromptOfNode through as given by the caller", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s02")!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.nodeId === node.id)!;
+
+    const sessionOpening = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s02" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+      isFirstPromptOfNode: true,
+      isFirstPromptOfSession: true,
+    });
+    expect(sessionOpening.isFirstPromptOfSession).toBe(true);
+    expect(sessionOpening.isFirstPromptOfNode).toBe(true);
+
+    const midSessionTurn = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s02" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
+    });
+    expect(midSessionTurn.isFirstPromptOfSession).toBe(false);
+    expect(midSessionTurn.isFirstPromptOfNode).toBe(false);
+  });
+
+  it("derives isRoleTransitionPrompt from the prompt's own type, not a caller-supplied flag", () => {
+    // S07's chair-arrangement prompt is authored as type: "role_transition"
+    // (the empty-chair Emotion/Reason move) -- see source-fidelity-catalog.ts.
+    const roleTransitionPrompt = CANONICAL_PROMPT_ITEMS.find((item) => item.sessionId === "tbct-s07" && item.type === "role_transition")!;
+    expect(roleTransitionPrompt).toBeDefined();
+    const roleTransitionNode = CANONICAL_STAGE_NODES.find((item) => item.id === roleTransitionPrompt.nodeId)!;
+
+    const roleTransitionContract = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s07" }),
+      node: roleTransitionNode,
+      sourcePromptItem: roleTransitionPrompt,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: roleTransitionNode.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+      isFirstPromptOfNode: true,
+      isFirstPromptOfSession: false,
+    });
+    expect(roleTransitionContract.isRoleTransitionPrompt).toBe(true);
+
+    // An ordinary S01 prompt (not a role transition) must not be flagged.
+    const ordinaryNode = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
+    const ordinaryPrompt = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;
+    const ordinaryContract = compileDialogueContract({
+      session: minimalSession(),
+      node: ordinaryNode,
+      sourcePromptItem: ordinaryPrompt,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: ordinaryNode.id }),
+      recentMessages: [],
+      clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
+    });
+    expect(ordinaryContract.isRoleTransitionPrompt).toBe(false);
   });
 });
 
@@ -237,6 +319,8 @@ describe("explain_rationale: answers 'why are you asking this' using the node's 
       lastParticipantMessage: "Why are you asking me this?",
       recentMessages: [],
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
     const decision = fakeDialogueDecision(contract);
     expect(decision.responseType).toBe("explain_rationale");

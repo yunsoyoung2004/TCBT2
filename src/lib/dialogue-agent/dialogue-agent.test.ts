@@ -20,12 +20,15 @@ function baseContract(overrides: Partial<DialogueContract> = {}): DialogueContra
     assistantMustNotSupply: false,
     worksheetEditAvailable: true,
     confirmedState: { situation: "My partner did not reply to my messages yesterday afternoon." },
-    allowedActions: ["brief_reflection", "ask_current_task", "clarify_current_task"],
+    allowedActions: ["acknowledge", "reflect_and_ask", "clarify"],
     forbiddenActions: ["advance_protocol", "supply_participant_answer"],
     recentContext: [],
     safetyStatus: "waiting_for_input",
     locale: "en-US",
     clarificationAttemptCount: 0,
+    isFirstPromptOfSession: false,
+    isFirstPromptOfNode: false,
+    isRoleTransitionPrompt: false,
     ...overrides,
   };
 }

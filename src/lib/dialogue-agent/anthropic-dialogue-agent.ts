@@ -52,6 +52,16 @@ function systemPrompt(contract: DialogueContract) {
     contract.scaleExplanation ? `Scale meaning if asked: ${contract.scaleExplanation}` : "",
     contract.participantOwned ? "This field's value must come from the participant, in their own words." : "",
     contract.assistantMustNotSupply ? "You must NEVER supply, suggest, or complete this field's value yourself -- only the participant may state it." : "",
+    contract.isFirstPromptOfSession
+      ? "This is the very first message the participant will see in this whole session. Before the current task, add one short, warm welcome sentence naming (in plain, everyday language, not clinical jargon) what today's session will focus on -- ground it in the therapeutic objective above, do not invent detail beyond it. Then move naturally into the current task."
+      : contract.isFirstPromptOfNode
+        ? contract.isRoleTransitionPrompt
+          ? "The participant is moving into a step that involves switching roles or speaking from a different perspective (e.g. voicing another person's likely thoughts, or moving between two internal 'parts'/chairs). Before the current task, add one short sentence that plainly names this switch -- e.g. what role/perspective they're about to speak from or move into -- grounded in the therapeutic objective above, so they aren't caught off guard. Then give the current task."
+          : "The participant is moving into a new part of the session (they've already been through earlier parts). Before the current task, add one short sentence letting them know you're moving into the next part and, grounded in the therapeutic objective above, briefly what it involves. Then give the current task."
+        : "",
+    (contract.isFirstPromptOfSession || contract.isFirstPromptOfNode)
+      ? "This transition framing is NOT a separate question -- do not end your message on a standalone yes/no readiness check by itself. Always end with the actual current task, so the participant's next reply answers that task, not a rhetorical 'ready?' checkpoint."
+      : "",
     `Confirmed state so far (use to make transitions natural -- e.g. reference a value the participant already gave -- but do not recite all of it): ${JSON.stringify(contract.confirmedState)}`,
     `Allowed actions: ${contract.allowedActions.join(", ")}.`,
     `Forbidden actions: ${contract.forbiddenActions.join(", ")}.`,

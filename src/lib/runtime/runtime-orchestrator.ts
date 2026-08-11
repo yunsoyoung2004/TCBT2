@@ -100,6 +100,15 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
   const approvedPatientText = staticMessage?.patientMessage ?? contract.fallbackPatientText;
   if (isDialogueAgentEnabled(input.session.sessionDefinitionId)) {
     const dynamicRequestId = makeId("REFLECT");
+    // promptIndex === 0 means this is the first prompt the participant will
+    // see in this node -- i.e. they're moving into a new step. Combined
+    // with no node completed yet, it's the very first prompt of the whole
+    // session. See dialogue-agent-contract.ts for how the dialogue agent
+    // uses these to add a brief, friendly "here's what's coming" framing
+    // instead of asking the task cold -- purely a phrasing instruction, the
+    // deterministic node/prompt progression above is completely unaffected.
+    const isFirstPromptOfNode = input.activeStep.promptIndex === 0;
+    const isFirstPromptOfSession = isFirstPromptOfNode && input.state.completedNodeIds.length === 0;
     const dialogueResult = await resolveDialogueAgentMessage({
       session: input.session,
       node: input.sourceNode,
@@ -111,6 +120,8 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       turnId: dynamicRequestId,
       currentTaskTextOverride: approvedPatientText,
       deterministicFallbackText: approvedPatientText,
+      isFirstPromptOfNode,
+      isFirstPromptOfSession,
     });
     const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });

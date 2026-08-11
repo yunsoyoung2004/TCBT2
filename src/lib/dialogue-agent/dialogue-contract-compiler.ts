@@ -141,6 +141,12 @@ export function compileDialogueContract(input: {
   lastParticipantMessage?: string;
   recentMessages: RuntimeMessage[];
   clarificationAttemptCount: number;
+  /** activeStep.promptIndex === 0 at the orchestrator call site -- see
+   * dialogue-agent-contract.ts's isFirstPromptOfNode for what this drives. */
+  isFirstPromptOfNode: boolean;
+  /** isFirstPromptOfNode AND no node has been completed yet this session --
+   * see dialogue-agent-contract.ts's isFirstPromptOfSession. */
+  isFirstPromptOfSession: boolean;
   /** Overrides the default fallbackPatientText-derived grounding text with
    * whatever the deterministic layer actually resolved for THIS turn
    * (resolveStaticPatientMessage's contextual/branch-specific approved
@@ -182,11 +188,21 @@ export function compileDialogueContract(input: {
     assistantMustNotSupply: ownership.assistantMustNotSupply,
     worksheetEditAvailable: hasWorksheetBindings(session.sessionDefinitionId),
     confirmedState: confirmedStateFor(session, node, targetField),
+    // Named to exactly match dialogueResponseTypeSchema's responseType enum
+    // (dialogue-agent-contract.ts), not a separate vocabulary -- these used
+    // to be free-standing action names ("ask_current_task",
+    // "clarify_current_task", "repair_misunderstanding", "brief_reflection")
+    // that had no matching responseType value. Claude reasonably picked
+    // "ask_current_task" as responseType on some turns (it's literally
+    // listed as an allowed action right here), which the RESPONSE_SCHEMA/
+    // dialogueDecisionSchema enum then rejected as invalid, silently
+    // discarding the whole decision -- including any transition framing --
+    // and falling back to raw deterministic text. Renaming closes that gap.
     allowedActions: [
-      "brief_reflection",
-      "ask_current_task",
-      "clarify_current_task",
-      "repair_misunderstanding",
+      "acknowledge",
+      "reflect_and_ask",
+      "clarify",
+      "repair",
       "restore_context",
       "explain_term",
       "explain_scale",
@@ -211,6 +227,9 @@ export function compileDialogueContract(input: {
     safetyStatus: session.status,
     locale: session.locale,
     clarificationAttemptCount: input.clarificationAttemptCount,
+    isFirstPromptOfSession: input.isFirstPromptOfSession,
+    isFirstPromptOfNode: input.isFirstPromptOfNode,
+    isRoleTransitionPrompt: sourcePromptItem.type === "role_transition",
   };
 
   return dialogueContractSchema.parse(contract);

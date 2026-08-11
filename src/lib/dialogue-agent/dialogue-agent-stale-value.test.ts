@@ -55,6 +55,8 @@ describe("case 8: worksheet edit is reflected in the next dialogue contract", ()
       runtimePromptItem,
       recentMessages: view!.messages,
       clarificationAttemptCount: 0,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
     expect(contract.confirmedState.situation).toBe("I don't want to study. Studying gives me too much stress.");
     expect(contract.confirmedState.situation).not.toContain("did not reply to my messages");

@@ -192,6 +192,12 @@ async function deliverClarificationTurn(input: {
       clarificationAttemptCount,
       turnId: makeId("TURN"),
       deterministicFallbackText: content,
+      // A clarification re-asks an already-active prompt after an
+      // insufficient answer -- by definition never the first prompt of a
+      // node or session (those only ever get the normal "ask" path in
+      // runtime-orchestrator.ts).
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
     });
     content = dialogueOutcome.patientMessage;
   }
