@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createCanonicalTestRuntimeSession, createRuntimeSession, getPatientRuntimeSession, getRuntimeSession, listCanonicalTestSessions, listPatientAvailableRuntimeReleases } from "@/lib/api/runtime-session-api";
-import { resumeRuntimeSession, startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
+import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput } from "@/lib/api/runtime-execution-api";
 import { publishProtocolRelease, runProtocolValidation } from "@/lib/api/protocol-api";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
-import { listRuntimeExecutionTraces, saveRuntimeMessage } from "@/lib/repositories/runtime-session-repository";
+import { listRuntimeExecutionTraces, saveRuntimeMessage, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { promptRequiresPatientInput } from "@/lib/runtime/source-fidelity-prompt-progression";
 import { getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 
@@ -189,6 +189,56 @@ describe("canonical source-fidelity runtime", () => {
 
       const afterTwo = await submitPatientInput(session.id, { kind: "text", value: "hi" });
       expect(afterTwo.sessionStatus).not.toBe("paused");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("retries a session stuck at status active with an already-delivered prompt back to waiting_for_input", async () => {
+    // Regression test: executeCurrentNode recurses through passive nodes,
+    // persisting status:"active" after each one -- if a later step in that
+    // same chain throws, the record is left holding "active" forever with a
+    // message already delivered for the current PromptItem, and nothing in
+    // the app ever revisits it (no polling, no case for "active" beyond an
+    // inert message). Confirmed live: a real production session sat at
+    // status "active" for 10+ minutes with zero recovery. Simulate that
+    // exact state directly (delivered message + status forced to "active")
+    // and confirm retryStalledRuntimeNode self-heals it back to
+    // waiting_for_input without re-delivering a duplicate message.
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      const delivered = await getRuntimeSession(session.id);
+      expect(delivered?.session.status).toBe("waiting_for_input");
+      const assistantMessageCountBefore = delivered?.messages.filter((message) => message.role === "assistant").length ?? 0;
+
+      // Force the exact stuck shape: the prompt's message already exists,
+      // but the status field never made it to "waiting_for_input".
+      await updateRuntimeSessionRecord(session.id, { status: "active" });
+      const stalled = await getRuntimeSession(session.id);
+      expect(stalled?.session.status).toBe("active");
+
+      await retryStalledRuntimeNode(session.id);
+      const recovered = await getRuntimeSession(session.id);
+      expect(recovered?.session.status).toBe("waiting_for_input");
+      const assistantMessageCountAfter = recovered?.messages.filter((message) => message.role === "assistant").length ?? 0;
+      expect(assistantMessageCountAfter).toBe(assistantMessageCountBefore);
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
+  it("refuses to retry a session that is not actually stalled", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession();
+      await startRuntimeSession(session.id);
+      await expect(retryStalledRuntimeNode(session.id)).rejects.toThrow(/not allowed/);
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;

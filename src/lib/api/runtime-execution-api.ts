@@ -715,6 +715,30 @@ export async function resumeRuntimeSession(sessionId: string) {
   return executeCurrentNode(sessionId);
 }
 
+// executeCurrentNode recurses through a chain of passive (no-patient-input)
+// nodes within a single call, persisting status:"active" after each one
+// (see the recursive `return executeCurrentNode(sessionId)` calls above) --
+// if a later step in that same chain throws (a transient failure delivering
+// one node's message, a flaky write, etc.), the whole call aborts but the
+// record is left holding whatever status the last *successful* sub-step
+// wrote. Nothing else in the app ever revisits that session: the patient
+// page has no polling and no case for status "active" beyond an inert
+// "being prepared" message, so the session is stuck forever with no
+// recovery path. Confirmed live in production (a real session sat at
+// status "active", with a real half-delivered node, for 10+ minutes with
+// zero change). This just re-invokes the same deterministic executeCurrentNode
+// -- safe to call repeatedly, since each node's own delivery is already
+// guarded by an `alreadyDelivered` check against existing messages.
+export async function retryStalledRuntimeNode(sessionId: string) {
+  const view = await getRuntimeSession(sessionId);
+  if (!view) throw new Error("Runtime session not found");
+  if (!["active", "processing"].includes(view.session.status)) {
+    throw new Error("Retry is not allowed in the current state");
+  }
+  await saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session retried after a stalled node"));
+  return executeCurrentNode(sessionId);
+}
+
 export async function terminateRuntimeSession(sessionId: string, reason: string) {
   const view = await getRuntimeSession(sessionId);
   if (!view) throw new Error("Runtime session not found");

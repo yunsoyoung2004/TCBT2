@@ -15,7 +15,7 @@ import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
-import { resumeRuntimeSession, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
+import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
 
@@ -59,6 +59,11 @@ export function PatientSessionPage() {
 
   const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session started"); await refresh(); } });
   const resumeMutation = useMutation({ mutationFn: () => resumeRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session resumed"); await refresh(); } });
+  const retryMutation = useMutation({
+    mutationFn: () => retryStalledRuntimeNode(sessionId),
+    onSuccess: async () => { await refresh(); },
+    onError: () => { toast.error("Still not ready -- please try again in a moment."); },
+  });
   const terminateMutation = useMutation({
     mutationFn: () => terminateRuntimeSession(sessionId, "Participant ended session"),
     onSuccess: async () => {
@@ -93,6 +98,27 @@ export function PatientSessionPage() {
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [previousHold, setPreviousHold] = useState(inSafetyHold);
   const resumeMessage = useMemo(() => "The safety review is complete. You can continue the session now.", []);
+
+  // Status "active" is meant to be a brief in-flight moment on the way to the
+  // next real state (see executeCurrentNode's recursive chain in
+  // runtime-execution-api.ts) -- but if a step in that chain throws, the
+  // session can be left sitting here indefinitely with no other recovery
+  // path (confirmed live). A few auto-retries with a short, growing pause
+  // clear the ordinary transient case without the patient having to do
+  // anything; the manual button below covers whatever's left.
+  const autoRetryCountRef = useRef(0);
+  const isStalledActive = sessionData?.session?.status === "active";
+  useEffect(() => {
+    if (!isStalledActive) { autoRetryCountRef.current = 0; return undefined; }
+    if (autoRetryCountRef.current >= 3) return undefined;
+    const delayMs = 4000 * (autoRetryCountRef.current + 1);
+    const timer = window.setTimeout(() => {
+      autoRetryCountRef.current += 1;
+      retryMutation.mutate();
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStalledActive, sessionData?.session?.updatedAt]);
 
   useEffect(() => {
     if (previousHold && !inSafetyHold) {
@@ -259,6 +285,11 @@ export function PatientSessionPage() {
               <div className="text-sm text-text-secondary">This session is complete. Use Completion to review the saved result.</div>
             ) : activeSession.status === "terminated" ? (
               <div className="text-sm text-text-secondary">This session has ended and no new input can be submitted.</div>
+            ) : activeSession.status === "active" ? (
+              <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
+                <span>The session is being prepared{retryMutation.isPending ? "…" : "."}</span>
+                <Button variant="secondary" disabled={retryMutation.isPending} onClick={() => retryMutation.mutate()}>Try again</Button>
+              </div>
             ) : (
               <div className="text-sm text-text-secondary">The session is being prepared.</div>
             )}
