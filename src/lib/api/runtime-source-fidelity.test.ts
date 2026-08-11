@@ -334,4 +334,50 @@ describe("canonical source-fidelity runtime", () => {
       else process.env.AI_PROVIDER = previousProvider;
     }
   }, 15_000);
+
+  it("asks specifically for the still-missing automatic thought instead of re-asking about an already-answered situation", async () => {
+    // Regression test: S08's opening prompt (tbct-s08-n01-p01-distressing-situation)
+    // has TWO outputFields (distressingSituation, automaticThought). The
+    // generic adaptiveClarification fallback in deliverClarificationTurn
+    // always used to win over this prompt's purpose-built
+    // sourceSpecificClarification, and adaptiveClarification only ever
+    // reads outputFields[0] -- so once the situation was answered but the
+    // thought never was, every subsequent clarification kept asking to
+    // re-describe the situation (already recorded) instead of ever asking
+    // for the thought (the one field still genuinely missing). A patient
+    // who never happened to also state a "thought" in the same breath as
+    // their situation could not escape this loop. See the fix comment on
+    // deliverClarificationTurn's `content` assignment.
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s08", locale: "en-US" });
+      await startRuntimeSession(session.id);
+
+      // A plain descriptive sentence like this doesn't get parsed apart
+      // into "the situation part" vs. "the thought part" -- this combined
+      // prompt's extraction needs both concepts genuinely stated, so both
+      // outputFields (distressingSituation, automaticThought) stay missing
+      // here. The point of this test is which CLARIFICATION TEXT that
+      // produces, not which single field it names.
+      const result = await submitPatientInput(session.id, {
+        kind: "text",
+        value: "My manager criticized my report in front of the whole team during a meeting yesterday afternoon.",
+      });
+
+      expect(result.turnOutcome).toBe("clarification");
+      const after = await getRuntimeSession(session.id);
+      const lastMessage = after?.messages.at(-1);
+      // Must be the real, field-aware clarification (names both the
+      // situation AND the thought) -- not the generic Situation-pattern
+      // fallback ("give one brief, concrete moment"), which only ever
+      // reads outputFields[0] and would silently drop the automaticThought
+      // ask entirely.
+      expect(lastMessage?.content.toLowerCase()).toContain("thought");
+      expect(lastMessage?.content.toLowerCase()).not.toContain("concrete moment");
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
 });

@@ -142,7 +142,13 @@ async function deliverClarificationTurn(input: {
     : sourceSpecificClarification ?? resolveBracketPlaceholders(resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.clarificationPatientText ?? input.runtimePromptItem.fallbackPatientText, input.session.locale), input.session.runtimeContext);
   const normalizeMessage = (value: string) => value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, " ").trim();
   const duplicatesRecentQuestion = (input.recentAssistantMessages ?? []).slice(-3).some((message) => normalizeMessage(message) === normalizeMessage(proposedContent));
-  const outputField = input.promptItem.outputFields[0] ?? "";
+  // Prefer whichever of this prompt's outputFields is actually still
+  // missing, not always outputFields[0] -- a prompt with more than one
+  // outputField (e.g. distressingSituation + automaticThought) would
+  // otherwise keep re-asking about the FIRST field's pattern forever even
+  // after the participant has fully answered it, since outputFields[0]
+  // never changes regardless of what's genuinely still unfilled.
+  const outputField = input.promptItem.outputFields.find((item) => missing.has(item)) ?? input.promptItem.outputFields[0] ?? "";
   const validation = input.promptItem.validation as { kind?: unknown; values?: unknown; min?: unknown; max?: unknown } | null;
   const enumValues = Array.isArray(validation?.values) ? validation.values.map(String) : [];
   // Every branch below now varies by clarificationAttemptCount (attempt 1
@@ -199,7 +205,20 @@ async function deliverClarificationTurn(input: {
                     : isRetry
                       ? tr("Whatever comes to mind first is fine -- just one short, concrete example.", "\uac00\uc7a5 \uba3c\uc800 \ub5a0\uc624\ub974\ub294 \uac83\uc774\uba74 \ub3fc\uc694 -- \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608 \ud558\ub098\ub9cc \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
                       : tr("Could you answer with one brief, specific example that directly addresses the question?", "\uc9c8\ubb38\uc5d0 \ub9de\ub294 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608\ub97c \ud558\ub098 \ub4e4\uc5b4 \uc8fc\uc2dc\uaca0\uc5b4\uc694?");
-  let content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
+  // sourceSpecificClarification (when this exact prompt has one, e.g. S08's
+  // combined distressingSituation+automaticThought field) is a purpose-built,
+  // field-aware re-ask -- it must win over the generic adaptiveClarification
+  // fallback. Previously "insufficient_input" always chose adaptiveClarification
+  // unconditionally, which only ever knows about outputFields[0]
+  // ("distressingSituation") and can never ask about a SECOND still-missing
+  // field ("automaticThought"). That silently made sourceSpecificClarification
+  // dead code for the exact case it exists for: a participant who fully
+  // answers the first field but never the second got asked to re-describe
+  // the (already-recorded) situation forever, since the generic fallback has
+  // no way to point at the field that's actually still missing.
+  let content = input.reason === "patient_refusal" || input.reason === "safety_clarification"
+    ? proposedContent
+    : sourceSpecificClarification ?? (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
   let dialogueOutcome: Awaited<ReturnType<typeof resolveDialogueAgentMessage>> | null = null;
   // Safety and refusal clarifications stay fully deterministic, no
   // exceptions -- only "the participant's answer didn't satisfy this
