@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, inputClass } from "@/components/ui/primitives";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
@@ -117,6 +117,9 @@ function TextInput({
 }) {
   const [value, setValue] = useState("");
   const speech = useSpeechRecognition(locale ?? "en-US");
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
+  const voiceTurnActiveRef = useRef(false);
 
   const submitValue = (raw: string) => {
     const trimmed = raw.trim();
@@ -125,6 +128,21 @@ function TextInput({
     setValue("");
   };
 
+  // Recognition runs continuous (see use-speech-recognition.ts) so a
+  // mid-thought pause no longer ends the turn on its own -- submission now
+  // happens once, right when listening actually stops (the participant
+  // pressed the mic again to say "I'm done", or the browser ended the
+  // session on its own), using whatever was transcribed by then. This only
+  // fires for a turn that was actually started by voice (voiceTurnActiveRef),
+  // never for ordinary typing.
+  useEffect(() => {
+    if (voiceTurnActiveRef.current && !speech.listening) {
+      voiceTurnActiveRef.current = false;
+      submitValue(latestValueRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speech.listening]);
+
   const handleMicClick = () => {
     if (speech.listening) {
       speech.stop();
@@ -132,10 +150,9 @@ function TextInput({
     }
     // Voice input takes priority: interrupt any playback before we start listening.
     onBeforeMic?.();
-    speech.start((text, isFinal) => {
-      setValue(text);
-      if (isFinal) submitValue(text);
-    });
+    voiceTurnActiveRef.current = true;
+    const started = speech.start((text) => setValue(text));
+    if (!started) voiceTurnActiveRef.current = false;
   };
 
   return (
@@ -148,6 +165,13 @@ function TextInput({
     >
       <input
         name="message"
+        // Without this, the browser's own form-autofill offers every
+        // previously typed answer (from this or an earlier session) as a
+        // dropdown under the field -- surfacing old input history the
+        // participant didn't ask to see, sometimes visually covering the
+        // field itself, and re-exposing something hard to say that they'd
+        // already moved past. This field is never meant to be "remembered."
+        autoComplete="off"
         className={inputClass}
         placeholder={placeholder}
         disabled={disabled}

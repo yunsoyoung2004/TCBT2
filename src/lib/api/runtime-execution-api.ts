@@ -145,32 +145,60 @@ async function deliverClarificationTurn(input: {
   const outputField = input.promptItem.outputFields[0] ?? "";
   const validation = input.promptItem.validation as { kind?: unknown; values?: unknown; min?: unknown; max?: unknown } | null;
   const enumValues = Array.isArray(validation?.values) ? validation.values.map(String) : [];
+  // Every branch below now varies by clarificationAttemptCount (attempt 1
+  // vs. 2+) -- previously only the Situation/Thought patterns did, so any
+  // other field (Emotion/Behavior/Reaction/Body, enum choices, ratings, the
+  // passive-node and generic catch-all lines) sent the EXACT same
+  // deterministic text on every one of MAX_CLARIFICATION_ATTEMPTS (3)
+  // retries. This is what actually ships whenever the dialogue agent call
+  // fails or gets rejected (deterministicFallbackText below), so a run of
+  // Claude failures on the same field used to look like the assistant
+  // stubbornly repeating itself. See the matching "don't repeat yourself"
+  // instruction added to anthropic-dialogue-agent.ts's systemPrompt for the
+  // Claude-generated side of the same complaint.
+  const isRetry = clarificationAttemptCount >= 2;
   const adaptiveClarification = isPassiveNode
-    ? tr(
-        "It sounds like you're ready to move on. Would you like me to summarize what we've covered so far?",
-        "\ub2e4\uc74c\uc73c\ub85c \ub118\uc5b4\uac00\uace0 \uc2f6\uc73c\uc2e0 \uac83 \uac19\uc544\uc694. \uc9c0\uae08\uae4c\uc9c0 \uc774\uc57c\uae30\ud55c \ub0b4\uc6a9\uc744 \uc81c\uac00 \uc694\uc57d\ud574 \ub4dc\ub9b4\uae4c\uc694?",
-      )
+    ? isRetry
+      ? tr("Just let me know either way -- would you like a quick summary of what we've covered, or shall we keep going?", "\ud3b8\ud558\uac8c \ub2f5\ud574 \uc8fc\uc2dc\uba74 \ub3fc\uc694 -- \uc9c0\uae08\uae4c\uc9c0 \uc774\uc57c\uae30\ud55c \ub0b4\uc6a9\uc744 \uac04\ub2e8\ud788 \uc694\uc57d\ud574 \ub4dc\ub9b4\uae4c\uc694, \uc544\ub2c8\uba74 \uacc4\uc18d \uc9c4\ud589\ud560\uae4c\uc694?")
+      : tr(
+          "It sounds like you're ready to move on. Would you like me to summarize what we've covered so far?",
+          "\ub2e4\uc74c\uc73c\ub85c \ub118\uc5b4\uac00\uace0 \uc2f6\uc73c\uc2e0 \uac83 \uac19\uc544\uc694. \uc9c0\uae08\uae4c\uc9c0 \uc774\uc57c\uae30\ud55c \ub0b4\uc6a9\uc744 \uc81c\uac00 \uc694\uc57d\ud574 \ub4dc\ub9b4\uae4c\uc694?",
+        )
     : enumValues.length
-    ? tr(`Please choose one of these options: ${enumValues.join(" or ")}.`, `\ub2e4\uc74c \uc911 \ud558\ub098\ub97c \uc120\ud0dd\ud574 \uc8fc\uc138\uc694: ${enumValues.join(" \ub610\ub294 ")}.`)
-    : validation?.kind === "rating" || /Percent|Rating|Intensity/i.test(outputField)
-      ? tr(`Please enter one number from ${Number(validation?.min ?? 0)} to ${Number(validation?.max ?? 100)}.`, `${Number(validation?.min ?? 0)}\uc5d0\uc11c ${Number(validation?.max ?? 100)} \uc0ac\uc774\uc758 \uc22b\uc790 \ud558\ub098\ub85c \ub2f5\ud574 \uc8fc\uc138\uc694.`)
-      : /Situation/i.test(outputField)
-        ? clarificationAttemptCount === 1
-          ? tr("Could you describe one specific event: where you were, who was involved, and what happened?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uc0c1\ud669\uc774\uc5c8\ub294\uc9c0 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc5b4\ub514\uc5d0 \uc788\uc5c8\uace0, \ub204\uad6c\uc640 \uc788\uc5c8\uace0, \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\ub098\uc694?")
-          : tr("Please give one brief, concrete moment rather than a general feeling or thought.", "\ub290\ub08c\uc774\ub098 \uc0dd\uac01\uc774 \uc544\ub2c8\ub77c, \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc21c\uac04 \ud558\ub098\ub97c \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
-        : /Thought|Belief/i.test(outputField)
+      ? isRetry
+        ? tr(`Just pick whichever fits best: ${enumValues.join(" or ")}.`, `\uac00\uc7a5 \uac00\uae4c\uc6b4 \uac83\uc73c\ub85c \uace8\ub77c \uc8fc\uc138\uc694: ${enumValues.join(" \ub610\ub294 ")}.`)
+        : tr(`Please choose one of these options: ${enumValues.join(" or ")}.`, `\ub2e4\uc74c \uc911 \ud558\ub098\ub97c \uc120\ud0dd\ud574 \uc8fc\uc138\uc694: ${enumValues.join(" \ub610\ub294 ")}.`)
+      : validation?.kind === "rating" || /Percent|Rating|Intensity/i.test(outputField)
+        ? isRetry
+          ? tr(`Any single number between ${Number(validation?.min ?? 0)} and ${Number(validation?.max ?? 100)} works -- just your best estimate.`, `${Number(validation?.min ?? 0)}\uc5d0\uc11c ${Number(validation?.max ?? 100)} \uc0ac\uc774\uc758 \uc22b\uc790\uba74 \ub3fc\uc694 -- \ub300\ub7b5\uc801\uc778 \ub290\ub08c\uc73c\ub85c \ub9d0\uc500\ud574 \uc8fc\uc154\ub3c4 \uad1c\ucc2e\uc544\uc694.`)
+          : tr(`Please enter one number from ${Number(validation?.min ?? 0)} to ${Number(validation?.max ?? 100)}.`, `${Number(validation?.min ?? 0)}\uc5d0\uc11c ${Number(validation?.max ?? 100)} \uc0ac\uc774\uc758 \uc22b\uc790 \ud558\ub098\ub85c \ub2f5\ud574 \uc8fc\uc138\uc694.`)
+        : /Situation/i.test(outputField)
           ? clarificationAttemptCount === 1
-            ? tr("What exact words went through your mind at that moment?", "\uadf8 \uc21c\uac04 \uc815\ud655\ud788 \uc5b4\ub5a4 \ub9d0\uc774 \uba38\ub9bf\uc18d\uc5d0 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
-            : tr("If you put the thought into one short sentence, what would it say?", "\uadf8 \uc0dd\uac01\uc744 \ud55c \ubb38\uc7a5\uc73c\ub85c \ud45c\ud604\ud558\uba74 \uc5b4\ub5bb\uac8c \ub420\uae4c\uc694?")
-          : /Emotion/i.test(outputField)
-            ? tr("Could you name one specific emotion you felt, such as anxiety, sadness, anger, shame, or relief?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uc815\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \ubd88\uc548, \uc2ac\ud514, \ud654, \uc218\uce58\uc2ec, \uc548\ub3c4\uac10 \uac19\uc740 \uac10\uc815\uc774 \uc788\uc5b4\uc694.")
-            : /Behavior/i.test(outputField)
-              ? tr("What did you actually do, or what would the person visibly do next?", "\uc2e4\uc81c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud558\uc168\ub098\uc694, \ub610\ub294 \uadf8 \uc0ac\ub78c\uc774 \ub2e4\uc74c\uc5d0 \uac89\uc73c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud560\uae4c\uc694?")
-              : /Reaction/i.test(outputField)
-                ? tr("Would the other person's reaction be positive or negative?", "\uadf8 \uc0ac\ub78c\uc758 \ubc18\uc751\uc740 \uae0d\uc815\uc801\uc77c\uae4c\uc694, \ubd80\uc815\uc801\uc77c\uae4c\uc694?")
-                : /Body|Sensation/i.test(outputField)
-                  ? tr("What specific physical sensation did you notice in your body, such as a racing heart or shaky hands?", "\ubab8\uc5d0\uc11c \uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uac01\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \uc2ec\uc7a5\uc774 \ube68\ub9ac \ub6f0\uac70\ub098 \uc190\uc774 \ub5a8\ub9ac\ub294 \ub290\ub08c\uc774 \uc788\uc5b4\uc694.")
-                  : tr("Could you answer with one brief, specific example that directly addresses the question?", "\uc9c8\ubb38\uc5d0 \ub9de\ub294 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608\ub97c \ud558\ub098 \ub4e4\uc5b4 \uc8fc\uc2dc\uaca0\uc5b4\uc694?");
+            ? tr("Could you describe one specific event: where you were, who was involved, and what happened?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uc0c1\ud669\uc774\uc5c8\ub294\uc9c0 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc5b4\ub514\uc5d0 \uc788\uc5c8\uace0, \ub204\uad6c\uc640 \uc788\uc5c8\uace0, \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\ub098\uc694?")
+            : tr("Please give one brief, concrete moment rather than a general feeling or thought.", "\ub290\ub08c\uc774\ub098 \uc0dd\uac01\uc774 \uc544\ub2c8\ub77c, \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc21c\uac04 \ud558\ub098\ub97c \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
+          : /Thought|Belief/i.test(outputField)
+            ? clarificationAttemptCount === 1
+              ? tr("What exact words went through your mind at that moment?", "\uadf8 \uc21c\uac04 \uc815\ud655\ud788 \uc5b4\ub5a4 \ub9d0\uc774 \uba38\ub9bf\uc18d\uc5d0 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
+              : tr("If you put the thought into one short sentence, what would it say?", "\uadf8 \uc0dd\uac01\uc744 \ud55c \ubb38\uc7a5\uc73c\ub85c \ud45c\ud604\ud558\uba74 \uc5b4\ub5bb\uac8c \ub420\uae4c\uc694?")
+            : /Emotion/i.test(outputField)
+              ? isRetry
+                ? tr("A single word for the feeling is enough -- anxious, sad, angry, ashamed, relieved, anything like that.", "\uac10\uc815\uc744 \ub098\ud0c0\ub0b4\ub294 \ub2e8\uc5b4 \ud558\ub098\uba74 \ucda9\ubd84\ud574\uc694 -- \ubd88\uc548, \uc2ac\ud514, \ud654, \uc218\uce58\uc2ec, \uc548\ub3c4\uac10 \uac19\uc740 \ub2e8\uc5b4\uc694.")
+                : tr("Could you name one specific emotion you felt, such as anxiety, sadness, anger, shame, or relief?", "\uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uc815\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \ubd88\uc548, \uc2ac\ud514, \ud654, \uc218\uce58\uc2ec, \uc548\ub3c4\uac10 \uac19\uc740 \uac10\uc815\uc774 \uc788\uc5b4\uc694.")
+              : /Behavior/i.test(outputField)
+                ? isRetry
+                  ? tr("Just the plain action -- what did you (or would they) actually do?", "\uc2e4\uc81c\ub85c \ud55c \ud589\ub3d9\ub9cc \ub9d0\uc500\ud574 \uc8fc\uc2dc\uba74 \ub3fc\uc694 -- \uc2e4\uc81c\ub85c \ubb34\uc5c7\uc744 \ud558\uc168\ub098\uc694?")
+                  : tr("What did you actually do, or what would the person visibly do next?", "\uc2e4\uc81c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud558\uc168\ub098\uc694, \ub610\ub294 \uadf8 \uc0ac\ub78c\uc774 \ub2e4\uc74c\uc5d0 \uac89\uc73c\ub85c \uc5b4\ub5a4 \ud589\ub3d9\uc744 \ud560\uae4c\uc694?")
+                : /Reaction/i.test(outputField)
+                  ? isRetry
+                    ? tr("Just a quick positive or negative is fine.", "\uae0d\uc815\uc801\uc778\uc9c0 \ubd80\uc815\uc801\uc778\uc9c0\ub9cc \uac04\ub2e8\ud788 \ub2f5\ud574 \uc8fc\uc154\ub3c4 \ub3fc\uc694.")
+                    : tr("Would the other person's reaction be positive or negative?", "\uadf8 \uc0ac\ub78c\uc758 \ubc18\uc751\uc740 \uae0d\uc815\uc801\uc77c\uae4c\uc694, \ubd80\uc815\uc801\uc77c\uae4c\uc694?")
+                  : /Body|Sensation/i.test(outputField)
+                    ? isRetry
+                      ? tr("Anything you noticed in your body at all -- even something small -- is fine to share.", "\ubab8\uc5d0\uc11c \ub290\uaef4\uc9c4 \uac70\ub77c\uba74 \ubb34\uc5c7\uc774\ub4e0 \uad1c\ucc2e\uc544\uc694 -- \uc544\uc8fc \uc791\uc740 \uac10\uac01\uc774\ub77c\ub3c4 \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
+                      : tr("What specific physical sensation did you notice in your body, such as a racing heart or shaky hands?", "\ubab8\uc5d0\uc11c \uad6c\uccb4\uc801\uc73c\ub85c \uc5b4\ub5a4 \uac10\uac01\uc744 \ub290\ub07c\uc168\ub098\uc694? \uc608\ub97c \ub4e4\uba74 \uc2ec\uc7a5\uc774 \ube68\ub9ac \ub6f0\uac70\ub098 \uc190\uc774 \ub5a8\ub9ac\ub294 \ub290\ub08c\uc774 \uc788\uc5b4\uc694.")
+                    : isRetry
+                      ? tr("Whatever comes to mind first is fine -- just one short, concrete example.", "\uac00\uc7a5 \uba3c\uc800 \ub5a0\uc624\ub974\ub294 \uac83\uc774\uba74 \ub3fc\uc694 -- \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608 \ud558\ub098\ub9cc \ub9d0\uc500\ud574 \uc8fc\uc138\uc694.")
+                      : tr("Could you answer with one brief, specific example that directly addresses the question?", "\uc9c8\ubb38\uc5d0 \ub9de\ub294 \uc9e7\uace0 \uad6c\uccb4\uc801\uc778 \uc608\ub97c \ud558\ub098 \ub4e4\uc5b4 \uc8fc\uc2dc\uaca0\uc5b4\uc694?");
   let content = input.reason === "patient_refusal" || input.reason === "safety_clarification" ? proposedContent : (duplicatesRecentQuestion || input.reason === "insufficient_input" ? adaptiveClarification : proposedContent);
   let dialogueOutcome: Awaited<ReturnType<typeof resolveDialogueAgentMessage>> | null = null;
   // Safety and refusal clarifications stay fully deterministic, no

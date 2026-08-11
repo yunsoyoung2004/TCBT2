@@ -39,12 +39,24 @@ export function useSpeechRecognition(locale: string) {
     onResultRef.current = onResult;
     const recognition = new Ctor();
     recognition.lang = locale || "en-US";
-    recognition.continuous = false;
+    // continuous=false made the browser's own endpointer end the WHOLE
+    // recognition session on the first detected pause -- a participant
+    // pausing mid-thought to collect themselves got cut off, not just the
+    // current utterance. continuous=true keeps listening through pauses;
+    // the session now only ends when the caller explicitly stops it (or on
+    // a genuine error/very long silence), matching a normal "hold the mic
+    // until you're done talking" expectation.
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onresult = (event: any) => {
+      // Rebuilds the FULL transcript from every result since this
+      // recognition session started (not just event.resultIndex onward) --
+      // in continuous mode, onresult fires once per pause/segment, and a
+      // resultIndex-only sum would silently drop everything said before
+      // the most recent segment instead of accumulating the whole answer.
       let text = "";
       let isFinal = false;
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      for (let i = 0; i < event.results.length; i += 1) {
         text += event.results[i][0].transcript;
         if (event.results[i].isFinal) isFinal = true;
       }
