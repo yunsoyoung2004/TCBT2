@@ -59,6 +59,10 @@ export async function listRuntimeSessionRecords() {
   return callStore<RuntimeSession[]>({ op: "listSessions" });
 }
 
+export async function listRuntimeSessionRecordsByParticipant(participantId: string) {
+  return callStore<RuntimeSession[]>({ op: "listSessionsByParticipant", participantId });
+}
+
 export async function deleteRuntimeSessionRecord(sessionId: string) {
   await callStore<void>({ op: "deleteSession", sessionId });
 }

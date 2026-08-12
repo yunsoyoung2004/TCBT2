@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientShell({
   title,
@@ -21,6 +23,12 @@ export function PatientShell({
   actions?: ReactNode;
 }) {
   const { t } = useT();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/patient/login");
+  };
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-surface px-4 py-4 lg:px-6">
@@ -34,9 +42,11 @@ export function PatientShell({
               {saveState && <Badge tone="success">{saveState}</Badge>}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
             <Link href="/projects/demo/patient"><Button variant="secondary">{t("patientShell.sessionList")}</Button></Link>
             {actions}
+            <Button variant="ghost" onClick={() => void handleLogout()}>{t("auth.logout")}</Button>
           </div>
         </div>
       </header>

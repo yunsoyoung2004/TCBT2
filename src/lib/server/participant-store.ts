@@ -27,12 +27,24 @@ export async function getParticipant(participantId: string): Promise<RuntimePart
   return rows[0]?.data;
 }
 
+/** Looks up the one participant record owned by a given Supabase Auth user
+ * (see sql/008_link_participants_to_auth.sql) -- this is how a logged-in
+ * patient's own participant is found, instead of the single hardcoded demo
+ * participant every patient used to share. */
+export async function getParticipantByAuthUserId(authUserId: string): Promise<RuntimeParticipant | undefined> {
+  const { rows } = await getPgPool().query<{ data: RuntimeParticipant }>(
+    "SELECT data FROM runtime_participants WHERE auth_user_id = $1",
+    [authUserId],
+  );
+  return rows[0]?.data;
+}
+
 export async function saveParticipant(participant: RuntimeParticipant) {
   await getPgPool().query(
-    `INSERT INTO runtime_participants (id, project_id, alias, status, created_at, updated_at, data)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
-     ON CONFLICT (id) DO UPDATE SET project_id=EXCLUDED.project_id, alias=EXCLUDED.alias, status=EXCLUDED.status, updated_at=EXCLUDED.updated_at, data=EXCLUDED.data`,
-    [participant.id, participant.projectId, participant.alias, participant.status, participant.createdAt, participant.updatedAt, JSON.stringify(participant)],
+    `INSERT INTO runtime_participants (id, project_id, alias, status, created_at, updated_at, data, auth_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     ON CONFLICT (id) DO UPDATE SET project_id=EXCLUDED.project_id, alias=EXCLUDED.alias, status=EXCLUDED.status, updated_at=EXCLUDED.updated_at, data=EXCLUDED.data, auth_user_id=EXCLUDED.auth_user_id`,
+    [participant.id, participant.projectId, participant.alias, participant.status, participant.createdAt, participant.updatedAt, JSON.stringify(participant), participant.authUserId ?? null],
   );
   return participant;
 }
@@ -95,6 +107,8 @@ export async function dispatchParticipantStoreOp(op: ParticipantStoreOp): Promis
       return listParticipants();
     case "getParticipant":
       return getParticipant(op.participantId);
+    case "getParticipantByAuthUserId":
+      return getParticipantByAuthUserId(op.authUserId);
     case "saveParticipant":
       return saveParticipant(op.participant);
     case "updateParticipant":

@@ -24,6 +24,7 @@ import {
   listRuntimeMessages,
   listRuntimeProviderEvents,
   listRuntimeSessionRecords,
+  listRuntimeSessionRecordsByParticipant,
   listRuntimeValidationEvents,
   saveRuntimeCheckpoint,
   updateRuntimeSessionRecord,
@@ -162,6 +163,7 @@ export async function createCanonicalTestRuntimeSession(input: {
   sessionDefinitionId?: string;
   patientAlias?: string;
   locale?: string;
+  participantId?: string;
 } = {}) {
   return createRuntimeSession({
     projectId: "TBCT-BR-001",
@@ -170,6 +172,7 @@ export async function createCanonicalTestRuntimeSession(input: {
     sessionDefinitionId: input.sessionDefinitionId ?? "tbct-s01",
     patientAlias: input.patientAlias ?? "Test Patient",
     locale: input.locale ?? "ko-KR",
+    participantId: input.participantId,
   });
 }
 
@@ -281,6 +284,13 @@ export async function getPatientRuntimeSession(sessionId: string): Promise<Patie
 
 export async function listRuntimeSessions() {
   return listRuntimeSessionRecords();
+}
+
+/** A logged-in patient's own sessions only -- see listRuntimeSessionRecordsByParticipant.
+ * listRuntimeSessions() (above) stays unscoped for the clinician-facing
+ * Patient Monitoring roster, which is meant to see every participant. */
+export async function listRuntimeSessionsForParticipant(participantId: string) {
+  return listRuntimeSessionRecordsByParticipant(participantId);
 }
 
 /** Permanently deletes a runtime session and its messages/logs/checkpoints. Irreversible. */

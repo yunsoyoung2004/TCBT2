@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   Boxes,
@@ -24,6 +24,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
+import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ function buildBreadcrumb(pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const commandOpen = useStudioStore((state) => state.commandOpen);
@@ -87,6 +89,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeActorRole = useStudioStore((state) => state.activeActorRole);
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
   const { locale, setLocale, t } = useT();
+  const { user, signOut } = useAuth();
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/login");
+  };
+  const identityInitials = (user?.email ?? "??").slice(0, 2).toUpperCase();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -222,17 +230,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Globe className="h-4 w-4" />
               </button>
             )}
-            <div className={cn("rounded-panel border border-white/10 bg-white/5 p-3", collapsed && "p-2")}>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className={cn("w-full rounded-panel border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10", collapsed && "p-2")}
+            >
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-clinical-blue-light text-sm font-semibold text-clinical-blue">KJ</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-clinical-blue-light text-sm font-semibold text-clinical-blue">{identityInitials}</span>
                 {!collapsed && (
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">Kim Jieun</div>
-                    <div className="text-xs text-blue-100">Clinical Author</div>
+                    <div className="truncate text-sm font-semibold">{user?.email ?? "—"}</div>
+                    <div className="text-xs text-blue-100">{t("auth.logout")}</div>
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </aside>
@@ -278,9 +290,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><HelpCircle className="h-4 w-4" /></Button>
-          <button className="flex shrink-0 items-center gap-2 rounded-panel border border-border bg-surface px-2 py-1.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-clinical-blue-light text-xs font-semibold text-clinical-blue">KJ</span>
-            <span className="hidden max-w-[120px] truncate text-xs font-medium text-text-primary 2xl:block">{activeActorRole.replaceAll("_", " ")}</span>
+          <button
+            type="button"
+            title={t("auth.logout")}
+            onClick={() => void handleLogout()}
+            className="flex shrink-0 items-center gap-2 rounded-panel border border-border bg-surface px-2 py-1.5 hover:bg-surface-hover"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-clinical-blue-light text-xs font-semibold text-clinical-blue">{identityInitials}</span>
+            <span className="hidden max-w-[140px] truncate text-xs font-medium text-text-primary 2xl:block">{user?.email ?? "—"}</span>
           </button>
         </header>
 

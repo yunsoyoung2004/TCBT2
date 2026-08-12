@@ -185,6 +185,7 @@ export async function dispatchFakeRuntimeStoreOp(op: RuntimeStoreOp): Promise<un
       return found ? clone(found) : undefined;
     }
     case "listSessions": return [...sessions.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(clone);
+    case "listSessionsByParticipant": return [...sessions.values()].filter((s) => s.participantId === op.participantId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(clone);
     case "deleteSession": {
       sessions.delete(op.sessionId);
       for (const [id, message] of messages) if (message.runtimeSessionId === op.sessionId) messages.delete(id);

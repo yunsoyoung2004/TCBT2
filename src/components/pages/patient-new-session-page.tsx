@@ -8,8 +8,9 @@ import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card } from "@/components/ui/primitives";
 import { createCanonicalTestRuntimeSession, listCanonicalTestSessions } from "@/lib/api/runtime-session-api";
 import { startRuntimeSession } from "@/lib/api/runtime-execution-api";
-import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
 import { useT } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/auth-context";
 
 // The product now runs a single TCBT flow (no protocol/manual picker before a
 // session can start). This page only lets the patient pick which of the
@@ -17,6 +18,8 @@ import { useT } from "@/lib/i18n/context";
 export function PatientNewSessionPage() {
   const { t } = useT();
   const router = useRouter();
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const sessionsQuery = useQuery({ queryKey: ["canonical-test-runtime-sessions"], queryFn: listCanonicalTestSessions });
   // createCanonicalTestRuntimeSession defaults locale to "ko-KR" when none
   // is passed -- every new session used to start Korean regardless of what
@@ -24,14 +27,14 @@ export function PatientNewSessionPage() {
   // which shows that same participant.locale next to the patient's name),
   // so changing it there had no visible effect on anything actually started
   // afterward. New sessions now inherit the participant's current locale.
-  const participantQuery = useQuery({ queryKey: ["runtime-participant-demo"], queryFn: getOrCreateDemoParticipant });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
   const sessions = sessionsQuery.data ?? [];
   const [startingSessionId, setStartingSessionId] = useState<string | null>(null);
 
   const handleStartSession = async (sessionDefinitionId: string) => {
     setStartingSessionId(sessionDefinitionId);
     try {
-      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale });
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale, participantId: participantQuery.data?.id });
       await startRuntimeSession(session.id);
       router.push(`/projects/demo/patient/sessions/${session.id}`);
     } catch (error) {

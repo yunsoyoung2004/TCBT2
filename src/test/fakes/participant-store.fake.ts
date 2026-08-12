@@ -23,6 +23,10 @@ export async function dispatchFakeParticipantStoreOp(op: ParticipantStoreOp): Pr
   switch (op.op) {
     case "listParticipants": return [...participants.values()].map(clone);
     case "getParticipant": return participants.has(op.participantId) ? clone(participants.get(op.participantId)) : undefined;
+    case "getParticipantByAuthUserId": {
+      const match = [...participants.values()].find((participant) => participant.authUserId === op.authUserId);
+      return match ? clone(match) : undefined;
+    }
     case "saveParticipant": participants.set(op.participant.id, clone(op.participant)); return op.participant;
     case "updateParticipant": {
       const current = participants.get(op.participantId);

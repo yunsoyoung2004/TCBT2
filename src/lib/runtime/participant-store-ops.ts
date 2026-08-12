@@ -9,6 +9,7 @@ import type { LongitudinalMemory, RuntimeParticipant } from "@/types/longitudina
 export type ParticipantStoreOp =
   | { op: "listParticipants" }
   | { op: "getParticipant"; participantId: string }
+  | { op: "getParticipantByAuthUserId"; authUserId: string }
   | { op: "saveParticipant"; participant: RuntimeParticipant }
   | { op: "updateParticipant"; participantId: string; patch: Partial<RuntimeParticipant> }
   | { op: "listMemories"; participantId: string }

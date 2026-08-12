@@ -1,4 +1,4 @@
-import { appendParticipantSession, getLongitudinalRecord, getParticipant, listParticipantConsentEvents, listParticipants, saveLongitudinalRecord, saveParticipant, saveParticipantConsentEvent, updateParticipant } from "@/lib/repositories/participant-repository";
+import { appendParticipantSession, getLongitudinalRecord, getParticipant, getParticipantByAuthUserId, listParticipantConsentEvents, listParticipants, saveLongitudinalRecord, saveParticipant, saveParticipantConsentEvent, updateParticipant } from "@/lib/repositories/participant-repository";
 import { createMemoryAuditEntry } from "@/lib/memory/memory-helpers";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import type { ParticipantConsentEvent, RuntimeParticipant } from "@/types/longitudinal-memory";
@@ -45,6 +45,47 @@ export async function getOrCreateDemoParticipant() {
   await saveParticipant(participant);
   await saveLongitudinalRecord({
     id: "LREC-DEMO-BR-001",
+    participantId: participant.id,
+    projectId: participant.projectId,
+    activeMemoryIds: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+  return participant;
+}
+
+/** Looks up (or creates, on first login) the one participant record owned
+ * by a real, logged-in patient -- replaces getOrCreateDemoParticipant() for
+ * actual patient traffic now that patients have real accounts (see
+ * sql/008_link_participants_to_auth.sql). Each auth user gets their own
+ * participant, unlike the single shared demo participant above. */
+export async function getOrCreateParticipantForUser(authUserId: string, defaults: { locale?: string } = {}) {
+  const existing = await getParticipantByAuthUserId(authUserId);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  const id = makeId("PARTICIPANT");
+  const longitudinalRecordId = makeId("LREC");
+  const participant: RuntimeParticipant = {
+    id,
+    projectId: "TBCT-BR-001",
+    alias: `Patient-${id.slice(-8)}`,
+    locale: defaults.locale ?? "en-US",
+    status: "active",
+    runtimeSessionIds: [],
+    longitudinalRecordId,
+    authUserId,
+    consent: {
+      memoryStorageAllowed: true,
+      crossSessionUseAllowed: true,
+      sensitiveMemoryAllowed: false,
+      updatedAt: now,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+  await saveParticipant(participant);
+  await saveLongitudinalRecord({
+    id: longitudinalRecordId,
     participantId: participant.id,
     projectId: participant.projectId,
     activeMemoryIds: [],

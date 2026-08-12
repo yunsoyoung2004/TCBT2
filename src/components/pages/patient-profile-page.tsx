@@ -6,14 +6,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
-import { getOrCreateDemoParticipant, getParticipantRecord, updateParticipantProfile, updateParticipantConsent } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
 import { useT } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientProfilePage() {
   const { t } = useT();
   const queryClient = useQueryClient();
-  const participantQuery = useQuery({ queryKey: ["demo-participant"], queryFn: getOrCreateDemoParticipant });
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
   const dashboardQuery = useQuery({
     queryKey: ["patient-profile-dashboard", participantQuery.data?.id],
     queryFn: () => getParticipantLongitudinalDashboard(participantQuery.data!.id),
@@ -54,7 +57,7 @@ export function PatientProfilePage() {
     },
     onSuccess: async () => {
       toast.success(t("patientProfile.saved"));
-      await queryClient.invalidateQueries({ queryKey: ["demo-participant"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-profile-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-record"] });
     },

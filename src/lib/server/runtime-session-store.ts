@@ -127,6 +127,19 @@ export async function listRuntimeSessionRecords(): Promise<RuntimeSession[]> {
   return rows.map((row) => row.data);
 }
 
+/** Scoped to one participant's own sessions -- unlike listRuntimeSessionRecords
+ * (every session, for the clinician-facing Patient Monitoring roster), this
+ * is what a logged-in patient's own session list uses, via the existing
+ * indexed participant_id column, so one patient can never see another's
+ * sessions. */
+export async function listRuntimeSessionRecordsByParticipant(participantId: string): Promise<RuntimeSession[]> {
+  const { rows } = await getPgPool().query<{ data: RuntimeSession }>(
+    "SELECT data FROM runtime_sessions WHERE participant_id = $1 ORDER BY updated_at DESC",
+    [participantId],
+  );
+  return rows.map((row) => row.data);
+}
+
 /** Permanently removes a runtime session and every row that references it. Irreversible. */
 export async function deleteRuntimeSessionRecord(sessionId: string) {
   await withTransaction(async (client) => {
@@ -413,6 +426,7 @@ export async function dispatchRuntimeStoreOp(op: RuntimeStoreOp): Promise<unknow
     case "claimPatientTurn": return claimRuntimePatientTurn(op);
     case "getSession": return getRuntimeSessionRecord(op.sessionId);
     case "listSessions": return listRuntimeSessionRecords();
+    case "listSessionsByParticipant": return listRuntimeSessionRecordsByParticipant(op.participantId);
     case "deleteSession": return deleteRuntimeSessionRecord(op.sessionId);
     case "saveMessage": return saveRuntimeMessage(op.message);
     case "listMessages": return listRuntimeMessages(op.runtimeSessionId);

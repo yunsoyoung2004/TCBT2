@@ -5,14 +5,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
-import { getOrCreateDemoParticipant, getParticipantConsentHistory, updateParticipantConsent } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUser, getParticipantConsentHistory, updateParticipantConsent } from "@/lib/api/participant-api";
 import { getParticipantMemories } from "@/lib/api/longitudinal-memory-api";
 import { useT } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientMemoryPage() {
   const { t } = useT();
   const queryClient = useQueryClient();
-  const participantQuery = useQuery({ queryKey: ["demo-participant"], queryFn: getOrCreateDemoParticipant });
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
   const memoryQuery = useQuery({
     queryKey: ["patient-memories", participantQuery.data?.id],
     queryFn: () => getParticipantMemories(participantQuery.data!.id),
@@ -33,7 +36,7 @@ export function PatientMemoryPage() {
       }),
     onSuccess: async () => {
       toast.success(t("patientMemory.saved"));
-      await queryClient.invalidateQueries({ queryKey: ["demo-participant"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-memories"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-consent-history"] });
     },

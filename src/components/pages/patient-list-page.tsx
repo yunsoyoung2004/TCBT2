@@ -4,18 +4,27 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
-import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
-import { getOrCreateDemoParticipant } from "@/lib/api/participant-api";
+import { listRuntimeSessionsForParticipant } from "@/lib/api/runtime-session-api";
+import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
 import { HOMEWORK_LABEL_BY_SESSION, hasHomeworkActivity } from "@/types/homework";
 import { useT } from "@/lib/i18n/context";
+import { useAuth } from "@/lib/auth/auth-context";
 
-type ListedSession = Awaited<ReturnType<typeof listRuntimeSessions>>[number];
+type ListedSession = Awaited<ReturnType<typeof listRuntimeSessionsForParticipant>>[number];
 
 export function PatientListPage() {
   const { t } = useT();
-  const sessionsQuery = useQuery({ queryKey: ["runtime-sessions"], queryFn: listRuntimeSessions });
-  const participantQuery = useQuery({ queryKey: ["runtime-participant-demo"], queryFn: getOrCreateDemoParticipant });
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
   const participant = participantQuery.data;
+  // Scoped to this logged-in patient's own participant -- never the full
+  // cross-patient list (that's the clinician-facing Patient Monitoring page).
+  const sessionsQuery = useQuery({
+    queryKey: ["runtime-sessions", participant?.id],
+    queryFn: () => listRuntimeSessionsForParticipant(participant!.id),
+    enabled: Boolean(participant),
+  });
   const sessions = sessionsQuery.data ?? [];
   const stats = {
     total: sessions.length,

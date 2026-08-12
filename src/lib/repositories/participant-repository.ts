@@ -27,6 +27,10 @@ export async function getParticipant(participantId: string): Promise<RuntimePart
   return callStore<RuntimeParticipant | undefined>({ op: "getParticipant", participantId });
 }
 
+export async function getParticipantByAuthUserId(authUserId: string): Promise<RuntimeParticipant | undefined> {
+  return callStore<RuntimeParticipant | undefined>({ op: "getParticipantByAuthUserId", authUserId });
+}
+
 export async function saveParticipant(participant: RuntimeParticipant) {
   await callStore<RuntimeParticipant>({ op: "saveParticipant", participant });
   return participant;

@@ -46,6 +46,10 @@ export interface RuntimeParticipant {
   status: "active" | "paused" | "withdrawn" | "completed" | "archived";
   runtimeSessionIds: string[];
   longitudinalRecordId: string;
+  /** Supabase Auth user id that owns this participant record (see
+   * sql/008_link_participants_to_auth.sql) -- absent for participants
+   * created before real patient login existed (e.g. the demo participant). */
+  authUserId?: string;
   /** Optional clinician-facing profile fields — not fabricated when absent, render as "—". */
   enrollmentDate?: string;
   assignedClinician?: string;

@@ -1,8 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { LoaderCircle } from "lucide-react";
 import type { ComponentType } from "react";
+import { useAuth } from "@/lib/auth/auth-context";
 
 const AssetsPage = dynamic(() => import("@/components/pages/assets-page").then((mod) => mod.AssetsPage), { ssr: false });
 const ClinicalAssetRegistrationPage = dynamic(() => import("@/components/pages/clinical-asset-registration-page").then((mod) => mod.ClinicalAssetRegistrationPage), { ssr: false });
@@ -21,6 +24,8 @@ const PatientSessionCompletePage = dynamic(() => import("@/components/pages/pati
 const HomeworkPage = dynamic(() => import("@/components/pages/homework-page").then((mod) => mod.HomeworkPage), { ssr: false });
 const PatientProfilePage = dynamic(() => import("@/components/pages/patient-profile-page").then((mod) => mod.PatientProfilePage), { ssr: false });
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
+const ClinicianAuthPage = dynamic(() => import("@/components/pages/auth/clinician-auth-page").then((mod) => mod.ClinicianAuthPage), { ssr: false });
+const PatientAuthPage = dynamic(() => import("@/components/pages/auth/patient-auth-page").then((mod) => mod.PatientAuthPage), { ssr: false });
 const RuntimeInspectorPage = dynamic(() => import("@/components/pages/runtime-inspector-page").then((mod) => mod.RuntimeInspectorPage), { ssr: false });
 const RuntimeEscalationsPage = dynamic(() => import("@/components/pages/runtime-escalations-page").then((mod) => mod.RuntimeEscalationsPage), { ssr: false });
 const RuntimeParticipantPage = dynamic(() => import("@/components/pages/runtime-participant-page").then((mod) => mod.RuntimeParticipantPage), { ssr: false });
@@ -50,23 +55,36 @@ const RuntimePilotExportsPage = dynamic(() => import("@/components/pages/runtime
 const RuntimePilotReportsPage = dynamic(() => import("@/components/pages/runtime-pilot-reports-page").then((mod) => mod.RuntimePilotReportsPage), { ssr: false });
 const RuntimePilotReportDetailPage = dynamic(() => import("@/components/pages/runtime-pilot-report-detail-page").then((mod) => mod.RuntimePilotReportDetailPage), { ssr: false });
 
+type Audience = "clinician" | "patient" | "public";
+
 type StudioRoute = {
   matches: (pathname: string) => boolean;
   Page: ComponentType;
+  /** Who's allowed on this route. Omitted = "clinician" (the majority of
+   * pages). "public" = no auth required at all (the login/signup pages
+   * themselves -- gating those would create a redirect loop). */
+  audience?: Audience;
 };
 
 const studioRoutes: StudioRoute[] = [
+  // Auth pages -- must be checked before the "/patient" substring matchers
+  // below, since "/patient/login" and "/patient/signup" both contain
+  // "/patient" and would otherwise fall into the patient-portal catch-all.
+  { matches: (pathname) => pathname === "/login" || pathname === "/login/", Page: ClinicianAuthPage, audience: "public" },
+  { matches: (pathname) => pathname === "/signup" || pathname === "/signup/", Page: ClinicianAuthPage, audience: "public" },
+  { matches: (pathname) => pathname.includes("/patient/login"), Page: PatientAuthPage, audience: "public" },
+  { matches: (pathname) => pathname.includes("/patient/signup"), Page: PatientAuthPage, audience: "public" },
   // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
   // before the generic "/patient" (singular, patient-portal) matchers below.
   { matches: (pathname) => /^\/patients\/[^/]+\/?$/.test(pathname), Page: PatientMonitoringDetailPage },
   { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
-  { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage },
-  { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage },
-  { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage },
-  { matches: (pathname) => pathname.includes("/patient/homework/"), Page: HomeworkPage },
-  { matches: (pathname) => pathname.includes("/patient/sessions/") && pathname.endsWith("/complete"), Page: PatientSessionCompletePage },
-  { matches: (pathname) => pathname.includes("/patient/sessions/"), Page: PatientSessionPage },
-  { matches: (pathname) => pathname.includes("/patient"), Page: PatientListPage },
+  { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/homework/"), Page: HomeworkPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/sessions/") && pathname.endsWith("/complete"), Page: PatientSessionCompletePage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/sessions/"), Page: PatientSessionPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient"), Page: PatientListPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/runtime/pilot/participants/"), Page: RuntimePilotParticipantDetailPage },
   { matches: (pathname) => pathname.includes("/runtime/pilot/reports/"), Page: RuntimePilotReportDetailPage },
   { matches: (pathname) => pathname.includes("/runtime/pilot/configuration"), Page: RuntimePilotConfigurationPage },
@@ -105,8 +123,18 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname.startsWith("/settings"), Page: SettingsPage },
 ];
 
+function FullPageSpinner() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <LoaderCircle className="h-6 w-6 animate-spin text-clinical-blue" />
+    </div>
+  );
+}
+
 export function StudioApp() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { role, loading } = useAuth();
   const route = studioRoutes.find(({ matches }) => matches(pathname));
   // The "Protocol Overview" dashboard used to be the fallback for any
   // unmatched path (including "/" and the old "/dashboard" URL). It's been
@@ -114,6 +142,14 @@ export function StudioApp() {
   // clinician's other primary nav destination -- rather than a page that no
   // longer exists.
   const Page = route?.Page ?? ProtocolPage;
+  const audience = route?.audience ?? "clinician";
+  const authorized = audience === "public" || (audience === "patient" ? role === "patient" : role === "clinician");
 
+  useEffect(() => {
+    if (loading || audience === "public" || authorized) return;
+    router.replace(audience === "patient" ? "/patient/login" : "/login");
+  }, [loading, audience, authorized, router]);
+
+  if (audience !== "public" && (loading || !authorized)) return <FullPageSpinner />;
   return <Page />;
 }
