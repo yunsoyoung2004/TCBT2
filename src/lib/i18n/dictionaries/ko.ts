@@ -2,8 +2,25 @@ const ko = {
   nav: {
     protocolEditor: "프로토콜 편집기",
     patientMonitoring: "환자 모니터링",
+    adminUsers: "관리자 · 계정 관리",
+    auditLog: "관리자 · 감사 로그",
     language: "언어",
     more: "더보기",
+  },
+  adminUsers: {
+    title: "계정 관리",
+    description: "가입된 모든 임상의/환자 계정입니다. 계정을 정지하면 로그인만 막히고 연결된 데이터는 그대로 유지됩니다.",
+    updated: "계정이 업데이트되었습니다",
+    updateFailed: "계정 업데이트에 실패했습니다",
+    ban: "정지",
+    unban: "정지 해제",
+    banned: "정지됨",
+    role: {
+      clinician: "임상의",
+      patient: "환자",
+      admin: "관리자",
+      none: "역할 없음",
+    },
   },
   auth: {
     clinicianTitle: "의료진 로그인",

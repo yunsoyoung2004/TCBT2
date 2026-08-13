@@ -18,6 +18,7 @@ const SettingsPage = dynamic(() => import("@/components/pages/settings-page").th
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
 const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
 const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
+const AdminUsersPage = dynamic(() => import("@/components/pages/admin-users-page").then((mod) => mod.AdminUsersPage), { ssr: false });
 const PatientSessionReportPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-session-report-page").then((mod) => mod.PatientSessionReportPage), { ssr: false });
 const PatientNewSessionPage = dynamic(() => import("@/components/pages/patient-new-session-page").then((mod) => mod.PatientNewSessionPage), { ssr: false });
 const PatientSessionPage = dynamic(() => import("@/components/pages/patient-session-page").then((mod) => mod.PatientSessionPage), { ssr: false });
@@ -57,7 +58,7 @@ const RuntimePilotExportsPage = dynamic(() => import("@/components/pages/runtime
 const RuntimePilotReportsPage = dynamic(() => import("@/components/pages/runtime-pilot-reports-page").then((mod) => mod.RuntimePilotReportsPage), { ssr: false });
 const RuntimePilotReportDetailPage = dynamic(() => import("@/components/pages/runtime-pilot-report-detail-page").then((mod) => mod.RuntimePilotReportDetailPage), { ssr: false });
 
-type Audience = "clinician" | "patient" | "public";
+type Audience = "clinician" | "patient" | "admin" | "public";
 
 type StudioRoute = {
   matches: (pathname: string) => boolean;
@@ -76,6 +77,7 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname === "/signup" || pathname === "/signup/", Page: ClinicianAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/login"), Page: PatientAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/signup"), Page: PatientAuthPage, audience: "public" },
+  { matches: (pathname) => pathname.includes("/admin/users"), Page: AdminUsersPage, audience: "admin" },
   // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
   // before the generic "/patient" (singular, patient-portal) matchers below.
   // The report route is checked first since it's the more specific path.
@@ -148,7 +150,14 @@ export function StudioApp() {
   // longer exists.
   const Page = route?.Page ?? ProtocolPage;
   const audience = route?.audience ?? "clinician";
-  const authorized = audience === "public" || (audience === "patient" ? role === "patient" : role === "clinician");
+  // Admin is a superset of clinician access (can reach every clinician
+  // page, plus admin-only ones) -- there is no separate admin login, so an
+  // admin route unauthorized redirect still goes to the clinician "/login".
+  const authorized =
+    audience === "public" ||
+    (audience === "patient" && role === "patient") ||
+    (audience === "clinician" && (role === "clinician" || role === "admin")) ||
+    (audience === "admin" && role === "admin");
 
   useEffect(() => {
     if (loading || audience === "public" || authorized) return;

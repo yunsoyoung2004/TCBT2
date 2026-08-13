@@ -65,3 +65,70 @@ export async function getUserEmail(userId: string): Promise<string | null> {
   if (error || !data.user) return null;
   return data.user.email ?? null;
 }
+
+export interface AdminUserSummary {
+  id: string;
+  email: string | null;
+  role: "clinician" | "patient" | "admin" | null;
+  createdAt: string;
+  banned: boolean;
+}
+
+/** Every registered user, any role -- used only by the admin-only account
+ * management page (src/app/api/admin/users/route.ts gates the caller
+ * before this is ever reached). This is the direct answer to "clinicians
+ * can self-signup with no gatekeeping" -- an admin can see who signed up
+ * and ban them, since nothing else in this app can enumerate identities
+ * across roles. */
+export async function listAllUsers(): Promise<AdminUserSummary[]> {
+  const admin = getAdminClient();
+  const users: AdminUserSummary[] = [];
+  let page = 1;
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    for (const user of data.users) {
+      const role = user.user_metadata?.role;
+      users.push({
+        id: user.id,
+        email: user.email ?? null,
+        role: role === "clinician" || role === "patient" || role === "admin" ? role : null,
+        createdAt: user.created_at,
+        // banned_until is a far-future timestamp once banned (see
+        // setUserBanned's own ban_duration value), "none" otherwise.
+        banned: Boolean(user.banned_until) && new Date(user.banned_until as string) > new Date(),
+      });
+    }
+    if (data.users.length < 1000) break;
+    page += 1;
+  }
+  return users;
+}
+
+/** Bans or unbans a user -- Supabase has no "delete" semantics here on
+ * purpose (deleting a clinician's account would orphan every patient note/
+ * assignment/audit entry pointing at that user id); banning blocks sign-in
+ * without touching anything else this app has already recorded about them. */
+export async function setUserBanned(userId: string, banned: boolean): Promise<void> {
+  const admin = getAdminClient();
+  // Supabase's ban_duration accepts a duration string, not a boolean --
+  // "none" lifts an existing ban; there's no permanent-ban keyword, so a
+  // 100-year duration is this SDK's own documented way to express one.
+  const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: banned ? "876000h" : "none" });
+  if (error) throw error;
+}
+
+/** One-time admin bootstrap: invites a brand-new user by email with
+ * role="admin" already set in user_metadata, so the very first admin
+ * doesn't need to sign up through any self-service flow (there isn't
+ * one, deliberately -- see this app's clinician self-signup problem this
+ * feature exists to address) and doesn't need a temporary password
+ * handed to them out of band. Supabase sends its own invite email (a
+ * magic link to set a password); this is NOT wired into any UI -- run
+ * once, by hand, for the initial admin only. */
+export async function inviteAdminUser(email: string): Promise<{ id: string; email: string | null }> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { data: { role: "admin" } });
+  if (error) throw error;
+  return { id: data.user.id, email: data.user.email ?? null };
+}

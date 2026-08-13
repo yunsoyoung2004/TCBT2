@@ -2,8 +2,25 @@ const en = {
   nav: {
     protocolEditor: "Protocol Editor",
     patientMonitoring: "Patient Monitoring",
+    adminUsers: "Admin · Users",
+    auditLog: "Admin · Audit Log",
     language: "Language",
     more: "More",
+  },
+  adminUsers: {
+    title: "User accounts",
+    description: "Every registered clinician and patient account. Ban an account to block sign-in without deleting anything it's linked to.",
+    updated: "Account updated",
+    updateFailed: "Failed to update account",
+    ban: "Ban",
+    unban: "Unban",
+    banned: "Banned",
+    role: {
+      clinician: "Clinician",
+      patient: "Patient",
+      admin: "Admin",
+      none: "No role",
+    },
   },
   auth: {
     clinicianTitle: "Clinician sign in",

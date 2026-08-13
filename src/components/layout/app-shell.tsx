@@ -30,7 +30,7 @@ import type { UiLocale } from "@/lib/i18n/locales";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio-store";
 
-type Audience = "clinician" | "internal";
+type Audience = "clinician" | "internal" | "admin";
 
 interface NavItem {
   labelKey: string;
@@ -43,6 +43,16 @@ const NAV_ITEMS: NavItem[] = [
   // Clinician-facing primary navigation — keep to exactly these two.
   { labelKey: "nav.protocolEditor", href: "/projects/demo/protocols/tbct-br-001/canvas", icon: Boxes, audience: "clinician" },
   { labelKey: "nav.patientMonitoring", href: "/patients", icon: Users, audience: "clinician" },
+  // Admin-only -- filtered by the real logged-in user's auth role
+  // (see visibleNavItems below), independent of the legacy
+  // isClinicianAudience/showFullNav toggle above, which is about the old
+  // demo-actor picker, not real Supabase Auth roles.
+  { labelKey: "nav.adminUsers", href: "/admin/users", icon: ShieldCheck, audience: "admin" },
+  // Reuses the existing /audit page as-is (Protocol Studio content-change
+  // history) -- just makes it discoverable for admin specifically, on top
+  // of the direct-URL access clinicians already have via its default
+  // "clinician" audience below.
+  { labelKey: "nav.auditLog", href: "/audit", icon: ClipboardCheck, audience: "admin" },
   // Internal/engineering routes: still implemented and reachable by direct URL,
   // just hidden from the standard clinician sidebar and command palette.
   // The old "Overview" dashboard was removed entirely (studio-app.tsx now
@@ -89,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeActorRole = useStudioStore((state) => state.activeActorRole);
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
   const { locale, setLocale, t } = useT();
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
@@ -116,8 +126,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarWidth = collapsed ? "lg:pl-[92px]" : "lg:pl-[248px]";
   const showFullNav = !isClinicianAudience(activeActorRole);
   const visibleNavItems = useMemo(
-    () => NAV_ITEMS.filter((item) => showFullNav || item.audience === "clinician"),
-    [showFullNav],
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (item.audience === "admin") return role === "admin";
+        return showFullNav || item.audience === "clinician";
+      }),
+    [showFullNav, role],
   );
   const navLabel = (item: NavItem) => (item.labelKey.startsWith("nav.") ? t(item.labelKey) : item.labelKey);
   const clinicianNavItems = useMemo(() => NAV_ITEMS.filter((item) => item.audience === "clinician"), []);
