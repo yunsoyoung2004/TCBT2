@@ -1,5 +1,6 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { PARTICIPANT_STORE_ENDPOINT, type ParticipantStoreOp } from "@/lib/runtime/participant-store-ops";
+import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
 import type { GoalTrackingRecord, HomeworkTrackingRecord, LongitudinalMemory, MemoryCandidate, MemoryRetrievalResult, MemoryUsageLog } from "@/types/longitudinal-memory";
 
 // Longitudinal memories (including clinician_note entries, i.e. clinician
@@ -9,7 +10,7 @@ import type { GoalTrackingRecord, HomeworkTrackingRecord, LongitudinalMemory, Me
 // one it was written in. Memory candidates, goal/homework tracking, and
 // usage logs are not yet part of this migration and remain local-only.
 async function callStore<T>(op: ParticipantStoreOp): Promise<T> {
-  const response = await fetch(PARTICIPANT_STORE_ENDPOINT, {
+  const response = await fetch(resolveStoreUrl(PARTICIPANT_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),

@@ -1,11 +1,12 @@
 import { HOMEWORK_STORE_ENDPOINT } from "@/lib/runtime/homework-store-ops";
 import type { HomeworkStoreOp } from "@/lib/runtime/homework-store-ops";
+import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
 import type { HomeworkEntryRecord, HomeworkRecord, HomeworkStatus } from "@/types/homework";
 
 // Thin fetch client over src/app/api/homework/store/route.ts, matching the
 // pattern of worksheet-repository.ts / runtime-session-repository.ts.
 async function callStore<T>(op: HomeworkStoreOp): Promise<T> {
-  const response = await fetch(HOMEWORK_STORE_ENDPOINT, {
+  const response = await fetch(resolveStoreUrl(HOMEWORK_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),

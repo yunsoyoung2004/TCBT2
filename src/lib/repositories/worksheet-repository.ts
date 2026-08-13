@@ -1,4 +1,5 @@
 import { WORKSHEET_STORE_ENDPOINT } from "@/lib/runtime/worksheet-store-ops";
+import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
 import type { WorksheetStoreOp } from "@/lib/runtime/worksheet-store-ops";
 import type {
   WorksheetCollectionItemRecord,
@@ -14,7 +15,7 @@ import type {
 // Thin fetch client over src/app/api/worksheets/store/route.ts, matching
 // the pattern of runtime-session-repository.ts / participant-repository.ts.
 async function callStore<T>(op: WorksheetStoreOp): Promise<T> {
-  const response = await fetch(WORKSHEET_STORE_ENDPOINT, {
+  const response = await fetch(resolveStoreUrl(WORKSHEET_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),

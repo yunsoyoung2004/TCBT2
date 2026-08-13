@@ -1,5 +1,6 @@
 import { getLocalDb } from "@/lib/db/tbct-local-db";
 import { PARTICIPANT_STORE_ENDPOINT, type ParticipantStoreOp } from "@/lib/runtime/participant-store-ops";
+import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
 import type { RuntimeParticipant, ParticipantConsentEvent, LongitudinalRecord } from "@/types/longitudinal-memory";
 
 // The participant roster now lives in Neon Postgres (src/lib/server/participant-store.ts),
@@ -9,7 +10,7 @@ import type { RuntimeParticipant, ParticipantConsentEvent, LongitudinalRecord } 
 // sites are unaffected. Longitudinal records and consent events are not yet
 // part of this migration and remain local-only for now.
 async function callStore<T>(op: ParticipantStoreOp): Promise<T> {
-  const response = await fetch(PARTICIPANT_STORE_ENDPOINT, {
+  const response = await fetch(resolveStoreUrl(PARTICIPANT_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),
