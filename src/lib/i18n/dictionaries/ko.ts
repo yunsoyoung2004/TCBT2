@@ -4,9 +4,24 @@ const ko = {
     patientMonitoring: "환자 모니터링",
     adminUsers: "관리자 · 계정 관리",
     auditLog: "관리자 · 감사 로그",
+    adminDeletionRequests: "관리자 · 삭제 요청",
     account: "계정 및 보안",
     language: "언어",
     more: "더보기",
+  },
+  adminDeletionRequests: {
+    title: "데이터 삭제 요청",
+    description: "환자의 데이터 삭제 요청을 검토하고 처리합니다. 여기서 처리 완료로 표시해도 실제로 데이터가 삭제되는 것은 아닙니다.",
+    empty: "삭제 요청이 없습니다.",
+    updated: "요청이 업데이트되었습니다",
+    updateFailed: "요청 업데이트에 실패했습니다",
+    markCompleted: "완료 처리",
+    deny: "거부",
+    status: {
+      pending: "대기 중",
+      completed: "완료됨",
+      denied: "거부됨",
+    },
   },
   adminUsers: {
     title: "계정 관리",
@@ -316,6 +331,22 @@ const ko = {
   },
   account: {
     title: "계정 및 보안",
+  },
+  dataPrivacy: {
+    title: "내 데이터",
+    description: "저장된 내 정보를 전부 다운로드하거나, 삭제를 요청할 수 있습니다.",
+    export: "내 정보 다운로드",
+    deletion: {
+      request: "삭제 요청하기",
+      pending: "삭제 요청됨",
+      pendingSince: "{date}에 삭제 요청됨",
+      modalTitle: "데이터 삭제 요청",
+      modalDescription: "이 요청은 담당 의료진에게 전달됩니다 -- 자동으로 삭제되지는 않으며, 검토 후 연락드립니다.",
+      reasonPlaceholder: "이유 (선택)",
+      confirm: "요청 제출",
+      submitted: "삭제 요청이 제출되었습니다",
+      submitFailed: "삭제 요청 제출에 실패했습니다",
+    },
   },
   mfa: {
     title: "2단계 인증",

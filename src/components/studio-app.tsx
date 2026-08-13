@@ -19,6 +19,7 @@ const PatientListPage = dynamic(() => import("@/components/pages/patient-list-pa
 const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
 const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
 const AdminUsersPage = dynamic(() => import("@/components/pages/admin-users-page").then((mod) => mod.AdminUsersPage), { ssr: false });
+const AdminDeletionRequestsPage = dynamic(() => import("@/components/pages/admin-deletion-requests-page").then((mod) => mod.AdminDeletionRequestsPage), { ssr: false });
 const PatientSessionReportPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-session-report-page").then((mod) => mod.PatientSessionReportPage), { ssr: false });
 const ClinicianAccountPage = dynamic(() => import("@/components/pages/clinician-account-page").then((mod) => mod.ClinicianAccountPage), { ssr: false });
 const PatientNewSessionPage = dynamic(() => import("@/components/pages/patient-new-session-page").then((mod) => mod.PatientNewSessionPage), { ssr: false });
@@ -85,6 +86,7 @@ const studioRoutes: StudioRoute[] = [
   // screens (see patient-shell.tsx / auth-form.tsx).
   { matches: (pathname) => pathname === "/crisis" || pathname === "/crisis/", Page: CrisisResourcesPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/admin/users"), Page: AdminUsersPage, audience: "admin" },
+  { matches: (pathname) => pathname.includes("/admin/deletion-requests"), Page: AdminDeletionRequestsPage, audience: "admin" },
   // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
   // before the generic "/patient" (singular, patient-portal) matchers below.
   // The report route is checked first since it's the more specific path.

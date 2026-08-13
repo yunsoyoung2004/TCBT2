@@ -4,9 +4,24 @@ const en = {
     patientMonitoring: "Patient Monitoring",
     adminUsers: "Admin · Users",
     auditLog: "Admin · Audit Log",
+    adminDeletionRequests: "Admin · Deletion Requests",
     account: "Account & security",
     language: "Language",
     more: "More",
+  },
+  adminDeletionRequests: {
+    title: "Data deletion requests",
+    description: "Review and action patient requests to delete their data. Resolving a request here does not itself delete anything.",
+    empty: "No deletion requests.",
+    updated: "Request updated",
+    updateFailed: "Failed to update request",
+    markCompleted: "Mark completed",
+    deny: "Deny",
+    status: {
+      pending: "Pending",
+      completed: "Completed",
+      denied: "Denied",
+    },
   },
   adminUsers: {
     title: "User accounts",
@@ -316,6 +331,22 @@ const en = {
   },
   account: {
     title: "Account & security",
+  },
+  dataPrivacy: {
+    title: "Your data",
+    description: "Download a copy of everything stored about you, or request that it be deleted.",
+    export: "Download my data",
+    deletion: {
+      request: "Request deletion",
+      pending: "Deletion requested",
+      pendingSince: "Deletion requested {date}",
+      modalTitle: "Request data deletion",
+      modalDescription: "This submits a request to your care team -- it does not delete anything automatically. They'll review it and follow up.",
+      reasonPlaceholder: "Reason (optional)",
+      confirm: "Submit request",
+      submitted: "Deletion request submitted",
+      submitFailed: "Failed to submit deletion request",
+    },
   },
   mfa: {
     title: "Two-factor authentication",

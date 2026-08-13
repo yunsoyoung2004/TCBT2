@@ -48,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   // isClinicianAudience/showFullNav toggle above, which is about the old
   // demo-actor picker, not real Supabase Auth roles.
   { labelKey: "nav.adminUsers", href: "/admin/users", icon: ShieldCheck, audience: "admin" },
+  { labelKey: "nav.adminDeletionRequests", href: "/admin/deletion-requests", icon: ClipboardCheck, audience: "admin" },
   // Reuses the existing /audit page as-is (Protocol Studio content-change
   // history) -- just makes it discoverable for admin specifically, on top
   // of the direct-URL access clinicians already have via its default
