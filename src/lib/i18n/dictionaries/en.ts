@@ -301,6 +301,16 @@ const en = {
     sessionList: "Session List",
     demoNotice: "Demo Mode · No real patient personal data is stored.",
     safetyNotice: "Human safety oversight enabled",
+    crisisHelp: "Need help now?",
+  },
+  crisis: {
+    title: "Crisis resources",
+    intro: "If you're in crisis or thinking about harming yourself, please reach out right now -- these are free, 24/7 hotlines in Korea.",
+    suicide: "Suicide Prevention Hotline",
+    mentalHealth: "Mental Health Crisis Line",
+    lifeline: "Lifeline Korea",
+    emergency: "Emergency (police/ambulance)",
+    outsideKorea: "Outside Korea? Please contact your local emergency number or a crisis line in your country -- these numbers only connect within Korea.",
   },
   patientPortal: {
     title: "Sessions",

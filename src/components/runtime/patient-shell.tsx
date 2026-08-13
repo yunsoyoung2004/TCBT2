@@ -44,6 +44,9 @@ export function PatientShell({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
+            <Link href="/crisis" target="_blank" rel="noopener noreferrer">
+              <Button variant="secondary" className="border-critical text-critical hover:bg-critical-light">{t("patientShell.crisisHelp")}</Button>
+            </Link>
             <Link href="/projects/demo/patient"><Button variant="secondary">{t("patientShell.sessionList")}</Button></Link>
             {actions}
             <Button variant="ghost" onClick={() => void handleLogout()}>{t("auth.logout")}</Button>

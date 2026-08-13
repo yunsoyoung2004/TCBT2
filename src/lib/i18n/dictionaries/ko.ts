@@ -301,6 +301,16 @@ const ko = {
     sessionList: "세션 목록",
     demoNotice: "데모 모드 · 실제 환자의 개인정보는 저장되지 않습니다.",
     safetyNotice: "사람이 직접 안전을 관리하고 있습니다",
+    crisisHelp: "지금 도움이 필요하신가요?",
+  },
+  crisis: {
+    title: "위기 상담 리소스",
+    intro: "지금 위기 상황이거나 자해 생각이 드신다면, 지금 바로 연락해주세요 -- 모두 무료이며 24시간 운영됩니다.",
+    suicide: "자살예방상담전화",
+    mentalHealth: "정신건강상담전화",
+    lifeline: "생명의전화",
+    emergency: "응급상황 (경찰/구급차)",
+    outsideKorea: "한국 밖에 계신가요? 이 번호들은 한국 내에서만 연결됩니다 -- 거주 중인 국가의 응급번호나 위기상담전화로 연락해주세요.",
   },
   patientPortal: {
     title: "세션",

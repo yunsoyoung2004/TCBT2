@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, inputClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
@@ -98,6 +99,9 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
         >
           {mode === "signup" ? t("auth.switchToLogin") : t("auth.switchToSignup")}
         </button>
+        <Link href="/crisis" target="_blank" rel="noopener noreferrer" className="mt-2 block w-full text-center text-xs text-critical hover:underline">
+          {t("patientShell.crisisHelp")}
+        </Link>
       </Card>
     </div>
   );

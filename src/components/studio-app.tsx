@@ -29,6 +29,7 @@ const PatientCheckinPage = dynamic(() => import("@/components/pages/patient-chec
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
 const ClinicianAuthPage = dynamic(() => import("@/components/pages/auth/clinician-auth-page").then((mod) => mod.ClinicianAuthPage), { ssr: false });
 const PatientAuthPage = dynamic(() => import("@/components/pages/auth/patient-auth-page").then((mod) => mod.PatientAuthPage), { ssr: false });
+const CrisisResourcesPage = dynamic(() => import("@/components/pages/crisis-resources-page").then((mod) => mod.CrisisResourcesPage), { ssr: false });
 const RuntimeInspectorPage = dynamic(() => import("@/components/pages/runtime-inspector-page").then((mod) => mod.RuntimeInspectorPage), { ssr: false });
 const RuntimeEscalationsPage = dynamic(() => import("@/components/pages/runtime-escalations-page").then((mod) => mod.RuntimeEscalationsPage), { ssr: false });
 const RuntimeParticipantPage = dynamic(() => import("@/components/pages/runtime-participant-page").then((mod) => mod.RuntimeParticipantPage), { ssr: false });
@@ -77,6 +78,10 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname === "/signup" || pathname === "/signup/", Page: ClinicianAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/login"), Page: PatientAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/signup"), Page: PatientAuthPage, audience: "public" },
+  // Crisis resources must never sit behind a login wall -- reachable
+  // without an account, from every patient-facing page and both auth
+  // screens (see patient-shell.tsx / auth-form.tsx).
+  { matches: (pathname) => pathname === "/crisis" || pathname === "/crisis/", Page: CrisisResourcesPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/admin/users"), Page: AdminUsersPage, audience: "admin" },
   // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
   // before the generic "/patient" (singular, patient-portal) matchers below.
