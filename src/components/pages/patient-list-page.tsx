@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { MoodCheckinWidget } from "@/components/pages/mood-checkin-widget";
+import { UpcomingAppointmentsCard } from "@/components/pages/upcoming-appointments-card";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { listRuntimeSessionsForParticipant } from "@/lib/api/runtime-session-api";
 import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
@@ -76,6 +77,7 @@ export function PatientListPage() {
             </div>
           </div>
         </Card>
+        {participant && <UpcomingAppointmentsCard participantId={participant.id} />}
         {participant && <MoodCheckinWidget participantId={participant.id} />}
         {!sessions.length && <Card><EmptyState title={t("patientPortal.noSessions.title")} description={t("patientPortal.noSessions.description")} /></Card>}
         <div className="space-y-5">
