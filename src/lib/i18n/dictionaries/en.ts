@@ -392,6 +392,7 @@ const en = {
         title: "Email reminders",
         sessionReminders: "Remind me if I haven't continued a session in a while",
         homeworkReminders: "Remind me about unfinished homework",
+        newMessages: "Email me when my care team sends a message",
       },
       save: "Save profile",
     },

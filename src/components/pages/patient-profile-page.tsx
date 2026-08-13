@@ -42,6 +42,7 @@ export function PatientProfilePage() {
   const [sensitiveMemoryAllowed, setSensitiveMemoryAllowed] = useState(false);
   const [sessionRemindersEnabled, setSessionRemindersEnabled] = useState(true);
   const [homeworkRemindersEnabled, setHomeworkRemindersEnabled] = useState(true);
+  const [newMessagesEnabled, setNewMessagesEnabled] = useState(true);
 
   useEffect(() => {
     if (!participantQuery.data) return;
@@ -54,6 +55,7 @@ export function PatientProfilePage() {
     // Absent means enabled -- see RuntimeParticipant.notificationPreferences's doc comment.
     setSessionRemindersEnabled(participantQuery.data.notificationPreferences?.sessionReminders !== false);
     setHomeworkRemindersEnabled(participantQuery.data.notificationPreferences?.homeworkReminders !== false);
+    setNewMessagesEnabled(participantQuery.data.notificationPreferences?.newMessages !== false);
   }, [participantQuery.data]);
 
   const profileMutation = useMutation({
@@ -69,6 +71,7 @@ export function PatientProfilePage() {
       await updateNotificationPreferences(participantQuery.data.id, {
         sessionReminders: sessionRemindersEnabled,
         homeworkReminders: homeworkRemindersEnabled,
+        newMessages: newMessagesEnabled,
       });
     },
     onSuccess: async () => {
@@ -161,6 +164,7 @@ export function PatientProfilePage() {
               <div className="grid gap-3 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-secondary">
                 <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.sessionReminders")}</span><input type="checkbox" checked={sessionRemindersEnabled} onChange={(event) => setSessionRemindersEnabled(event.target.checked)} /></label>
                 <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.homeworkReminders")}</span><input type="checkbox" checked={homeworkRemindersEnabled} onChange={(event) => setHomeworkRemindersEnabled(event.target.checked)} /></label>
+                <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.newMessages")}</span><input type="checkbox" checked={newMessagesEnabled} onChange={(event) => setNewMessagesEnabled(event.target.checked)} /></label>
               </div>
             </div>
             <Button loading={profileMutation.isPending} onClick={() => profileMutation.mutate()}>{t("patientProfile.edit.save")}</Button>

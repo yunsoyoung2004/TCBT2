@@ -63,6 +63,12 @@ export interface RuntimeParticipant {
   notificationPreferences?: {
     sessionReminders?: boolean;
     homeworkReminders?: boolean;
+    /** New-message-from-clinician emails (src/app/api/clinician-messages/
+     * store/route.ts). Absent means enabled -- same convention as the two
+     * above. Only covers messages the patient RECEIVES; a patient sending
+     * a message always notifies the clinician, that's not theirs to opt
+     * out of. */
+    newMessages?: boolean;
   };
   consent: {
     memoryStorageAllowed: boolean;

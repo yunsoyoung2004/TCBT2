@@ -163,7 +163,7 @@ export async function updateParticipantProfile(
  * this does and doesn't cover. */
 export async function updateNotificationPreferences(
   participantId: string,
-  patch: { sessionReminders?: boolean; homeworkReminders?: boolean },
+  patch: { sessionReminders?: boolean; homeworkReminders?: boolean; newMessages?: boolean },
 ) {
   const participant = await getParticipant(participantId);
   if (!participant) throw new Error("Participant not found");

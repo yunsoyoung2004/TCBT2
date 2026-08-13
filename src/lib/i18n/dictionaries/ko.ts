@@ -392,6 +392,7 @@ const ko = {
         title: "이메일 알림",
         sessionReminders: "세션을 오래 이어가지 않으면 알려주기",
         homeworkReminders: "끝내지 않은 과제 알려주기",
+        newMessages: "담당 의료진이 메시지를 보내면 이메일로 알려주기",
       },
       save: "프로필 저장",
     },
