@@ -59,6 +59,30 @@ export function pickCurrentSession(sessions: RuntimeSession[]): RuntimeSession |
   return active ?? sorted[0];
 }
 
+/** Days between `value` and now -- no relative-time utility existed anywhere
+ * in this codebase before this (confirmed by search), so this is deliberately
+ * minimal (no dayjs/date-fns dependency for one calculation). Used by the
+ * "needs attention" dashboard section to flag participants who've gone
+ * quiet, not to render any user-facing calendar math. */
+export function daysSince(value?: string): number | undefined {
+  if (!value) return undefined;
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return undefined;
+  return Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+}
+
+const SEVERITY_RANK: Record<SafetyEvent["severity"], number> = { low: 1, medium: 2, high: 3 };
+
+/** The highest severity among a participant's still-open safety events, or
+ * undefined if they have none -- `hasOpenSafetyEvent` (below) collapses this
+ * to a boolean, which is enough for the plain monitoring-status badge but
+ * loses exactly what a "needs attention, most urgent first" sort needs. */
+export function maxOpenSeverity(safetyEvents: SafetyEvent[], participantId: string): SafetyEvent["severity"] | undefined {
+  const open = safetyEvents.filter((event) => event.participantId === participantId && isOpenSafetyEvent(event));
+  if (!open.length) return undefined;
+  return open.reduce<SafetyEvent["severity"]>((worst, event) => (SEVERITY_RANK[event.severity] > SEVERITY_RANK[worst] ? event.severity : worst), open[0].severity);
+}
+
 export function summarizeParticipant(participantId: string, sessions: RuntimeSession[], safetyEvents: SafetyEvent[], participantUpdatedAt?: string): ParticipantMonitoringSummary {
   const ownSessions = sessions.filter((session) => session.participantId === participantId);
   const currentSession = pickCurrentSession(ownSessions);

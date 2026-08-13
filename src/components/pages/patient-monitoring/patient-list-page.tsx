@@ -10,10 +10,14 @@ import { useT } from "@/lib/i18n/context";
 import { listRuntimeParticipants } from "@/lib/api/participant-api";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
+import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
+import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
 import {
+  daysSince,
   findSessionTitle,
   findStepTitle,
+  maxOpenSeverity,
   summarizeParticipant,
   type MonitoringStatus,
   type ParticipantMonitoringSummary,
@@ -28,6 +32,12 @@ const STATUS_TONE: Record<MonitoringStatus, "primary" | "warning" | "critical" |
   notStarted: "neutral",
 };
 
+// "Needs attention" sort inputs (see needsAttentionRows below) -- module
+// scope, not component-local, so the useMemo below doesn't need them in its
+// dependency array (they never change).
+const STALE_DAYS_THRESHOLD = 7;
+const SEVERITY_RANK = { high: 3, medium: 2, low: 1 } as const;
+
 function formatTimestamp(value?: string) {
   if (!value) return "—";
   return new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -36,13 +46,20 @@ function formatTimestamp(value?: string) {
 export function PatientListPage() {
   const { t } = useT();
   const participantsQuery = useQuery({ queryKey: ["patient-monitoring-participants"], queryFn: listRuntimeParticipants });
-  const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
-  const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents, refetchInterval: 5000 });
+  const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
+  const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents });
+  // Both were refetchInterval: 5000, unfiltered full-table scans on a
+  // dashboard clinicians tend to leave open all day -- directly the
+  // "Neon egress" pattern this migration exists to fix.
+  useRealtimeInvalidate([{ table: "runtime_sessions" }], ["patient-monitoring-sessions"]);
+  useRealtimeInvalidate([{ table: "safety_events" }], ["patient-monitoring-safety-events"]);
 
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | MonitoringStatus>("all");
   const [sessionFilter, setSessionFilter] = useState<"all" | string>("all");
   const [sortDescending, setSortDescending] = useState(true);
+  const [myPatientsOnly, setMyPatientsOnly] = useState(false);
 
   const isLoading = participantsQuery.isLoading || sessionsQuery.isLoading || safetyQuery.isLoading;
 
@@ -73,12 +90,13 @@ export function PatientListPage() {
       })
       .filter(({ summary }) => statusFilter === "all" || summary.monitoringStatus === statusFilter)
       .filter(({ summary }) => sessionFilter === "all" || summary.currentSession?.sessionDefinitionId === sessionFilter)
+      .filter(({ participant }) => !myPatientsOnly || participant.assignedClinician === user?.id)
       .sort((left, right) => {
         const leftTime = left.summary.lastActivity ?? "";
         const rightTime = right.summary.lastActivity ?? "";
         return sortDescending ? rightTime.localeCompare(leftTime) : leftTime.localeCompare(rightTime);
       });
-  }, [rows, search, statusFilter, sessionFilter, sortDescending]);
+  }, [rows, search, statusFilter, sessionFilter, sortDescending, myPatientsOnly, user?.id]);
 
   const summaryCounts = useMemo(() => {
     const counts: Record<MonitoringStatus, number> = { inProgress: 0, paused: 0, needsReview: 0, completed: 0, notStarted: 0 };
@@ -88,12 +106,54 @@ export function PatientListPage() {
     return counts;
   }, [rows]);
 
+  // Reuses getSafetyDashboardData's underlying data (safetyQuery, already
+  // fetched above) rather than a new query -- just re-sorted by what
+  // actually needs a clinician's attention first (open safety severity,
+  // then how long a participant has gone quiet) instead of the main list's
+  // single lastActivity-only sort.
+  const needsAttentionRows = useMemo(() => {
+    const safetyEvents = safetyQuery.data ?? [];
+    return rows
+      .map((row) => ({
+        ...row,
+        severity: maxOpenSeverity(safetyEvents, row.participant.id),
+        staleDays: daysSince(row.summary.lastActivity),
+      }))
+      .filter((row) => row.severity || (row.staleDays ?? 0) >= STALE_DAYS_THRESHOLD)
+      .sort((left, right) => {
+        const severityDiff = (right.severity ? SEVERITY_RANK[right.severity] : 0) - (left.severity ? SEVERITY_RANK[left.severity] : 0);
+        if (severityDiff !== 0) return severityDiff;
+        return (right.staleDays ?? 0) - (left.staleDays ?? 0);
+      })
+      .slice(0, 8);
+  }, [rows, safetyQuery.data]);
+
   if (isLoading) return <AppShell><PageSkeleton /></AppShell>;
 
   return (
     <AppShell>
       <PageHeader eyebrow="Clinician" title={t("patientMonitoring.title")} description="Caseload overview across active, paused, and completed protocol sessions." />
       <div className="space-y-4 p-4 lg:p-6">
+        {needsAttentionRows.length > 0 && (
+          <Card className="p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-text-secondary">{t("patientMonitoring.needsAttention.title")}</div>
+            <div className="space-y-1.5">
+              {needsAttentionRows.map(({ participant, staleDays, severity }) => (
+                <Link
+                  key={participant.id}
+                  href={`/patients/${participant.id}`}
+                  className="flex items-center justify-between gap-3 rounded-panel px-2 py-1.5 text-sm hover:bg-surface-hover"
+                >
+                  <span className="min-w-0 truncate font-medium text-text-primary">{participant.alias}</span>
+                  <span className="flex shrink-0 gap-2">
+                    {severity && <Badge tone={severity === "high" ? "critical" : severity === "medium" ? "warning" : "neutral"}>{t(`patientMonitoring.severity.${severity}`)}</Badge>}
+                    {(staleDays ?? 0) >= 7 && <Badge tone="neutral">{t("patientMonitoring.needsAttention.staleDays", { count: staleDays ?? 0 })}</Badge>}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
         {/* Desktop/tablet (>=640px): unchanged 4-card grid. */}
         <div className="hidden grid-cols-2 gap-3 sm:grid lg:grid-cols-4">
           <SummaryStat label={t("patientMonitoring.summary.inProgress")} value={summaryCounts.inProgress} tone="primary" />
@@ -142,6 +202,17 @@ export function PatientListPage() {
             >
               <ArrowUpDown className="h-3.5 w-3.5" />
               {t("patientMonitoring.sortByLastActivity")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMyPatientsOnly((value) => !value)}
+              aria-pressed={myPatientsOnly}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-panel border px-3 text-xs font-medium hover:bg-surface-hover lg:w-40",
+                myPatientsOnly ? "border-clinical-blue bg-clinical-blue-light text-clinical-blue" : "border-border bg-surface text-text-secondary",
+              )}
+            >
+              {t("patientMonitoring.myPatientsOnly")}
             </button>
           </div>
         </Card>

@@ -21,7 +21,7 @@
 // the participant themselves) but should not be treated as equivalent to a
 // real turn's validation until that's addressed.
 
-import { getRuntimeSession, listRuntimeSessions } from "@/lib/api/runtime-session-api";
+import { getRuntimeSession, listRuntimeSessions, listRuntimeSessionsForParticipant } from "@/lib/api/runtime-session-api";
 import { updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { TBCT_SOURCE_TEXT_HASH } from "@/lib/protocol/tbct-source-text.generated";
 import { getWorksheetBindings, hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
@@ -36,7 +36,7 @@ import {
   replaceWorksheetCollectionItems,
   upsertWorksheetFieldValue,
 } from "@/lib/repositories/worksheet-repository";
-import type { WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetHistoryRow, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
+import type { ProgressSeries, SessionProgressCard, WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetHistoryRow, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
 
 const TEMPLATE_VERSION = 1;
 
@@ -214,6 +214,102 @@ export async function getListScoreHistory(input: {
     rows,
     totalsByRunId,
   };
+}
+
+/**
+ * Which before/after belief-%/intensity-% checkpoint pairs to chart per
+ * session, for the patient-facing progress graph (patient-profile-page.tsx).
+ * Field-audited against each session's actual worksheet bindings -- not
+ * every session has a genuine multi-point pair (e.g. S03/S04 only capture
+ * emotion intensity once, at the start, so intensity isn't charted for
+ * those two; S08 has a 6-point belief chain but no intensity field at all).
+ * `checkpoint` is a stable key the UI resolves through i18n, not a
+ * pre-localized label (see ProgressPoint's own doc comment).
+ */
+const PROGRESS_SERIES_PLAN: Record<string, { seriesKey: string; checkpoints: { fieldKey: string; checkpoint: string }[] }[]> = {
+  "tbct-s03": [
+    {
+      seriesKey: "belief",
+      checkpoints: [
+        { fieldKey: "automaticThoughtBeliefPercent", checkpoint: "before" },
+        { fieldKey: "revisedAutomaticThoughtBeliefPercent", checkpoint: "after" },
+      ],
+    },
+  ],
+  "tbct-s04": [
+    {
+      seriesKey: "belief",
+      checkpoints: [
+        { fieldKey: "patientAutomaticThoughtBeliefPercent", checkpoint: "before" },
+        { fieldKey: "revisedPatientAutomaticThoughtBeliefPercent", checkpoint: "after" },
+      ],
+    },
+  ],
+  "tbct-s05": [
+    {
+      seriesKey: "guiltBelief",
+      checkpoints: [
+        { fieldKey: "guiltBeliefBaseline", checkpoint: "start" },
+        { fieldKey: "guiltBeliefFinal", checkpoint: "now" },
+      ],
+    },
+    {
+      seriesKey: "shameIntensity",
+      checkpoints: [
+        { fieldKey: "shameIntensityBaseline", checkpoint: "start" },
+        { fieldKey: "shameIntensityFinal", checkpoint: "now" },
+      ],
+    },
+  ],
+  "tbct-s08": [
+    {
+      seriesKey: "belief",
+      checkpoints: [
+        { fieldKey: "coreBeliefBaselinePercent", checkpoint: "start" },
+        { fieldKey: "defendantPostProsecutionBeliefPercent", checkpoint: "afterProsecution" },
+        { fieldKey: "defendantPostDefenseBeliefPercent", checkpoint: "afterDefense" },
+        { fieldKey: "defendantPostRebuttalBeliefPercent", checkpoint: "afterRebuttal" },
+        { fieldKey: "defendantPostVerdictBeliefPercent", checkpoint: "afterVerdict" },
+        { fieldKey: "originalChargeFinalBeliefPercent", checkpoint: "final" },
+      ],
+    },
+  ],
+};
+
+/** Patient-facing "your progress" view: one card per session that has at
+ * least one two-point (or longer) checkpoint series filled in, skipping
+ * checkpoints the participant hasn't reached yet rather than fabricating a
+ * zero. When a participant has more than one run of the same session, the
+ * most recently completed run is preferred (falling back to the most
+ * recently updated run of any status, so an in-progress session still shows
+ * whatever's been filled in so far). */
+export async function getPatientProgressSeries(participantId: string): Promise<SessionProgressCard[]> {
+  const sessions = await listRuntimeSessionsForParticipant(participantId);
+  const cards: SessionProgressCard[] = [];
+  for (const [sessionDefinitionId, seriesPlans] of Object.entries(PROGRESS_SERIES_PLAN)) {
+    const runs = sessions
+      .filter((session) => session.sessionDefinitionId === sessionDefinitionId)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    if (!runs.length) continue;
+    const preferredRun = runs.find((run) => run.status === "completed") ?? runs[0];
+    const view = await getWorksheetView(preferredRun.id, sessionDefinitionId);
+    if (!view) continue;
+    const valueByFieldKey = new Map(view.fields.map((field) => [field.definition.worksheetFieldKey, field.value?.value]));
+
+    const series: ProgressSeries[] = [];
+    for (const plan of seriesPlans) {
+      const points = plan.checkpoints
+        .map(({ fieldKey, checkpoint }) => {
+          const raw = valueByFieldKey.get(fieldKey);
+          const value = raw === undefined || raw === null ? NaN : Number(raw);
+          return { checkpoint, value };
+        })
+        .filter((point) => Number.isFinite(point.value));
+      if (points.length >= 2) series.push({ seriesKey: plan.seriesKey, points });
+    }
+    if (series.length) cards.push({ sessionDefinitionId, series });
+  }
+  return cards;
 }
 
 /** Participant confirms a field as shown -- the only status transition the

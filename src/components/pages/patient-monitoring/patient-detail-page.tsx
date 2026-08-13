@@ -23,11 +23,13 @@ import {
   textareaClass,
 } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
-import { getRuntimeParticipant } from "@/lib/api/participant-api";
+import { assignClinicianToParticipant, getRuntimeParticipant, resolveClinicianEmail } from "@/lib/api/participant-api";
+import { useAuth } from "@/lib/auth/auth-context";
 import { getRuntimeSession, listCanonicalTestSessions, listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import { addClinicianNote, deleteClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
+import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import {
   deriveMonitoringStatus,
   findSessionTitle,
@@ -82,6 +84,7 @@ export function PatientMonitoringDetailPage() {
     "";
 
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const reducedMotion = useReducedMotionPreference();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
@@ -95,6 +98,12 @@ export function PatientMonitoringDetailPage() {
     queryFn: () => getRuntimeParticipant(participantId),
     enabled: Boolean(participantId),
   });
+  const assignedClinicianId = participantQuery.data?.assignedClinician;
+  const assignedClinicianEmailQuery = useQuery({
+    queryKey: ["clinician-email", assignedClinicianId],
+    queryFn: () => resolveClinicianEmail(assignedClinicianId!),
+    enabled: Boolean(assignedClinicianId),
+  });
 
   const participant = participantQuery.data;
   const sessionIds = participant?.runtimeSessionIds ?? [];
@@ -103,12 +112,18 @@ export function PatientMonitoringDetailPage() {
     queryKey: ["patient-monitoring-safety-events", participantId],
     queryFn: getSafetyEvents,
     enabled: Boolean(participantId),
-    refetchInterval: 5000,
   });
+  // Was refetchInterval: 5000 -- getSafetyEvents() is unscoped (every
+  // participant's events), matching this unfiltered subscription.
+  useRealtimeInvalidate([{ table: "safety_events" }], ["patient-monitoring-safety-events", participantId], Boolean(participantId));
 
   const canonicalSessionsQuery = useQuery({ queryKey: ["patient-monitoring-canonical-sessions"], queryFn: listCanonicalTestSessions });
 
-  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions, refetchInterval: 5000 });
+  const allRuntimeSessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
+  // Was refetchInterval: 5000 -- listRuntimeSessions() is unscoped (the
+  // clinician-facing full roster), so this stays an unfiltered subscription
+  // to the whole table too, same scope as before.
+  useRealtimeInvalidate([{ table: "runtime_sessions" }], ["patient-monitoring-sessions"]);
 
   const summary = useMemo(
     () => summarizeParticipant(participantId, allRuntimeSessionsQuery.data ?? [], safetyQuery.data ?? [], participant?.updatedAt),
@@ -124,8 +139,22 @@ export function PatientMonitoringDetailPage() {
     queryKey: ["patient-monitoring-session-view-detail", effectiveSessionId],
     queryFn: () => getRuntimeSession(effectiveSessionId),
     enabled: Boolean(effectiveSessionId),
-    refetchInterval: 5000,
   });
+  // Was refetchInterval: 5000 -- this was the heaviest polling site in the
+  // app (getRuntimeSession touches 9 tables per tick: sessions/messages/
+  // logs/checkpoints/escalations/provider+validation events/participant/
+  // memory). Subscribing to just the two tables that actually change during
+  // a live turn (the session row itself, and new messages) is enough to
+  // trigger a full authorized refetch of everything else in the same shape
+  // as before.
+  useRealtimeInvalidate(
+    [
+      { table: "runtime_sessions", filter: `id=eq.${effectiveSessionId}` },
+      { table: "runtime_messages", filter: `runtime_session_id=eq.${effectiveSessionId}` },
+    ],
+    ["patient-monitoring-session-view-detail", effectiveSessionId],
+    Boolean(effectiveSessionId),
+  );
 
   // Messages already on screen the first time a session loads (or is switched to)
   // are shown statically; only ones that arrive afterwards stream in.
@@ -210,6 +239,13 @@ export function PatientMonitoringDetailPage() {
       toast.success(t("patientDetail.note.deleteSuccess"));
       setNoteToDelete(null);
       await queryClient.invalidateQueries({ queryKey: ["patient-monitoring-memories", participantId] });
+    },
+  });
+  const assignMutation = useMutation({
+    mutationFn: (clinicianUserId: string | null) => assignClinicianToParticipant(participantId, clinicianUserId),
+    onSuccess: async () => {
+      toast.success(t("patientDetail.assign.success"));
+      await queryClient.invalidateQueries({ queryKey: ["patient-monitoring-participant", participantId] });
     },
   });
 
@@ -561,7 +597,21 @@ export function PatientMonitoringDetailPage() {
                 <SummaryRow label={t("patientDetail.profile.displayName")} value={participant.alias} />
                 <SummaryRow label={t("patientDetail.profile.status")} value={participant.status} />
                 <SummaryRow label={t("patientDetail.profile.enrollmentDate")} value={participant.enrollmentDate ? formatTimestamp(participant.enrollmentDate) : t("common.unknown")} />
-                <SummaryRow label={t("patientDetail.profile.assignedClinician")} value={participant.assignedClinician ?? t("common.unknown")} />
+                <div className="flex items-center justify-between gap-3">
+                  <SummaryRow
+                    label={t("patientDetail.profile.assignedClinician")}
+                    value={participant.assignedClinician ? (assignedClinicianEmailQuery.data ?? t("common.loading")) : t("common.unknown")}
+                  />
+                  {participant.assignedClinician === user?.id ? (
+                    <Button variant="secondary" size="sm" loading={assignMutation.isPending} onClick={() => assignMutation.mutate(null)}>
+                      {t("patientDetail.assign.unassign")}
+                    </Button>
+                  ) : (
+                    <Button variant="secondary" size="sm" loading={assignMutation.isPending} onClick={() => assignMutation.mutate(user?.id ?? null)} disabled={!user?.id}>
+                      {t("patientDetail.assign.assignToMe")}
+                    </Button>
+                  )}
+                </div>
                 <SummaryRow label={t("patientDetail.profile.preferredLanguage")} value={participant.locale} />
                 <SummaryRow label={t("patientDetail.profile.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.profile.completedSessions")} value={String(summary.completedSessionCount)} />

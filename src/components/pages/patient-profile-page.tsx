@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
+import { SessionProgressChart } from "@/components/runtime/session-progress-chart";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
+import { getPatientProgressSeries } from "@/lib/worksheet/worksheet-projection";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -25,6 +27,11 @@ export function PatientProfilePage() {
   const recordQuery = useQuery({
     queryKey: ["patient-record", participantQuery.data?.id],
     queryFn: () => getParticipantRecord(participantQuery.data!.id),
+    enabled: Boolean(participantQuery.data?.id),
+  });
+  const progressQuery = useQuery({
+    queryKey: ["patient-progress-series", participantQuery.data?.id],
+    queryFn: () => getPatientProgressSeries(participantQuery.data!.id),
     enabled: Boolean(participantQuery.data?.id),
   });
   const [alias, setAlias] = useState("");
@@ -91,6 +98,16 @@ export function PatientProfilePage() {
           <div className="mt-2 text-xs text-text-secondary">{t("patientProfile.currentItems.unresolvedHomework", { count: dashboard.homework.filter((item) => item.status === "assigned" || item.status === "in_progress").length })}</div>
         </Card>
       </div>
+      {progressQuery.data && progressQuery.data.length > 0 && (
+        <div className="mt-4">
+          <div className="text-sm font-semibold text-text-primary">{t("patientProfile.progress.title")}</div>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            {progressQuery.data.map((card) => (
+              <SessionProgressChart key={card.sessionDefinitionId} card={card} />
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <div className="text-sm font-semibold text-text-primary">{t("patientProfile.edit.title")}</div>

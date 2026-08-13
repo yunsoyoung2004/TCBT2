@@ -8,6 +8,7 @@ import { Badge, Button, Card, SectionHeader } from "@/components/ui/primitives";
 import { confirmWorksheetField, editWorksheetField, getWorksheetView } from "@/lib/worksheet/worksheet-projection";
 import { getComposedWorksheet } from "@/lib/worksheet/composed-worksheet-registry";
 import { QuestCompleteBadge, WorksheetSourceProvider, useJustFilled } from "@/components/runtime/worksheet-renderers/shared";
+import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import { fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import type { WorksheetFieldStatus, WorksheetFieldView } from "@/types/worksheet";
@@ -87,8 +88,21 @@ export function WorksheetPane({
   const worksheetQuery = useQuery({
     queryKey,
     queryFn: () => getWorksheetView(runtimeSessionId, sessionDefinitionId),
-    refetchInterval: 4000,
   });
+  // Was refetchInterval: 4000 -- this pane is mounted on every active
+  // session screen (both patient chat and clinician Worksheet tab) app-wide,
+  // making it the single most-instantiated polling site by total tick count.
+  // Realtime replaces the timer: a change to this session's worksheet
+  // instance/field-values still triggers the exact same authorized refetch,
+  // just on a websocket event instead of every 4 seconds regardless of
+  // whether anything changed.
+  useRealtimeInvalidate(
+    [
+      { table: "worksheet_instances", filter: `runtime_session_id=eq.${runtimeSessionId}` },
+      { table: "worksheet_field_values" },
+    ],
+    queryKey,
+  );
 
   const confirmMutation = useMutation({
     mutationFn: (worksheetFieldKey: string) => confirmWorksheetField(runtimeSessionId, sessionDefinitionId, worksheetFieldKey),

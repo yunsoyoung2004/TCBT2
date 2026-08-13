@@ -125,6 +125,7 @@ const ko = {
     statusFilter: "상태",
     sessionFilter: "세션",
     sortByLastActivity: "최근 활동순",
+    myPatientsOnly: "내 환자만",
     columns: {
       participant: "참여자",
       currentSession: "현재 세션",
@@ -144,6 +145,15 @@ const ko = {
       paused: "일시중지",
       needsReview: "검토 필요",
       completed: "완료",
+    },
+    needsAttention: {
+      title: "주의 필요",
+      staleDays: "{count}일간 활동 없음",
+    },
+    severity: {
+      high: "높음",
+      medium: "중간",
+      low: "낮음",
     },
   },
   patientDetail: {
@@ -199,6 +209,11 @@ const ko = {
     reasons: {
       pause: "환자 모니터링에서 임상의가 일시중지함.",
       end: "환자 모니터링에서 임상의가 종료함.",
+    },
+    assign: {
+      assignToMe: "내가 담당하기",
+      unassign: "담당 해제",
+      success: "담당자가 변경되었습니다",
     },
     profile: {
       participantId: "참여자 ID",
@@ -312,6 +327,31 @@ const ko = {
       save: "프로필 저장",
     },
     snapshot: { title: "저장된 메모리 스냅샷", participantRecord: "참여자 레코드", activeMemoryIds: "활성 메모리 ID", latestSummary: "최신 요약", unavailable: "확인 불가", none: "없음" },
+    progress: {
+      title: "나의 변화",
+      checkpoints: {
+        before: "이전",
+        after: "이후",
+        start: "시작",
+        now: "지금",
+        afterProsecution: "검사측 주장 후",
+        afterDefense: "변호측 주장 후",
+        afterRebuttal: "반박 후",
+        afterVerdict: "판결 후",
+        final: "최종",
+      },
+      series: {
+        belief: "믿음 정도",
+        guiltBelief: "죄책감 믿음",
+        shameIntensity: "수치심 강도",
+      },
+      sessions: {
+        s03: "S03 · 개인 내적 사고 기록",
+        s04: "S04 · 대인관계 사고 기록",
+        s05: "S05 · 참여도 그리드",
+        s08: "S08 · 재판",
+      },
+    },
   },
   patientMemory: {
     title: "메모리",

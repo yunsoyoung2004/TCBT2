@@ -125,6 +125,7 @@ const en = {
     statusFilter: "Status",
     sessionFilter: "Session",
     sortByLastActivity: "Last activity",
+    myPatientsOnly: "My patients only",
     columns: {
       participant: "Participant",
       currentSession: "Current Session",
@@ -144,6 +145,15 @@ const en = {
       paused: "Paused",
       needsReview: "Needs review",
       completed: "Completed",
+    },
+    needsAttention: {
+      title: "Needs attention",
+      staleDays: "{count}d no activity",
+    },
+    severity: {
+      high: "High",
+      medium: "Medium",
+      low: "Low",
     },
   },
   patientDetail: {
@@ -199,6 +209,11 @@ const en = {
     reasons: {
       pause: "Paused by clinician from Patient Monitoring.",
       end: "Ended by clinician from Patient Monitoring.",
+    },
+    assign: {
+      assignToMe: "Assign to me",
+      unassign: "Unassign",
+      success: "Assignment updated",
     },
     profile: {
       participantId: "Participant ID",
@@ -312,6 +327,31 @@ const en = {
       save: "Save profile",
     },
     snapshot: { title: "Saved memory snapshot", participantRecord: "Participant record", activeMemoryIds: "Active memory IDs", latestSummary: "Latest summary", unavailable: "Unavailable", none: "None" },
+    progress: {
+      title: "Your progress",
+      checkpoints: {
+        before: "Before",
+        after: "After",
+        start: "Start",
+        now: "Now",
+        afterProsecution: "After prosecution",
+        afterDefense: "After defense",
+        afterRebuttal: "After rebuttal",
+        afterVerdict: "After verdict",
+        final: "Final",
+      },
+      series: {
+        belief: "Belief",
+        guiltBelief: "Guilt belief",
+        shameIntensity: "Shame intensity",
+      },
+      sessions: {
+        s03: "S03 · Intrapersonal Thought Record",
+        s04: "S04 · Interpersonal Thought Record",
+        s05: "S05 · Participation Grid",
+        s08: "S08 · Trial One",
+      },
+    },
   },
   patientMemory: {
     title: "Memory",

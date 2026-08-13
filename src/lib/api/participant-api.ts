@@ -158,6 +158,27 @@ export async function updateParticipantProfile(
   return next;
 }
 
+/** Resolves a clinician's auth user id (RuntimeParticipant.assignedClinician)
+ * to their email for display -- see src/app/api/clinicians/resolve-email/route.ts. */
+export async function resolveClinicianEmail(userId: string): Promise<string | null> {
+  const response = await fetch("/api/clinicians/resolve-email", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.ok) return null;
+  return body.email ?? null;
+}
+
+/** Assigns (or reassigns) the calling clinician to a participant, stored as
+ * their Supabase Auth user id -- matches the RuntimeParticipant.authUserId
+ * convention (an id, not an email; see sql/008), not a display value. Used
+ * by the "Assign to me" button; pass `null` to unassign. */
+export async function assignClinicianToParticipant(participantId: string, clinicianUserId: string | null) {
+  return updateParticipant(participantId, { assignedClinician: clinicianUserId ?? undefined });
+}
+
 export async function getParticipantConsentHistory(participantId: string) {
   return listParticipantConsentEvents(participantId);
 }

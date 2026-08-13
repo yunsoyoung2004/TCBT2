@@ -191,3 +191,23 @@ export interface WorksheetHistoryView {
   rows: WorksheetHistoryRow[];
   totalsByRunId: Record<string, number | null>;
 }
+
+/** Patient-facing progress-over-time view (see
+ * getPatientProgressSeries in worksheet-projection.ts). Deliberately raw --
+ * seriesKey/checkpoint are stable keys the UI resolves through i18n, not
+ * pre-localized strings, matching how every other clinical-facing type in
+ * this file stays locale-agnostic. */
+export interface ProgressPoint {
+  checkpoint: string;
+  value: number;
+}
+
+export interface ProgressSeries {
+  seriesKey: string;
+  points: ProgressPoint[];
+}
+
+export interface SessionProgressCard {
+  sessionDefinitionId: string;
+  series: ProgressSeries[];
+}

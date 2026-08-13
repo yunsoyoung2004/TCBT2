@@ -4,6 +4,8 @@ import { createRuntimeCheckpoint, getRuntimeSession, setRuntimeSessionStatus } f
 import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
 import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/session-summary-api";
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
+import { getRuntimeParticipant } from "@/lib/api/participant-api";
+import { sendSafetyAlertEmail } from "@/lib/notifications/send-safety-alert";
 import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
@@ -1167,6 +1169,23 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       await updateRuntimeSessionRecord(sessionId, { status: "escalated", escalationIds: [...session.escalationIds, escalation.id] });
       await patchSafetyEvent(safetyEvent.id, { linkedEscalationId: escalation.id }, "Linked escalation to safety event");
       await saveRuntimeLog(makeLog(sessionId, "escalation", "completed", "Clinician escalation created", { nodeId: currentNode.id }));
+      if (escalation.severity === "high") {
+        // Fire-and-forget: never awaited on the patient's turn-submission path
+        // (see sendSafetyAlertEmail's own doc comment) -- a slow/failed email
+        // must never delay or fail this response.
+        void getRuntimeParticipant(session.participantId)
+          .then((participant) =>
+            sendSafetyAlertEmail({
+              participantId: session.participantId,
+              participantAlias: participant?.alias ?? session.participantId,
+              severity: "high",
+              triggerSummary: escalation.triggerSummary,
+              assignedClinicianUserId: participant?.assignedClinician,
+              locale: session.locale,
+            }),
+          )
+          .catch((error) => console.error("[runtime-execution-api] failed to dispatch safety alert email", error));
+      }
       await createRuntimeCheckpoint(sessionId);
       return {
         sessionId,

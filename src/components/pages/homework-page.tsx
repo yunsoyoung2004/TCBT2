@@ -6,6 +6,7 @@ import { PatientShell } from "@/components/runtime/patient-shell";
 import { Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { ensureHomeworkForSession } from "@/lib/api/homework-api";
+import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import { HOMEWORK_LABEL_BY_SESSION, hasHomeworkActivity } from "@/types/homework";
 import { useT } from "@/lib/i18n/context";
 import { WeeklyExamplesHomework } from "@/components/pages/homework/s01-weekly-examples";
@@ -37,8 +38,13 @@ export function HomeworkPage() {
     queryKey: ["homework-record", sessionId],
     queryFn: () => (session ? ensureHomeworkForSession(session) : Promise.resolve(undefined)),
     enabled: Boolean(session),
-    refetchInterval: 4000,
   });
+  // Was refetchInterval: 4000 -- the one polling site that was also a write
+  // every tick (ensureHomeworkForSession does INSERT ... ON CONFLICT DO
+  // NOTHING plus two SELECTs). ensure is idempotent, so running it once at
+  // mount and again only when this session's homework_records row actually
+  // changes is equivalent, minus the repeated write attempts every 4s.
+  useRealtimeInvalidate([{ table: "homework_records", filter: `runtime_session_id=eq.${sessionId}` }], ["homework-record", sessionId], Boolean(session));
 
   if (sessionQuery.isLoading || homeworkQuery.isLoading) return <PatientShell title={t("homework.loading")}><PageSkeleton /></PatientShell>;
   if (!session || !hasHomeworkActivity(session.sessionDefinitionId) || !homeworkQuery.data) {
