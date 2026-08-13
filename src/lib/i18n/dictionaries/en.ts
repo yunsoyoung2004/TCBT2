@@ -312,6 +312,18 @@ const en = {
     emergency: "Emergency (police/ambulance)",
     outsideKorea: "Outside Korea? Please contact your local emergency number or a crisis line in your country -- these numbers only connect within Korea.",
   },
+  moodCheckin: {
+    prompt: "How are you feeling today?",
+    streak: "{count}-day streak",
+    todayDone: "Thanks for checking in today.",
+    mood: {
+      "1": "Very bad",
+      "2": "Bad",
+      "3": "Okay",
+      "4": "Good",
+      "5": "Very good",
+    },
+  },
   patientPortal: {
     title: "Sessions",
     profile: "Profile",
