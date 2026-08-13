@@ -244,6 +244,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Globe className="h-4 w-4" />
               </button>
             )}
+            {!collapsed && (
+              <Link href="/account" className="block px-1 text-xs text-blue-100 hover:underline">
+                {t("nav.account")}
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => void handleLogout()}

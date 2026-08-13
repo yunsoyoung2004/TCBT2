@@ -20,6 +20,7 @@ const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patie
 const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
 const AdminUsersPage = dynamic(() => import("@/components/pages/admin-users-page").then((mod) => mod.AdminUsersPage), { ssr: false });
 const PatientSessionReportPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-session-report-page").then((mod) => mod.PatientSessionReportPage), { ssr: false });
+const ClinicianAccountPage = dynamic(() => import("@/components/pages/clinician-account-page").then((mod) => mod.ClinicianAccountPage), { ssr: false });
 const PatientNewSessionPage = dynamic(() => import("@/components/pages/patient-new-session-page").then((mod) => mod.PatientNewSessionPage), { ssr: false });
 const PatientSessionPage = dynamic(() => import("@/components/pages/patient-session-page").then((mod) => mod.PatientSessionPage), { ssr: false });
 const PatientSessionCompletePage = dynamic(() => import("@/components/pages/patient-session-complete-page").then((mod) => mod.PatientSessionCompletePage), { ssr: false });
@@ -88,6 +89,7 @@ const studioRoutes: StudioRoute[] = [
   // before the generic "/patient" (singular, patient-portal) matchers below.
   // The report route is checked first since it's the more specific path.
   { matches: (pathname) => /^\/patients\/[^/]+\/report\/[^/]+\/?$/.test(pathname), Page: PatientSessionReportPage },
+  { matches: (pathname) => pathname === "/account" || pathname === "/account/", Page: ClinicianAccountPage },
   { matches: (pathname) => /^\/patients\/[^/]+\/?$/.test(pathname), Page: PatientMonitoringDetailPage },
   { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage, audience: "patient" },

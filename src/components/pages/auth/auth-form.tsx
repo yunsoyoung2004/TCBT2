@@ -20,6 +20,12 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  // Set only when signInWithPassword succeeded but the account has a
+  // verified TOTP factor (see mfa-settings.tsx) -- login isn't complete
+  // until the challenge below is verified too.
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -38,6 +44,20 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
       } else {
         const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) throw loginError;
+        // Password alone only gets the session to aal1. If the account has
+        // a verified TOTP factor, nextLevel comes back aal2 and login
+        // isn't actually complete yet -- pause here for the code instead
+        // of navigating away with a session the app would otherwise treat
+        // as fully authenticated.
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal && aal.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factors?.totp.find((factor: { status: string; id: string }) => factor.status === "verified");
+          if (totpFactor) {
+            setMfaFactorId(totpFactor.id);
+            return;
+          }
+        }
         router.push(redirectTo);
       }
     } catch (caught) {
@@ -49,6 +69,54 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
       setSubmitting(false);
     }
   };
+
+  const handleMfaSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!mfaFactorId) return;
+    setSubmitting(true);
+    setMfaError(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+      if (challengeError) throw challengeError;
+      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.trim() });
+      if (verifyError) throw verifyError;
+      router.push(redirectTo);
+    } catch {
+      setMfaError(t("mfa.challengeFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (mfaFactorId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
+        <Card className="w-full max-w-sm p-6">
+          <h1 className="text-base font-semibold text-text-primary">{t("mfa.challengeTitle")}</h1>
+          <form className="mt-5 grid gap-4" onSubmit={handleMfaSubmit}>
+            <Field label={t("mfa.codeLabel")}>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                maxLength={6}
+                className={inputClass}
+                placeholder={t("mfa.challengePlaceholder")}
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+              />
+            </Field>
+            {mfaError && <p className="text-xs text-critical">{mfaError}</p>}
+            <Button type="submit" loading={submitting} disabled={!mfaCode.trim()} className="w-full justify-center">
+              {t("mfa.challengeSubmit")}
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   if (confirmSent) {
     return (

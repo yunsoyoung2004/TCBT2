@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { SessionProgressChart } from "@/components/runtime/session-progress-chart";
+import { MfaSettings } from "@/components/pages/auth/mfa-settings";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
@@ -178,6 +179,7 @@ export function PatientProfilePage() {
             <div>{t("patientProfile.snapshot.latestSummary")}: {recordQuery.data?.latestSummaryId ?? t("patientProfile.snapshot.none")}</div>
           </div>
         </Card>
+        <MfaSettings />
       </div>
     </PatientShell>
   );
