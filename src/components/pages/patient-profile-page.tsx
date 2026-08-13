@@ -86,7 +86,17 @@ export function PatientProfilePage() {
   const dashboard = dashboardQuery.data;
   if (!participant || !dashboard) return <PatientShell title={t("patientProfile.title")}><Card><EmptyState title={t("patientProfile.notFound")} /></Card></PatientShell>;
   return (
-    <PatientShell title={t("patientProfile.title")} sessionLabel={participant.alias} progressLabel={participant.status} actions={<Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientProfile.openMemory")}</Button></Link>}>
+    <PatientShell
+      title={t("patientProfile.title")}
+      sessionLabel={participant.alias}
+      progressLabel={participant.status}
+      actions={
+        <>
+          <Link href="/patient/checkin"><Button variant="secondary">{t("patientProfile.openCheckin")}</Button></Link>
+          <Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientProfile.openMemory")}</Button></Link>
+        </>
+      }
+    >
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4">
           <div className="text-sm font-semibold text-text-primary">{t("patientProfile.consent.title")}</div>

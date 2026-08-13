@@ -130,6 +130,10 @@ const ko = {
       title: "전체 환자 변화 (평균)",
       sampleSize: "n={count}",
     },
+    cohortAssessments: {
+      title: "선별검사 체크인 (최근 평균 점수)",
+      selfHarmFlagCount: "자해 위험 신호 {count}건",
+    },
     columns: {
       participant: "참여자",
       currentSession: "현재 세션",
@@ -153,6 +157,7 @@ const ko = {
     needsAttention: {
       title: "주의 필요",
       staleDays: "{count}일간 활동 없음",
+      selfHarmFlag: "자해 위험 신호",
     },
     severity: {
       high: "높음",
@@ -219,6 +224,11 @@ const ko = {
       assignToMe: "내가 담당하기",
       unassign: "담당 해제",
       success: "담당자가 변경되었습니다",
+    },
+    assessments: {
+      title: "선별검사 체크인",
+      noneYet: "아직 체크인 기록이 없습니다.",
+      selfHarmFlag: "자해 위험 신호",
     },
     profile: {
       participantId: "참여자 ID",
@@ -316,6 +326,7 @@ const ko = {
     title: "참여자 프로필",
     notFound: "참여자를 찾을 수 없습니다",
     openMemory: "메모리 열기",
+    openCheckin: "설문 체크인",
     saved: "프로필이 저장되었습니다",
     saveFailed: "프로필 저장에 실패했습니다",
     consent: { title: "동의", memoryStorage: "메모리 저장", crossSession: "세션 간 재사용", sensitiveMemory: "민감 메모리" },
@@ -373,6 +384,22 @@ const ko = {
     consentOptions: { storeMemory: "메모리 저장", reuseAcrossSessions: "세션 간 재사용", allowSensitiveMemory: "민감 메모리 허용" },
     noVisibleMemory: { title: "환자에게 표시되는 메모리가 없습니다", description: "승인된 목표, 선호도, 과제가 여기에 표시됩니다." },
     consentHistory: { title: "최근 동의 변경 내역", none: "아직 동의 변경 내역이 없습니다.", updated: "동의가 업데이트되었습니다", crossSession: "세션 간 재사용", memoryStorage: "메모리 저장", sensitive: "민감 메모리", on: "켜짐", off: "꺼짐" },
+  },
+  patientCheckin: {
+    title: "설문 체크인",
+    start: "시작하기",
+    submit: "제출",
+    submitted: "체크인이 제출되었습니다",
+    submitFailed: "체크인 제출에 실패했습니다",
+    history: "이전 기록",
+    noHistory: "아직 체크인 기록이 없습니다.",
+    severity: {
+      minimal: "최소",
+      mild: "경미",
+      moderate: "중등도",
+      moderately_severe: "중등도-중증",
+      severe: "중증",
+    },
   },
   homework: {
     loading: "불러오는 중…",

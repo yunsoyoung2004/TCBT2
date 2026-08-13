@@ -130,6 +130,10 @@ const en = {
       title: "Cohort outcomes (average change)",
       sampleSize: "n={count}",
     },
+    cohortAssessments: {
+      title: "Screening check-ins (latest average score)",
+      selfHarmFlagCount: "{count} self-harm flag(s)",
+    },
     columns: {
       participant: "Participant",
       currentSession: "Current Session",
@@ -153,6 +157,7 @@ const en = {
     needsAttention: {
       title: "Needs attention",
       staleDays: "{count}d no activity",
+      selfHarmFlag: "Self-harm flag",
     },
     severity: {
       high: "High",
@@ -219,6 +224,11 @@ const en = {
       assignToMe: "Assign to me",
       unassign: "Unassign",
       success: "Assignment updated",
+    },
+    assessments: {
+      title: "Screening check-ins",
+      noneYet: "No check-ins yet.",
+      selfHarmFlag: "Self-harm flag",
     },
     profile: {
       participantId: "Participant ID",
@@ -316,6 +326,7 @@ const en = {
     title: "Participant Profile",
     notFound: "Participant not found",
     openMemory: "Open memory",
+    openCheckin: "Check-in",
     saved: "Profile saved",
     saveFailed: "Failed to save profile",
     consent: { title: "Consent", memoryStorage: "Memory storage", crossSession: "Cross-session use", sensitiveMemory: "Sensitive memory" },
@@ -373,6 +384,22 @@ const en = {
     consentOptions: { storeMemory: "Store memory", reuseAcrossSessions: "Reuse across sessions", allowSensitiveMemory: "Allow sensitive memory" },
     noVisibleMemory: { title: "No patient-visible memory", description: "Approved goals, preferences, and homework will appear here." },
     consentHistory: { title: "Recent consent changes", none: "No consent changes yet.", updated: "Consent updated", crossSession: "Cross-session", memoryStorage: "Memory storage", sensitive: "Sensitive", on: "on", off: "off" },
+  },
+  patientCheckin: {
+    title: "Check-in",
+    start: "Start",
+    submit: "Submit",
+    submitted: "Check-in submitted",
+    submitFailed: "Failed to submit check-in",
+    history: "History",
+    noHistory: "No check-ins yet.",
+    severity: {
+      minimal: "Minimal",
+      mild: "Mild",
+      moderate: "Moderate",
+      moderately_severe: "Moderately severe",
+      severe: "Severe",
+    },
   },
   homework: {
     loading: "Loading…",

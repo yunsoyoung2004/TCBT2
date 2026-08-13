@@ -11,6 +11,7 @@ import { listRuntimeParticipants } from "@/lib/api/participant-api";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
 import { getCohortProgressSummary } from "@/lib/worksheet/worksheet-projection";
+import { listAllStandardizedAssessmentResponses, summarizeCohortAssessments, latestSelfHarmFlaggedParticipantIds } from "@/lib/api/standardized-assessment-api";
 import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,12 @@ export function PatientListPage() {
   // this dashboard doesn't need it to the second); refetches on its own
   // normal staleness schedule.
   const cohortProgressQuery = useQuery({ queryKey: ["patient-monitoring-cohort-progress"], queryFn: getCohortProgressSummary });
+  // One fetch, two derived views (cohort averages + which participants have
+  // a live self-harm flag) -- see summarizeCohortAssessments's own doc
+  // comment for why this isn't two separate cohort-wide reads.
+  const assessmentResponsesQuery = useQuery({ queryKey: ["patient-monitoring-assessment-responses"], queryFn: listAllStandardizedAssessmentResponses });
+  const cohortAssessmentSummary = useMemo(() => summarizeCohortAssessments(assessmentResponsesQuery.data ?? []), [assessmentResponsesQuery.data]);
+  const selfHarmFlaggedParticipantIds = useMemo(() => latestSelfHarmFlaggedParticipantIds(assessmentResponsesQuery.data ?? []), [assessmentResponsesQuery.data]);
   // Both were refetchInterval: 5000, unfiltered full-table scans on a
   // dashboard clinicians tend to leave open all day -- directly the
   // "Neon egress" pattern this migration exists to fix.
@@ -120,19 +127,24 @@ export function PatientListPage() {
   const needsAttentionRows = useMemo(() => {
     const safetyEvents = safetyQuery.data ?? [];
     return rows
-      .map((row) => ({
-        ...row,
-        severity: maxOpenSeverity(safetyEvents, row.participant.id),
-        staleDays: daysSince(row.summary.lastActivity),
-      }))
-      .filter((row) => row.severity || (row.staleDays ?? 0) >= STALE_DAYS_THRESHOLD)
+      .map((row) => {
+        const selfHarmFlagged = selfHarmFlaggedParticipantIds.has(row.participant.id);
+        const openSafetySeverity = maxOpenSeverity(safetyEvents, row.participant.id);
+        // A live PHQ-9 self-harm flag is at least as urgent as an open
+        // "high" safety event -- there's no rank above "high" to promote
+        // it to, so it floors the effective severity at "high" rather than
+        // stacking a separate scale.
+        const severity = selfHarmFlagged ? "high" : openSafetySeverity;
+        return { ...row, severity, selfHarmFlagged, staleDays: daysSince(row.summary.lastActivity) };
+      })
+      .filter((row) => row.severity || row.selfHarmFlagged || (row.staleDays ?? 0) >= STALE_DAYS_THRESHOLD)
       .sort((left, right) => {
         const severityDiff = (right.severity ? SEVERITY_RANK[right.severity] : 0) - (left.severity ? SEVERITY_RANK[left.severity] : 0);
         if (severityDiff !== 0) return severityDiff;
         return (right.staleDays ?? 0) - (left.staleDays ?? 0);
       })
       .slice(0, 8);
-  }, [rows, safetyQuery.data]);
+  }, [rows, safetyQuery.data, selfHarmFlaggedParticipantIds]);
 
   if (isLoading) return <AppShell><PageSkeleton /></AppShell>;
 
@@ -144,7 +156,7 @@ export function PatientListPage() {
           <Card className="p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-text-secondary">{t("patientMonitoring.needsAttention.title")}</div>
             <div className="space-y-1.5">
-              {needsAttentionRows.map(({ participant, staleDays, severity }) => (
+              {needsAttentionRows.map(({ participant, staleDays, severity, selfHarmFlagged }) => (
                 <Link
                   key={participant.id}
                   href={`/patients/${participant.id}`}
@@ -152,6 +164,7 @@ export function PatientListPage() {
                 >
                   <span className="min-w-0 truncate font-medium text-text-primary">{participant.alias}</span>
                   <span className="flex shrink-0 gap-2">
+                    {selfHarmFlagged && <Badge tone="critical">{t("patientMonitoring.needsAttention.selfHarmFlag")}</Badge>}
                     {severity && <Badge tone={severity === "high" ? "critical" : severity === "medium" ? "warning" : "neutral"}>{t(`patientMonitoring.severity.${severity}`)}</Badge>}
                     {(staleDays ?? 0) >= 7 && <Badge tone="neutral">{t("patientMonitoring.needsAttention.staleDays", { count: staleDays ?? 0 })}</Badge>}
                   </span>
@@ -181,6 +194,24 @@ export function PatientListPage() {
             <div className="flex gap-3 overflow-x-auto">
               {cohortProgressQuery.data.map((row) => (
                 <CohortProgressTile key={`${row.sessionDefinitionId}:${row.seriesKey}`} row={row} />
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {cohortAssessmentSummary.length > 0 && (
+          <Card className="p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-text-secondary">{t("patientMonitoring.cohortAssessments.title")}</div>
+            <div className="flex gap-3 overflow-x-auto">
+              {cohortAssessmentSummary.map((row) => (
+                <div key={row.instrument} className="flex shrink-0 flex-col gap-0.5 rounded-panel border border-border bg-surface-subtle px-3 py-2">
+                  <span className="whitespace-nowrap text-[11px] text-text-secondary">{row.instrument === "phq9" ? "PHQ-9" : "GAD-7"}</span>
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="text-lg font-semibold text-text-primary">{row.averageLatestScore}</span>
+                    <span className="text-[11px] text-text-muted">{t("patientMonitoring.cohortProgress.sampleSize", { count: row.sampleSize })}</span>
+                  </span>
+                  {row.selfHarmFlagCount > 0 && <Badge tone="critical">{t("patientMonitoring.cohortAssessments.selfHarmFlagCount", { count: row.selfHarmFlagCount })}</Badge>}
+                </div>
               ))}
             </div>
           </Card>
