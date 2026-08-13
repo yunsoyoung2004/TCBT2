@@ -191,6 +191,7 @@ const en = {
       worksheet: "Worksheet",
       progress: "Progress",
       profile: "Patient Profile",
+      messages: "Messages",
     },
     worksheet: {
       unavailable: "This session has no live worksheet.",
@@ -311,6 +312,14 @@ const en = {
     lifeline: "Lifeline Korea",
     emergency: "Emergency (police/ambulance)",
     outsideKorea: "Outside Korea? Please contact your local emergency number or a crisis line in your country -- these numbers only connect within Korea.",
+  },
+  messages: {
+    title: "Messages",
+    notice: "Messages here are seen by your care team. For anything urgent, use the crisis resources link instead.",
+    empty: "No messages yet.",
+    placeholder: "Write a message…",
+    send: "Send",
+    sendFailed: "Failed to send message",
   },
   moodCheckin: {
     prompt: "How are you feeling today?",

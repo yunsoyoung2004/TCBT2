@@ -26,6 +26,7 @@ const PatientSessionCompletePage = dynamic(() => import("@/components/pages/pati
 const HomeworkPage = dynamic(() => import("@/components/pages/homework-page").then((mod) => mod.HomeworkPage), { ssr: false });
 const PatientProfilePage = dynamic(() => import("@/components/pages/patient-profile-page").then((mod) => mod.PatientProfilePage), { ssr: false });
 const PatientCheckinPage = dynamic(() => import("@/components/pages/patient-checkin-page").then((mod) => mod.PatientCheckinPage), { ssr: false });
+const PatientMessagesPage = dynamic(() => import("@/components/pages/patient-messages-page").then((mod) => mod.PatientMessagesPage), { ssr: false });
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
 const ClinicianAuthPage = dynamic(() => import("@/components/pages/auth/clinician-auth-page").then((mod) => mod.ClinicianAuthPage), { ssr: false });
 const PatientAuthPage = dynamic(() => import("@/components/pages/auth/patient-auth-page").then((mod) => mod.PatientAuthPage), { ssr: false });
@@ -91,6 +92,7 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/checkin"), Page: PatientCheckinPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/messages"), Page: PatientMessagesPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/homework/"), Page: HomeworkPage, audience: "patient" },

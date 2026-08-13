@@ -191,6 +191,7 @@ const ko = {
       worksheet: "워크시트",
       progress: "진행 추이",
       profile: "환자 프로필",
+      messages: "메시지",
     },
     worksheet: {
       unavailable: "이 세션에는 실시간 워크시트가 없습니다.",
@@ -311,6 +312,14 @@ const ko = {
     lifeline: "생명의전화",
     emergency: "응급상황 (경찰/구급차)",
     outsideKorea: "한국 밖에 계신가요? 이 번호들은 한국 내에서만 연결됩니다 -- 거주 중인 국가의 응급번호나 위기상담전화로 연락해주세요.",
+  },
+  messages: {
+    title: "메시지",
+    notice: "이 메시지는 담당 의료진이 확인합니다. 긴급한 상황이면 위기상담 리소스를 이용해주세요.",
+    empty: "아직 메시지가 없습니다.",
+    placeholder: "메시지를 입력하세요…",
+    send: "보내기",
+    sendFailed: "메시지 전송에 실패했습니다",
   },
   moodCheckin: {
     prompt: "오늘 기분이 어떠세요?",

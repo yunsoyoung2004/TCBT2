@@ -54,6 +54,7 @@ export function PatientListPage() {
       actions={
         <>
           <Link href="/projects/demo/patient/profile"><Button variant="secondary">{t("patientPortal.profile")}</Button></Link>
+          <Link href="/projects/demo/patient/messages"><Button variant="secondary">{t("messages.title")}</Button></Link>
           <Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientPortal.memory")}</Button></Link>
           <Link href="/projects/demo/patient/sessions/new"><Button>{t("patientPortal.newSession")}</Button></Link>
         </>
