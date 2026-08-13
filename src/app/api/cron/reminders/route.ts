@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
-import { listRuntimeParticipants } from "@/lib/api/participant-api";
-import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
+// Direct server-side store imports, NOT the fetch-based
+// @/lib/api/participant-api / @/lib/api/runtime-session-api (those go
+// through repositories whose callStore() hits "/api/*/store" over HTTP --
+// fine from a browser, but those routes require a logged-in caller's
+// session cookie, which a cron job never has. This route's own trust
+// boundary is isAuthorizedCronRequest() below, so it reads straight from
+// Postgres instead, the same way src/lib/supabase/admin.ts bypasses
+// per-user auth with the service-role key.
+import { listParticipants } from "@/lib/server/participant-store";
+import { listRuntimeSessionRecords } from "@/lib/server/runtime-session-store";
 import { getUserEmail } from "@/lib/supabase/admin";
 import { sendSessionReminderEmail } from "@/lib/notifications/send-session-reminder";
 import type { RuntimeSession } from "@/types/runtime-session";
@@ -42,7 +50,7 @@ export async function GET(request: Request) {
   }
   const thresholdDays = Number(process.env.REMINDER_STALE_DAYS_THRESHOLD) || DEFAULT_STALE_DAYS_THRESHOLD;
   try {
-    const [participants, sessions] = await Promise.all([listRuntimeParticipants(), listRuntimeSessions()]);
+    const [participants, sessions] = await Promise.all([listParticipants(), listRuntimeSessionRecords()]);
     let remindersSent = 0;
     let skippedNoEmail = 0;
     for (const participant of participants) {
