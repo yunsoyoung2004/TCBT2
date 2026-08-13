@@ -158,6 +158,31 @@ export async function updateParticipantProfile(
   return next;
 }
 
+/** Patient-controllable reminder-email opt-outs -- see
+ * RuntimeParticipant.notificationPreferences's own doc comment for what
+ * this does and doesn't cover. */
+export async function updateNotificationPreferences(
+  participantId: string,
+  patch: { sessionReminders?: boolean; homeworkReminders?: boolean },
+) {
+  const participant = await getParticipant(participantId);
+  if (!participant) throw new Error("Participant not found");
+  const next = await updateParticipant(participantId, {
+    notificationPreferences: { ...participant.notificationPreferences, ...patch },
+  });
+  await getLocalDb().auditEntries.put(
+    createMemoryAuditEntry({
+      action: "Notification preferences updated",
+      resource: `Participant ${participantId}`,
+      version: "stage3",
+      previousValue: JSON.stringify(participant.notificationPreferences ?? {}),
+      newValue: JSON.stringify(next.notificationPreferences ?? {}),
+      reason: "Patient notification preferences updated",
+    }),
+  );
+  return next;
+}
+
 /** Resolves a clinician's auth user id (RuntimeParticipant.assignedClinician)
  * to their email for display -- see src/app/api/clinicians/resolve-email/route.ts. */
 export async function resolveClinicianEmail(userId: string): Promise<string | null> {

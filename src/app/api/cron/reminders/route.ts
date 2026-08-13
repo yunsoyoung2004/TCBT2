@@ -44,9 +44,14 @@ export async function GET(request: Request) {
     const [participants, sessions] = await Promise.all([listParticipants(), listRuntimeSessionRecords()]);
     let remindersSent = 0;
     let skippedNoEmail = 0;
+    let skippedOptedOut = 0;
     for (const participant of participants) {
       if (!participant.authUserId) {
         skippedNoEmail++;
+        continue;
+      }
+      if (participant.notificationPreferences?.sessionReminders === false) {
+        skippedOptedOut++;
         continue;
       }
       const ownSessions = sessions.filter((session) => session.participantId === participant.id);
@@ -62,7 +67,7 @@ export async function GET(request: Request) {
       await sendSessionReminderEmail({ participantId: participant.id, patientEmail: email, staleDays, locale: participant.locale });
       remindersSent++;
     }
-    return NextResponse.json({ ok: true, remindersSent, skippedNoEmail, thresholdDays });
+    return NextResponse.json({ ok: true, remindersSent, skippedNoEmail, skippedOptedOut, thresholdDays });
   } catch (error) {
     console.error("[cron/reminders] failed", error);
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Reminder job failed." }, { status: 500 });

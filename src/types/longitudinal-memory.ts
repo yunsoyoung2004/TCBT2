@@ -53,6 +53,17 @@ export interface RuntimeParticipant {
   /** Optional clinician-facing profile fields — not fabricated when absent, render as "—". */
   enrollmentDate?: string;
   assignedClinician?: string;
+  /** Patient-controllable reminder-email opt-outs (src/app/api/cron/reminders,
+   * .../homework-reminders). Absent/undefined means enabled -- these are
+   * transactional-ish nudges the patient asked for by using the app, not a
+   * marketing opt-in, so the default is on; this only lets a patient turn
+   * a specific one off. Does NOT cover clinician-facing safety alert
+   * emails, which aren't patient-controllable (a safety signal isn't the
+   * patient's to silence). */
+  notificationPreferences?: {
+    sessionReminders?: boolean;
+    homeworkReminders?: boolean;
+  };
   consent: {
     memoryStorageAllowed: boolean;
     crossSessionUseAllowed: boolean;

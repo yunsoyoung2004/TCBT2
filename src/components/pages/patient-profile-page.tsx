@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { SessionProgressChart } from "@/components/runtime/session-progress-chart";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
-import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
 import { getPatientProgressSeries } from "@/lib/worksheet/worksheet-projection";
 import { useT } from "@/lib/i18n/context";
@@ -40,6 +40,8 @@ export function PatientProfilePage() {
   const [memoryStorageAllowed, setMemoryStorageAllowed] = useState(true);
   const [crossSessionUseAllowed, setCrossSessionUseAllowed] = useState(true);
   const [sensitiveMemoryAllowed, setSensitiveMemoryAllowed] = useState(false);
+  const [sessionRemindersEnabled, setSessionRemindersEnabled] = useState(true);
+  const [homeworkRemindersEnabled, setHomeworkRemindersEnabled] = useState(true);
 
   useEffect(() => {
     if (!participantQuery.data) return;
@@ -49,6 +51,9 @@ export function PatientProfilePage() {
     setMemoryStorageAllowed(participantQuery.data.consent.memoryStorageAllowed);
     setCrossSessionUseAllowed(participantQuery.data.consent.crossSessionUseAllowed);
     setSensitiveMemoryAllowed(participantQuery.data.consent.sensitiveMemoryAllowed);
+    // Absent means enabled -- see RuntimeParticipant.notificationPreferences's doc comment.
+    setSessionRemindersEnabled(participantQuery.data.notificationPreferences?.sessionReminders !== false);
+    setHomeworkRemindersEnabled(participantQuery.data.notificationPreferences?.homeworkReminders !== false);
   }, [participantQuery.data]);
 
   const profileMutation = useMutation({
@@ -60,6 +65,10 @@ export function PatientProfilePage() {
         crossSessionUseAllowed,
         sensitiveMemoryAllowed,
         reason: "Patient profile settings updated",
+      });
+      await updateNotificationPreferences(participantQuery.data.id, {
+        sessionReminders: sessionRemindersEnabled,
+        homeworkReminders: homeworkRemindersEnabled,
       });
     },
     onSuccess: async () => {
@@ -136,6 +145,13 @@ export function PatientProfilePage() {
               <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.storeMemory")}</span><input type="checkbox" checked={memoryStorageAllowed} onChange={(event) => setMemoryStorageAllowed(event.target.checked)} /></label>
               <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.reuseAcrossSessions")}</span><input type="checkbox" checked={crossSessionUseAllowed} onChange={(event) => setCrossSessionUseAllowed(event.target.checked)} /></label>
               <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.allowSensitiveMemory")}</span><input type="checkbox" checked={sensitiveMemoryAllowed} onChange={(event) => setSensitiveMemoryAllowed(event.target.checked)} /></label>
+            </div>
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">{t("patientProfile.edit.notifications.title")}</div>
+              <div className="grid gap-3 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-secondary">
+                <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.sessionReminders")}</span><input type="checkbox" checked={sessionRemindersEnabled} onChange={(event) => setSessionRemindersEnabled(event.target.checked)} /></label>
+                <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.homeworkReminders")}</span><input type="checkbox" checked={homeworkRemindersEnabled} onChange={(event) => setHomeworkRemindersEnabled(event.target.checked)} /></label>
+              </div>
             </div>
             <Button loading={profileMutation.isPending} onClick={() => profileMutation.mutate()}>{t("patientProfile.edit.save")}</Button>
           </div>

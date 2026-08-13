@@ -26,12 +26,13 @@ export async function sendHomeworkReminderEmail(input: HomeworkReminderInput): P
     }
     const isKorean = (input.locale ?? "").toLowerCase().startsWith("ko");
     const appUrl = resolveAppUrl();
+    const settingsUrl = `${appUrl}/patient/profile`;
     const sessionNumber = SESSION_NUMBER_BY_ID.get(input.sessionDefinitionId);
     const sessionLabel = sessionNumber ? (isKorean ? `${sessionNumber}회차` : `Session ${sessionNumber}`) : (isKorean ? "이전 세션" : "a past session");
     const subject = isKorean ? "[TBCT Studio] 과제가 아직 남아있어요" : "[TBCT Studio] A homework activity is still open";
     const text = isKorean
-      ? `안녕하세요,\n\n${sessionLabel} 과제가 ${input.staleDays}일째 완료되지 않았습니다. 시간 되실 때 이어서 해보세요.\n\n계속하기: ${appUrl}`
-      : `Hi,\n\nYour ${sessionLabel} homework has been open for ${input.staleDays} days. Whenever you're ready, you can pick back up.\n\nContinue: ${appUrl}`;
+      ? `안녕하세요,\n\n${sessionLabel} 과제가 ${input.staleDays}일째 완료되지 않았습니다. 시간 되실 때 이어서 해보세요.\n\n계속하기: ${appUrl}\n\n이 알림을 더 받고 싶지 않으시면 프로필 설정에서 끌 수 있어요: ${settingsUrl}`
+      : `Hi,\n\nYour ${sessionLabel} homework has been open for ${input.staleDays} days. Whenever you're ready, you can pick back up.\n\nContinue: ${appUrl}\n\nYou can turn this reminder off anytime in your profile settings: ${settingsUrl}`;
     await resend.emails.send({ from: NOTIFICATIONS_FROM_ADDRESS, to: [input.patientEmail], subject, text });
   } catch (error) {
     console.error("[send-homework-reminder] failed to send reminder email", error);

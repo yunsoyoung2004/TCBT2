@@ -329,6 +329,11 @@ const en = {
       storeMemory: "Store memory",
       reuseAcrossSessions: "Reuse across sessions",
       allowSensitiveMemory: "Allow sensitive memory",
+      notifications: {
+        title: "Email reminders",
+        sessionReminders: "Remind me if I haven't continued a session in a while",
+        homeworkReminders: "Remind me about unfinished homework",
+      },
       save: "Save profile",
     },
     snapshot: { title: "Saved memory snapshot", participantRecord: "Participant record", activeMemoryIds: "Active memory IDs", latestSummary: "Latest summary", unavailable: "Unavailable", none: "None" },

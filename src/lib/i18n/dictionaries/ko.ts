@@ -329,6 +329,11 @@ const ko = {
       storeMemory: "메모리 저장",
       reuseAcrossSessions: "세션 간 재사용",
       allowSensitiveMemory: "민감 메모리 허용",
+      notifications: {
+        title: "이메일 알림",
+        sessionReminders: "세션을 오래 이어가지 않으면 알려주기",
+        homeworkReminders: "끝내지 않은 과제 알려주기",
+      },
       save: "프로필 저장",
     },
     snapshot: { title: "저장된 메모리 스냅샷", participantRecord: "참여자 레코드", activeMemoryIds: "활성 메모리 ID", latestSummary: "최신 요약", unavailable: "확인 불가", none: "없음" },

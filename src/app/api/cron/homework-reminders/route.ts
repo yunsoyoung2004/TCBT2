@@ -32,10 +32,15 @@ export async function GET(request: Request) {
     const staleRecords = await listStaleIncompleteRecords(staleSinceIso);
     let remindersSent = 0;
     let skippedNoEmail = 0;
+    let skippedOptedOut = 0;
     for (const record of staleRecords) {
       const participant = await getParticipant(record.participantId);
       if (!participant?.authUserId) {
         skippedNoEmail++;
+        continue;
+      }
+      if (participant.notificationPreferences?.homeworkReminders === false) {
+        skippedOptedOut++;
         continue;
       }
       const email = await getUserEmail(participant.authUserId);
@@ -47,7 +52,7 @@ export async function GET(request: Request) {
       await sendHomeworkReminderEmail({ sessionDefinitionId: record.sessionDefinitionId, patientEmail: email, staleDays, locale: participant.locale });
       remindersSent++;
     }
-    return NextResponse.json({ ok: true, remindersSent, skippedNoEmail, thresholdDays });
+    return NextResponse.json({ ok: true, remindersSent, skippedNoEmail, skippedOptedOut, thresholdDays });
   } catch (error) {
     console.error("[cron/homework-reminders] failed", error);
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Homework reminder job failed." }, { status: 500 });
