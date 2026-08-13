@@ -412,9 +412,14 @@ export function PatientMonitoringDetailPage() {
         }
         actions={
           session ? (
-            <Link href={`/runtime/sessions/${session.id}`}>
-              <Button variant="secondary">{t("patientDetail.actions.inspector")}</Button>
-            </Link>
+            <>
+              <Link href={`/patients/${participantId}/report/${session.id}`} target="_blank" rel="noopener noreferrer">
+                <Button variant="secondary">{t("patientDetail.actions.printReport")}</Button>
+              </Link>
+              <Link href={`/runtime/sessions/${session.id}`}>
+                <Button variant="secondary">{t("patientDetail.actions.inspector")}</Button>
+              </Link>
+            </>
           ) : undefined
         }
       />

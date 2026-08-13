@@ -187,6 +187,7 @@ const en = {
       end: "End Session",
       addNote: "Add Clinical Note",
       inspector: "View Inspector",
+      printReport: "Print Report",
     },
     audit: {
       filters: { all: "All", program: "Program", patient: "Patient", notes: "Clinical Notes" },
