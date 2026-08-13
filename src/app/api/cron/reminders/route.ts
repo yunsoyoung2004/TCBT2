@@ -11,6 +11,7 @@ import { listParticipants } from "@/lib/server/participant-store";
 import { listRuntimeSessionRecords } from "@/lib/server/runtime-session-store";
 import { getUserEmail } from "@/lib/supabase/admin";
 import { sendSessionReminderEmail } from "@/lib/notifications/send-session-reminder";
+import { isAuthorizedCronRequest } from "@/lib/runtime/cron-auth";
 import type { RuntimeSession } from "@/types/runtime-session";
 
 export const runtime = "nodejs";
@@ -28,16 +29,6 @@ function daysSince(value: string): number {
 function mostRecentSession(sessions: RuntimeSession[]): RuntimeSession | undefined {
   if (!sessions.length) return undefined;
   return [...sessions].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
-}
-
-// Vercel's Cron feature automatically attaches `Authorization: Bearer
-// $CRON_SECRET` to requests it sends, once CRON_SECRET is set as a project
-// env var -- this rejects everything else, including a guessed URL hit
-// directly from a browser.
-function isAuthorizedCronRequest(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
 /** Daily job: reminds patients who have an incomplete session and have gone

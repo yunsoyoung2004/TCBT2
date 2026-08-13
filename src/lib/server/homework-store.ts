@@ -68,6 +68,21 @@ async function listRecordsByParticipant(participantId: string): Promise<Homework
   return rows.map((row) => row.data);
 }
 
+/** Every homework record not yet "completed" and untouched since before
+ * `staleSinceIso` -- used only by the daily homework-reminder cron job
+ * (src/app/api/cron/homework-reminders/route.ts), a genuinely server-side
+ * caller that (unlike every other reader of this store) doesn't go through
+ * the fetch-based homework-repository.ts, so it needs a real cross-participant
+ * query rather than listRecordsByParticipant's single-participant shape. */
+export async function listStaleIncompleteRecords(staleSinceIso: string): Promise<HomeworkRecord[]> {
+  const pool = getPgPool();
+  const { rows } = await pool.query<{ data: HomeworkRecord }>(
+    `SELECT data FROM homework_records WHERE status != 'completed' AND updated_at < $1 ORDER BY updated_at ASC`,
+    [staleSinceIso],
+  );
+  return rows.map((row) => row.data);
+}
+
 async function appendEntry(input: { homeworkRecordId: string; entryType: string; data: Record<string, unknown> }): Promise<HomeworkEntryRecord> {
   const pool = getPgPool();
   const now = new Date().toISOString();

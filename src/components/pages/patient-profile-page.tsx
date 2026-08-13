@@ -114,7 +114,22 @@ export function PatientProfilePage() {
           <div className="mt-4 grid gap-4">
             <Field label={t("patientProfile.edit.displayName")}><input className={inputClass} value={alias} onChange={(event) => setAlias(event.target.value)} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("patientProfile.edit.locale")}><select className={inputClass} value={locale} onChange={(event) => setLocale(event.target.value)}><option value="ko-KR">ko-KR</option><option value="en-US">en-US</option><option value="pt-BR">pt-BR</option><option value="fr-FR">fr-FR</option></select></Field>
+              <Field label={t("patientProfile.edit.locale")}>
+                <select className={inputClass} value={locale} onChange={(event) => setLocale(event.target.value)}>
+                  <option value="ko-KR">ko-KR</option>
+                  <option value="en-US">en-US</option>
+                  {/* pt-BR/fr-FR intentionally not offered here: only ko has
+                      reviewed session-content translations (see
+                      runtime-release-normalizer.ts) -- picking pt-BR/fr-FR
+                      would mean the actual therapy dialogue renders mostly
+                      in English, not a real Portuguese/French experience.
+                      If an existing record already has one of those values
+                      (set before this fix), keep it shown so the select
+                      doesn't silently jump to a different value out from
+                      under the participant -- they can still switch away. */}
+                  {locale !== "ko-KR" && locale !== "en-US" && <option value={locale}>{locale}</option>}
+                </select>
+              </Field>
               <Field label={t("patientProfile.edit.country")}><input className={inputClass} value={country} onChange={(event) => setCountry(event.target.value)} /></Field>
             </div>
             <div className="grid gap-3 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-secondary">
