@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n/context";
 import { listRuntimeParticipants } from "@/lib/api/participant-api";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
+import { getCohortProgressSummary } from "@/lib/worksheet/worksheet-projection";
 import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import { useAuth } from "@/lib/auth/auth-context";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,11 @@ export function PatientListPage() {
   const participantsQuery = useQuery({ queryKey: ["patient-monitoring-participants"], queryFn: listRuntimeParticipants });
   const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
   const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents });
+  // Cohort-wide outcome rollup -- not realtime-invalidated like the three
+  // above (it's a per-participant aggregate, not a single-table read, and
+  // this dashboard doesn't need it to the second); refetches on its own
+  // normal staleness schedule.
+  const cohortProgressQuery = useQuery({ queryKey: ["patient-monitoring-cohort-progress"], queryFn: getCohortProgressSummary });
   // Both were refetchInterval: 5000, unfiltered full-table scans on a
   // dashboard clinicians tend to leave open all day -- directly the
   // "Neon egress" pattern this migration exists to fix.
@@ -168,6 +174,17 @@ export function PatientListPage() {
           <CompactSummaryStat label={t("patientMonitoring.summary.needsReview")} value={summaryCounts.needsReview} tone="critical" />
           <CompactSummaryStat label={t("patientMonitoring.summary.completed")} value={summaryCounts.completed} tone="success" />
         </Card>
+
+        {cohortProgressQuery.data && cohortProgressQuery.data.length > 0 && (
+          <Card className="p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-text-secondary">{t("patientMonitoring.cohortProgress.title")}</div>
+            <div className="flex gap-3 overflow-x-auto">
+              {cohortProgressQuery.data.map((row) => (
+                <CohortProgressTile key={`${row.sessionDefinitionId}:${row.seriesKey}`} row={row} />
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Desktop/tablet (>=640px): unchanged filter bar. */}
         <Card className="hidden p-3 sm:block">
@@ -320,6 +337,32 @@ function CompactSummaryStat({ label, value, tone }: { label: string; value: numb
     <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
       <span className="text-text-secondary">{label}</span>
       <Badge tone={tone}>{value}</Badge>
+    </div>
+  );
+}
+
+// Stat-tile form (label / value / signed delta) per the dataviz method's
+// "figures" pattern -- reuses patientProfile.progress's i18n keys (same
+// sessionDefinitionId/seriesKey vocabulary as the patient-facing progress
+// chart, see session-progress-chart.tsx) rather than a parallel set.
+// Every series here is "less is better" (belief in a distorted thought,
+// guilt, shame), so a non-positive delta is success-toned and a positive
+// one is warning-toned -- there's no exception among the sessions this
+// covers today (see PROGRESS_SERIES_PLAN in worksheet-projection.ts).
+function CohortProgressTile({ row }: { row: { sessionDefinitionId: string; seriesKey: string; averageDelta: number; sampleSize: number } }) {
+  const { t } = useT();
+  const sessionKey = row.sessionDefinitionId.replace("tbct-", "");
+  return (
+    <div className="flex shrink-0 flex-col gap-0.5 rounded-panel border border-border bg-surface-subtle px-3 py-2">
+      <span className="whitespace-nowrap text-[11px] text-text-secondary">
+        {t(`patientProfile.progress.sessions.${sessionKey}`)} · {t(`patientProfile.progress.series.${row.seriesKey}`)}
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className={cn("text-lg font-semibold", row.averageDelta <= 0 ? "text-success" : "text-warning")}>
+          {row.averageDelta > 0 ? "+" : ""}{row.averageDelta}pp
+        </span>
+        <span className="text-[11px] text-text-muted">{t("patientMonitoring.cohortProgress.sampleSize", { count: row.sampleSize })}</span>
+      </span>
     </div>
   );
 }

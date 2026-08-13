@@ -22,6 +22,7 @@
 // real turn's validation until that's addressed.
 
 import { getRuntimeSession, listRuntimeSessions, listRuntimeSessionsForParticipant } from "@/lib/api/runtime-session-api";
+import { listRuntimeParticipants } from "@/lib/api/participant-api";
 import { updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { TBCT_SOURCE_TEXT_HASH } from "@/lib/protocol/tbct-source-text.generated";
 import { getWorksheetBindings, hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
@@ -36,7 +37,7 @@ import {
   replaceWorksheetCollectionItems,
   upsertWorksheetFieldValue,
 } from "@/lib/repositories/worksheet-repository";
-import type { ProgressSeries, SessionProgressCard, WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetHistoryRow, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
+import type { CohortProgressSummaryRow, ProgressSeries, SessionProgressCard, WorksheetFieldDefinitionRecord, WorksheetFieldProvenance, WorksheetFieldStatus, WorksheetFieldValueRecord, WorksheetHistoryRow, WorksheetHistoryView, WorksheetView } from "@/types/worksheet";
 
 const TEMPLATE_VERSION = 1;
 
@@ -310,6 +311,37 @@ export async function getPatientProgressSeries(participantId: string): Promise<S
     if (series.length) cards.push({ sessionDefinitionId, series });
   }
   return cards;
+}
+
+/** Clinician-facing cohort rollup of getPatientProgressSeries: for every
+ * participant, for every (session, series) pair they have a real two-point
+ * series for, take last-minus-first, then average those deltas per pair
+ * across the whole roster. Deliberately reuses getPatientProgressSeries per
+ * participant rather than re-deriving the field plan -- this pilot's
+ * participant count is small enough that one query per participant is not
+ * a real cost, and it keeps PROGRESS_SERIES_PLAN defined in exactly one
+ * place. A (session, series) pair nobody has reached yet is simply absent
+ * from the result, never fabricated as a zero. */
+export async function getCohortProgressSummary(): Promise<CohortProgressSummaryRow[]> {
+  const participants = await listRuntimeParticipants();
+  const perParticipant = await Promise.all(participants.map((participant) => getPatientProgressSeries(participant.id)));
+  const deltasByKey = new Map<string, number[]>();
+  for (const cards of perParticipant) {
+    for (const card of cards) {
+      for (const series of card.series) {
+        const delta = series.points.at(-1)!.value - series.points[0].value;
+        const key = `${card.sessionDefinitionId}:${series.seriesKey}`;
+        const deltas = deltasByKey.get(key) ?? [];
+        deltas.push(delta);
+        deltasByKey.set(key, deltas);
+      }
+    }
+  }
+  return Array.from(deltasByKey.entries()).map(([key, deltas]) => {
+    const [sessionDefinitionId, seriesKey] = key.split(":");
+    const averageDelta = Math.round(deltas.reduce((sum, value) => sum + value, 0) / deltas.length);
+    return { sessionDefinitionId, seriesKey, averageDelta, sampleSize: deltas.length };
+  });
 }
 
 /** Participant confirms a field as shown -- the only status transition the

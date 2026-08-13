@@ -211,3 +211,17 @@ export interface SessionProgressCard {
   sessionDefinitionId: string;
   series: ProgressSeries[];
 }
+
+/** Cohort-wide rollup of SessionProgressCard, for the clinician-facing
+ * roster (see getCohortProgressSummary in worksheet-projection.ts) -- one
+ * row per (session, series) pair that at least one participant has a real
+ * two-point-or-longer series for. averageDelta is last-checkpoint minus
+ * first-checkpoint, averaged across sampleSize participants (never
+ * fabricated for a session/series nobody has reached yet -- that pair is
+ * simply absent from the array). */
+export interface CohortProgressSummaryRow {
+  sessionDefinitionId: string;
+  seriesKey: string;
+  averageDelta: number;
+  sampleSize: number;
+}

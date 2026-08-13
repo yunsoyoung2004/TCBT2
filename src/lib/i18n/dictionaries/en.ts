@@ -126,6 +126,10 @@ const en = {
     sessionFilter: "Session",
     sortByLastActivity: "Last activity",
     myPatientsOnly: "My patients only",
+    cohortProgress: {
+      title: "Cohort outcomes (average change)",
+      sampleSize: "n={count}",
+    },
     columns: {
       participant: "Participant",
       currentSession: "Current Session",

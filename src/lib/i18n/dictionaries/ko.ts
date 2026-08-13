@@ -126,6 +126,10 @@ const ko = {
     sessionFilter: "세션",
     sortByLastActivity: "최근 활동순",
     myPatientsOnly: "내 환자만",
+    cohortProgress: {
+      title: "전체 환자 변화 (평균)",
+      sampleSize: "n={count}",
+    },
     columns: {
       participant: "참여자",
       currentSession: "현재 세션",
