@@ -20,6 +20,12 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSent, setConfirmSent] = useState(false);
+  // "Forgot password?" is a separate small flow, not a third `mode` value --
+  // it only ever needs the email field (reuses the same `email` state) and
+  // never submits the main login/signup form.
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   // Set only when signInWithPassword succeeded but the account has a
   // verified TOTP factor (see mfa-settings.tsx) -- login isn't complete
   // until the challenge below is verified too.
@@ -76,6 +82,27 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
       if (message.includes("email not confirmed")) setError(t("auth.errors.emailNotConfirmed"));
       else if (message.includes("invalid login credentials")) setError(t("auth.errors.invalidCredentials"));
       else setError(mode === "signup" ? t("auth.errors.genericSignup") : t("auth.errors.genericLogin"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setResetError(null);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      // Same PKCE-code redirect as signUp's emailRedirectTo above -- lands
+      // on set-password-page.tsx, which exchanges the code for a session
+      // and lets the user actually pick a new password.
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/set-password`,
+      });
+      if (resetErr) throw resetErr;
+      setResetSent(true);
+    } catch {
+      setResetError(t("auth.errors.resetPasswordFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -140,6 +167,51 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
     );
   }
 
+  if (resetSent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
+        <Card className="w-full max-w-sm p-6 text-center">
+          <h1 className="text-base font-semibold text-text-primary">{t("auth.resetPassword.sent")}</h1>
+          <p className="mt-2 text-sm text-text-secondary">{t("auth.resetPassword.sentBody", { email })}</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (forgotMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
+        <Card className="w-full max-w-sm p-6">
+          <h1 className="text-base font-semibold text-text-primary">{t("auth.resetPassword.title")}</h1>
+          <p className="mt-2 text-sm text-text-secondary">{t("auth.resetPassword.description")}</p>
+          <form className="mt-5 grid gap-4" onSubmit={handleForgotPassword}>
+            <Field label={t("auth.email")}>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                className={inputClass}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            {resetError && <p className="text-xs text-critical">{resetError}</p>}
+            <Button type="submit" loading={submitting} className="w-full justify-center">
+              {t("auth.resetPassword.submit")}
+            </Button>
+          </form>
+          <button
+            type="button"
+            className="mt-4 w-full text-center text-xs text-clinical-blue hover:underline"
+            onClick={() => { setForgotMode(false); setResetError(null); }}
+          >
+            {t("auth.backToLogin")}
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
       <Card className="w-full max-w-sm p-6">
@@ -171,6 +243,15 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
             {mode === "signup" ? t("auth.submitSignup") : t("auth.submitLogin")}
           </Button>
         </form>
+        {mode === "login" && (
+          <button
+            type="button"
+            className="mt-3 w-full text-center text-xs text-clinical-blue hover:underline"
+            onClick={() => { setForgotMode(true); setError(null); }}
+          >
+            {t("auth.forgotPassword")}
+          </button>
+        )}
         <button
           type="button"
           className="mt-4 w-full text-center text-xs text-clinical-blue hover:underline"

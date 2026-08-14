@@ -32,6 +32,7 @@ const PatientMessagesPage = dynamic(() => import("@/components/pages/patient-mes
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
 const ClinicianAuthPage = dynamic(() => import("@/components/pages/auth/clinician-auth-page").then((mod) => mod.ClinicianAuthPage), { ssr: false });
 const PatientAuthPage = dynamic(() => import("@/components/pages/auth/patient-auth-page").then((mod) => mod.PatientAuthPage), { ssr: false });
+const SetPasswordPage = dynamic(() => import("@/components/pages/auth/set-password-page").then((mod) => mod.SetPasswordPage), { ssr: false });
 const CrisisResourcesPage = dynamic(() => import("@/components/pages/crisis-resources-page").then((mod) => mod.CrisisResourcesPage), { ssr: false });
 const RuntimeInspectorPage = dynamic(() => import("@/components/pages/runtime-inspector-page").then((mod) => mod.RuntimeInspectorPage), { ssr: false });
 const RuntimeEscalationsPage = dynamic(() => import("@/components/pages/runtime-escalations-page").then((mod) => mod.RuntimeEscalationsPage), { ssr: false });
@@ -81,6 +82,11 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname === "/signup" || pathname === "/signup/", Page: ClinicianAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/login"), Page: PatientAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/signup"), Page: PatientAuthPage, audience: "public" },
+  // Lands here from an invite/password-reset/signup-confirmation email's
+  // final redirect (see set-password-page.tsx) -- must stay public since
+  // the visitor isn't authenticated yet when they arrive, only once the
+  // page exchanges the email link's code for a session.
+  { matches: (pathname) => pathname === "/set-password" || pathname === "/set-password/", Page: SetPasswordPage, audience: "public" },
   // Crisis resources must never sit behind a login wall -- reachable
   // without an account, from every patient-facing page and both auth
   // screens (see patient-shell.tsx / auth-form.tsx).

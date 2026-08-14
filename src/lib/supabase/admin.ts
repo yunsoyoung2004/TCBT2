@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
+import { resolveAppUrl } from "@/lib/notifications/resend-client";
 
 // Server-only Supabase client using the service-role key -- this bypasses
 // RLS and Auth entirely (full admin access), so it must never be imported
@@ -128,7 +129,16 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<vo
  * once, by hand, for the initial admin only. */
 export async function inviteAdminUser(email: string): Promise<{ id: string; email: string | null }> {
   const admin = getAdminClient();
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { data: { role: "admin" } });
+  // Without redirectTo, the invite email's final redirect falls back to
+  // the Supabase project's dashboard Site URL -- and even once that's
+  // pointed at production, landing on an ordinary page leaves the invite's
+  // one-time ?code= sitting unused, since only set-password-page.tsx knows
+  // to exchange it for a session. This is what actually lets the invited
+  // admin set a password at all.
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { role: "admin" },
+    redirectTo: `${resolveAppUrl()}/set-password`,
+  });
   if (error) throw error;
   return { id: data.user.id, email: data.user.email ?? null };
 }
