@@ -11,6 +11,7 @@ export function PatientShell({
   title,
   sessionLabel,
   progressLabel,
+  progressPercent,
   saveState,
   children,
   actions,
@@ -18,6 +19,12 @@ export function PatientShell({
   title: string;
   sessionLabel?: string;
   progressLabel?: string;
+  /** 0-100 -- renders a thin progress bar under the title/badges row (see
+   * computeSessionProgress in patient-session-page.tsx). Distinct from
+   * progressLabel, which several other patient pages already use for an
+   * unrelated status/locale badge -- adding this as its own prop keeps
+   * those call sites unaffected. */
+  progressPercent?: number;
   saveState?: string;
   children: ReactNode;
   actions?: ReactNode;
@@ -41,6 +48,14 @@ export function PatientShell({
               {progressLabel && <Badge tone="neutral">{progressLabel}</Badge>}
               {saveState && <Badge tone="success">{saveState}</Badge>}
             </div>
+            {progressPercent !== undefined && (
+              <div className="mt-3 max-w-xs">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+                  <div className="h-full rounded-full bg-clinical-blue transition-[width] duration-500" style={{ width: `${progressPercent}%` }} />
+                </div>
+                <div className="mt-1 text-[11px] text-text-muted">{t("patientShell.sessionProgress", { percent: progressPercent })}</div>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}

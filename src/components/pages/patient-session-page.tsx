@@ -15,6 +15,7 @@ import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
+import { computeSessionProgressPercent } from "@/lib/runtime/session-progress-estimate";
 import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
@@ -33,6 +34,12 @@ export function PatientSessionPage() {
   const sessionQuery = useQuery({ queryKey: ["patient-runtime-session", sessionId], queryFn: () => getPatientRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   const submittingTurnRef = useRef(false);
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  // Populated from the same getRuntimeSession call refresh() already makes
+  // for the audit snapshot below -- no extra fetch needed, just no longer
+  // discarding the result. See session-progress-estimate.ts for why this
+  // is an estimate, capped short of 100% until the session actually
+  // completes.
+  const [progressPercent, setProgressPercent] = useState<number | undefined>(undefined);
   const lastAutoReadMessageIdRef = useRef<string | null>(null);
   // Messages already present the first time the session loads are shown in full;
   // only messages that arrive afterwards stream in, so history never replays.
@@ -52,6 +59,16 @@ export function PatientSessionPage() {
     await queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] });
     const auditView = await getRuntimeSession(sessionId);
     if (auditView) {
+      setProgressPercent(
+        computeSessionProgressPercent({
+          sessionDefinitionId: auditView.session.sessionDefinitionId,
+          nodes: auditView.nodes,
+          promptItems: auditView.promptItems,
+          completedPromptItemIds: auditView.session.completedPromptItemIds ?? [],
+          skippedPromptItemIds: auditView.session.skippedPromptItemIds ?? [],
+          sessionStatus: auditView.session.status,
+        }),
+      );
       try { await saveRemoteSessionAuditSnapshot(auditView); }
       catch { toast.warning("The session continued, but its remote audit copy could not be saved."); }
     }
@@ -177,6 +194,7 @@ export function PatientSessionPage() {
       title={activeSession.patientAlias}
       sessionLabel={activeSession.sessionDefinitionId}
       progressLabel={activeSession.status}
+      progressPercent={progressPercent}
       saveState={`Saved ${new Date(activeSession.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
       actions={
         <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>Completion</Button>

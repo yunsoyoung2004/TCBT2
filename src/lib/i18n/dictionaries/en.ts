@@ -320,6 +320,7 @@ const en = {
     demoNotice: "Demo Mode · No real patient personal data is stored.",
     safetyNotice: "Human safety oversight enabled",
     crisisHelp: "Need help now?",
+    sessionProgress: "{percent}% through this session",
   },
   crisis: {
     title: "Crisis resources",

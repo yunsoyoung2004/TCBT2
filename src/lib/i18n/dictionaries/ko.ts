@@ -320,6 +320,7 @@ const ko = {
     demoNotice: "데모 모드 · 실제 환자의 개인정보는 저장되지 않습니다.",
     safetyNotice: "사람이 직접 안전을 관리하고 있습니다",
     crisisHelp: "지금 도움이 필요하신가요?",
+    sessionProgress: "이번 세션 {percent}% 진행",
   },
   crisis: {
     title: "위기 상담 리소스",
