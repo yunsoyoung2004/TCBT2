@@ -2,29 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Every value below is an "R G B" triplet (no #, no commas) -- that's what
+   lets tailwind.config.ts's rgb(var(--color-x) / <alpha-value>) pattern
+   work, which in turn is what keeps every existing Tailwind opacity
+   modifier already used across this app (bg-success/20, border-critical/40,
+   text-text-muted/50, etc.) working unchanged under dark mode -- switching
+   these to plain hex custom properties would silently break every one of
+   those classes instead. navy-900/navy-800 are NOT here on purpose: the
+   clinician sidebar (app-shell.tsx) is a permanently dark navy panel
+   regardless of theme, so those two stay fixed hex directly in
+   tailwind.config.ts, not part of this light/dark token set. */
 :root {
   color-scheme: light;
-  --background: #f5f7fa;
-  --surface: #ffffff;
-  --surface-subtle: #f8fafc;
-  --surface-hover: #f1f5f9;
-  --navy-900: #132a4a;
-  --navy-800: #1b365d;
-  --clinical-blue: #3566ae;
-  --clinical-blue-light: #eaf1fb;
-  --ai-violet: #7357c7;
-  --ai-violet-light: #f0ecfb;
-  --success: #27835a;
-  --success-light: #eaf7f0;
-  --warning: #b96e18;
-  --warning-light: #fff5e7;
-  --critical: #c23e45;
-  --critical-light: #fdeeef;
-  --text-primary: #172033;
-  --text-secondary: #526174;
-  --text-muted: #8491a3;
-  --border: #dde4ec;
-  --border-strong: #c8d2de;
+  --color-background: 245 247 250;
+  --color-surface: 255 255 255;
+  --color-surface-subtle: 248 250 252;
+  --color-surface-hover: 241 245 249;
+  --color-clinical-blue: 53 102 174;
+  --color-clinical-blue-light: 234 241 251;
+  --color-ai-violet: 115 87 199;
+  --color-ai-violet-light: 240 236 251;
+  --color-success: 39 131 90;
+  --color-success-light: 234 247 240;
+  --color-warning: 185 110 24;
+  --color-warning-light: 255 245 231;
+  --color-critical: 194 62 69;
+  --color-critical-light: 253 238 239;
+  --color-text-primary: 23 32 51;
+  --color-text-secondary: 82 97 116;
+  --color-text-muted: 132 145 163;
+  --color-border: 221 228 236;
+  --color-border-strong: 200 210 222;
+}
+
+/* OS-level dark preference -- :not([data-theme="light"]) lets an explicit
+   light choice below win over it; :where() keeps this at the same
+   specificity as the plain :root block above so source order (not
+   specificity tricks) decides. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --color-background: 15 21 33;
+    --color-surface: 23 30 44;
+    --color-surface-subtle: 29 38 53;
+    --color-surface-hover: 36 47 66;
+    --color-clinical-blue: 109 159 224;
+    --color-clinical-blue-light: 27 43 66;
+    --color-ai-violet: 164 142 224;
+    --color-ai-violet-light: 42 33 64;
+    --color-success: 76 175 125;
+    --color-success-light: 22 51 37;
+    --color-warning: 224 160 80;
+    --color-warning-light: 61 42 18;
+    --color-critical: 227 123 129;
+    --color-critical-light: 61 27 30;
+    --color-text-primary: 232 236 243;
+    --color-text-secondary: 168 179 199;
+    --color-text-muted: 110 122 145;
+    --color-border: 43 54 72;
+    --color-border-strong: 58 71 96;
+  }
+}
+
+/* Explicit in-app toggle (see use-theme-preference.ts) -- wins over OS
+   preference either way, so this is repeated rather than nested under the
+   media query above. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: 15 21 33;
+  --color-surface: 23 30 44;
+  --color-surface-subtle: 29 38 53;
+  --color-surface-hover: 36 47 66;
+  --color-clinical-blue: 109 159 224;
+  --color-clinical-blue-light: 27 43 66;
+  --color-ai-violet: 164 142 224;
+  --color-ai-violet-light: 42 33 64;
+  --color-success: 76 175 125;
+  --color-success-light: 22 51 37;
+  --color-warning: 224 160 80;
+  --color-warning-light: 61 42 18;
+  --color-critical: 227 123 129;
+  --color-critical-light: 61 27 30;
+  --color-text-primary: 232 236 243;
+  --color-text-secondary: 168 179 199;
+  --color-text-muted: 110 122 145;
+  --color-border: 43 54 72;
+  --color-border-strong: 58 71 96;
 }
 
 * {
@@ -35,8 +98,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--background);
-  color: var(--text-primary);
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-primary));
 }
 
 body {
@@ -64,7 +127,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--clinical-blue);
+  outline: 2px solid rgb(var(--color-clinical-blue));
   outline-offset: 2px;
 }
 
@@ -99,6 +162,17 @@ select:focus-visible {
   background-size: 22px 22px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .dot-grid {
+    background-color: #0f1521;
+    background-image: radial-gradient(rgba(109, 159, 224, 0.14) 1px, transparent 1px);
+  }
+}
+:root[data-theme="dark"] .dot-grid {
+  background-color: #0f1521;
+  background-image: radial-gradient(rgba(109, 159, 224, 0.14) 1px, transparent 1px);
+}
+
 /* Mobile Protocol Editor "Flow" tab only (see
    protocol-editor/mobile/mobile-flow-view.tsx) -- this class is never
    applied anywhere in the desktop/tablet tree, so this rule can't affect
@@ -119,6 +193,15 @@ select:focus-visible {
   position: relative;
   overflow: hidden;
   background: #e8edf3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .skeleton {
+    background: #232e40;
+  }
+}
+:root[data-theme="dark"] .skeleton {
+  background: #232e40;
 }
 
 .skeleton::after {

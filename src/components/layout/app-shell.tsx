@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
@@ -310,6 +311,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><HelpCircle className="h-4 w-4" /></Button>
+          <ThemeToggle className="hidden shrink-0 sm:flex" />
           <button
             type="button"
             title={t("auth.logout")}
