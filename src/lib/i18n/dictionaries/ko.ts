@@ -662,6 +662,68 @@ const ko = {
       record: "항소 기록",
     },
   },
+  onboarding: {
+    replayTour: "투어 다시 보기",
+    controls: {
+      next: "다음",
+      back: "이전",
+      skip: "건너뛰기",
+      finish: "완료",
+      stepOf: "{total}단계 중 {current}단계",
+    },
+    patient: {
+      stats: {
+        title: "세션 현황 한눈에 보기",
+        body: "시작한 세션, 완료한 세션, 아직 이어서 해야 할 세션을 한눈에 확인할 수 있어요.",
+      },
+      moodCheckin: {
+        title: "오늘의 기분 체크인",
+        body: "한 번의 탭으로 오늘 기분을 기록하세요. 담당 임상의가 시간에 따른 변화를 볼 수 있어요.",
+      },
+      appointments: {
+        title: "예정된 예약",
+        body: "담당 임상의가 잡아준 예약이 있다면 여기에 가장 먼저 표시돼요.",
+      },
+      newSession: {
+        title: "새 세션 시작하기",
+        body: "준비되면 언제든 프로그램의 다음 세션을 시작할 수 있어요.",
+      },
+      messages: {
+        title: "담당 임상의에게 메시지 보내기",
+        body: "세션 사이에 메시지를 보낼 수 있어요 -- 담당 임상의에게 바로 알림이 가요.",
+      },
+      themeToggle: {
+        title: "라이트 모드 · 다크 모드",
+        body: "라이트, 다크, 또는 기기 설정을 자동으로 따르는 모드 중에서 선택할 수 있어요.",
+      },
+      crisisHelp: {
+        title: "위기 상황이신가요? 지금 바로 도움 받기",
+        body: "로그인 없이도 항상 바로 열리고, 실제 상담 전화번호가 안내돼요.",
+      },
+    },
+    clinician: {
+      protocolEditor: {
+        title: "프로토콜 편집기",
+        body: "환자가 진행하는 치료 프로토콜을 설계하고 편집합니다.",
+      },
+      patientMonitoring: {
+        title: "환자 모니터링",
+        body: "모든 환자의 세션 상태, 안전 알림, 진행 상황을 한 화면에서 확인합니다.",
+      },
+      search: {
+        title: "빠른 검색",
+        body: "언제든 Ctrl/Cmd+K를 눌러 단계, 자료, 환자로 바로 이동할 수 있습니다.",
+      },
+      themeToggle: {
+        title: "라이트 모드 · 다크 모드",
+        body: "라이트, 다크, 또는 기기 설정을 자동으로 따르는 모드 중에서 선택할 수 있습니다.",
+      },
+      help: {
+        title: "이 투어를 다시 보고 싶으신가요?",
+        body: "언제든 이 버튼을 눌러 투어를 다시 볼 수 있습니다.",
+      },
+    },
+  },
 } as const;
 
 export default ko;

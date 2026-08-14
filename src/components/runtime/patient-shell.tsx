@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { HelpCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -60,10 +61,21 @@ export function PatientShell({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
-            <ThemeToggle />
-            <Link href="/crisis" target="_blank" rel="noopener noreferrer">
-              <Button variant="secondary" className="border-critical text-critical hover:bg-critical-light">{t("patientShell.crisisHelp")}</Button>
+            <span data-tour-id="theme-toggle"><ThemeToggle /></span>
+            {/* Replays the onboarding tour -- it only ever mounts on the
+                session-list page (see patient-list-page.tsx), so this
+                button (present on every patient page via this shared shell)
+                links there with a flag that page picks up on load. */}
+            <Link href="/projects/demo/patient?tour=1">
+              <Button size="icon" variant="ghost" title={t("onboarding.replayTour")}>
+                <HelpCircle className="h-4 w-4" />
+              </Button>
             </Link>
+            <span data-tour-id="crisis-help">
+              <Link href="/crisis" target="_blank" rel="noopener noreferrer">
+                <Button variant="secondary" className="border-critical text-critical hover:bg-critical-light">{t("patientShell.crisisHelp")}</Button>
+              </Link>
+            </span>
             <Link href="/projects/demo/patient"><Button variant="secondary">{t("patientShell.sessionList")}</Button></Link>
             {actions}
             <Button variant="ghost" onClick={() => void handleLogout()}>{t("auth.logout")}</Button>

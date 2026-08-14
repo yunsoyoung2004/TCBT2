@@ -662,6 +662,68 @@ const en = {
       record: "Appeal Record",
     },
   },
+  onboarding: {
+    replayTour: "Replay the tour",
+    controls: {
+      next: "Next",
+      back: "Back",
+      skip: "Skip",
+      finish: "Done",
+      stepOf: "Step {current} of {total}",
+    },
+    patient: {
+      stats: {
+        title: "Your session overview",
+        body: "See how many sessions you've started, finished, or still need to pick back up, at a glance.",
+      },
+      moodCheckin: {
+        title: "Daily mood check-in",
+        body: "One tap logs how you're feeling today. Your clinician can see the trend over time.",
+      },
+      appointments: {
+        title: "Upcoming appointments",
+        body: "Any session your clinician has scheduled with you shows up here first.",
+      },
+      newSession: {
+        title: "Start a new session",
+        body: "Begin the next session in your program whenever you're ready.",
+      },
+      messages: {
+        title: "Message your clinician",
+        body: "Send a message between sessions -- your clinician is notified right away.",
+      },
+      themeToggle: {
+        title: "Light or dark",
+        body: "Switch between light, dark, or match your device automatically.",
+      },
+      crisisHelp: {
+        title: "In crisis? Get help immediately",
+        body: "This always opens right away with real hotline numbers -- no login needed.",
+      },
+    },
+    clinician: {
+      protocolEditor: {
+        title: "Protocol Editor",
+        body: "Design and edit the treatment protocol your patients go through.",
+      },
+      patientMonitoring: {
+        title: "Patient Monitoring",
+        body: "See every patient's session status, safety alerts, and progress in one list.",
+      },
+      search: {
+        title: "Quick search",
+        body: "Press Ctrl/Cmd+K anytime to jump to a step, asset, or patient.",
+      },
+      themeToggle: {
+        title: "Light or dark",
+        body: "Switch between light, dark, or match your device automatically.",
+      },
+      help: {
+        title: "Need this tour again?",
+        body: "Click this anytime to replay the tour.",
+      },
+    },
+  },
 } as const;
 
 export default en;

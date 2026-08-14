@@ -24,10 +24,13 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
+import { CLINICIAN_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
+import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio-store";
 
@@ -82,6 +85,15 @@ function isActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
+// data-tour-id anchors for CLINICIAN_TOUR_STEPS (tour-steps.ts) -- only the
+// two primary nav items are part of the tour, everything else gets no
+// attribute (querySelector on it just never matches).
+function tourIdForNavItem(item: NavItem): string | undefined {
+  if (item.href.includes("/canvas")) return "nav-protocol-editor";
+  if (item.href === "/patients") return "nav-patient-monitoring";
+  return undefined;
+}
+
 function buildBreadcrumb(pathname: string) {
   const tokens = pathname.split("/").filter(Boolean);
   if (!tokens.length) return ["Protocol Editor"];
@@ -102,6 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
   const { locale, setLocale, t } = useT();
   const { user, role, signOut } = useAuth();
+  const tour = useOnboardingTour("clinician");
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
@@ -201,6 +214,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    data-tour-id={tourIdForNavItem(item)}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       "group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm transition",
@@ -290,6 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <button
+            data-tour-id="command-search"
             onClick={() => setCommandOpen(true)}
             className="mx-auto flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-panel border border-border bg-surface-subtle px-3 text-sm text-text-secondary hover:bg-surface md:max-w-[560px] [&>span:last-child]:hidden"
           >
@@ -310,8 +325,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><HelpCircle className="h-4 w-4" /></Button>
-          <ThemeToggle className="hidden shrink-0 sm:flex" />
+          <Button
+            data-tour-id="help-button"
+            size="icon"
+            variant="ghost"
+            title={t("onboarding.replayTour")}
+            className="hidden shrink-0 sm:inline-flex"
+            onClick={() => tour.replay()}
+          >
+            <HelpCircle className="h-4 w-4" />
+          </Button>
+          <span data-tour-id="theme-toggle" className="hidden shrink-0 sm:flex">
+            <ThemeToggle />
+          </span>
           <button
             type="button"
             title={t("auth.logout")}
@@ -338,6 +364,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour-id={tourIdForNavItem(item)}
                 className={cn(
                   "flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px]",
                   active ? "text-clinical-blue" : "text-text-secondary",
@@ -367,6 +394,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </Modal>
+
+      <OnboardingTour steps={CLINICIAN_TOUR_STEPS} active={tour.active} onDone={tour.finish} />
     </div>
   );
 }
