@@ -122,6 +122,7 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       deterministicFallbackText: approvedPatientText,
       isFirstPromptOfNode,
       isFirstPromptOfSession,
+      sessionToneGuidance: input.release.policies.sessionPolicies?.[input.session.sessionDefinitionId]?.toneGuidance,
     });
     const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });

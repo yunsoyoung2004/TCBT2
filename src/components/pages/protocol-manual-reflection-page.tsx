@@ -7,8 +7,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Button, Card, EmptyState, Field, PageHeader, inputClass, textareaClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
 import {
+  getSessionCommonRules,
   getSessionPrompts,
   restorePromptItemFromVerbatim,
+  saveSessionCommonRules,
   sessionCatalog,
   updatePromptItem,
 } from "@/lib/session-catalog";
@@ -42,13 +44,23 @@ export function ProtocolManualReflectionPage() {
 
   const sessionMeta = sessionCatalog.find((session) => session.id === selectedSessionId);
   const prompts = getSessionPrompts(selectedSessionId);
+  const commonRules = getSessionCommonRules(selectedSessionId);
 
   const handleEditText = (id: string, value: string) => {
     updatePromptItem(id, { editableText: value });
     rerender();
   };
+  const handleEditGuidance = (id: string, value: string) => {
+    updatePromptItem(id, { modelGuidance: value });
+    rerender();
+  };
   const handleRestoreVerbatim = (id: string) => {
     restorePromptItemFromVerbatim(id);
+    rerender();
+  };
+  const handleEditTone = (value: string) => {
+    if (!commonRules) return;
+    saveSessionCommonRules(selectedSessionId, { ...commonRules, roleAndStance: value });
     rerender();
   };
 
@@ -78,6 +90,19 @@ export function ProtocolManualReflectionPage() {
           <div className="text-sm font-semibold text-text-primary">{t("manualReflection.introTitle")}</div>
           <p className="mt-1 text-sm text-text-secondary">{t("manualReflection.introBody")}</p>
         </Card>
+
+        {commonRules && (
+          <Card className="p-4">
+            <Field label={t("manualReflection.toneLabel")} hint={t("manualReflection.toneHint")}>
+              <textarea
+                className={textareaClass}
+                value={commonRules.roleAndStance}
+                placeholder={t("manualReflection.tonePlaceholder")}
+                onChange={(event) => handleEditTone(event.target.value)}
+              />
+            </Field>
+          </Card>
+        )}
 
         {!prompts.length && (
           <Card><EmptyState title={t("manualReflection.emptyTitle")} description={t("manualReflection.emptyBody")} /></Card>
@@ -113,6 +138,13 @@ export function ProtocolManualReflectionPage() {
                   />
                 </Field>
               </div>
+              <Field label={t("manualReflection.guidanceLabel")} hint={t("manualReflection.guidanceHint")}>
+                <textarea
+                  className={textareaClass}
+                  value={promptItem.modelGuidance ?? ""}
+                  onChange={(event) => handleEditGuidance(promptItem.id, event.target.value)}
+                />
+              </Field>
               {changed && (
                 <Button variant="secondary" size="sm" onClick={() => handleRestoreVerbatim(promptItem.id)}>
                   {t("manualReflection.restoreVerbatim")}

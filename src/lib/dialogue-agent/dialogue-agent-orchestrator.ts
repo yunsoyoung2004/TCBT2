@@ -70,6 +70,7 @@ export async function resolveDialogueAgentMessage(input: {
   currentTaskTextOverride?: string;
   isFirstPromptOfNode: boolean;
   isFirstPromptOfSession: boolean;
+  sessionToneGuidance?: string;
 }): Promise<DialogueAgentTurnResult> {
   if (isSafetyCriticalPrompt(input.sourcePromptItem)) {
     return { patientMessage: input.deterministicFallbackText, decision: null, usedFallback: false, excludedBySafety: true, fallbackReason: "safety_critical_prompt_excluded", provider: "deterministic" };
@@ -85,6 +86,7 @@ export async function resolveDialogueAgentMessage(input: {
     currentTaskTextOverride: input.currentTaskTextOverride,
     isFirstPromptOfNode: input.isFirstPromptOfNode,
     isFirstPromptOfSession: input.isFirstPromptOfSession,
+    sessionToneGuidance: input.sessionToneGuidance,
   });
 
   const result = await callDialogueAgent(contract, { sessionId: input.session.id, turnId: input.turnId });

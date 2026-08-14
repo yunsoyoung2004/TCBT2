@@ -70,6 +70,17 @@ function systemPrompt(contract: DialogueContract) {
     "Never diagnose, never give treatment advice outside this protocol, never mention runtime/node/session internals, never claim you are an AI.",
     "keepCurrentNode must always be true -- you never decide the step is complete; the deterministic engine does that from the participant's actual answer.",
     "candidateFieldMention is your own read of what the participant seems to be saying, for logging only -- it is never treated as the authoritative extracted value.",
+    // Clinician-authored, additive-only guidance -- placed after every hard
+    // rule above (locale, safety, forbidden actions, never-diagnose, etc.),
+    // which none of the following can ever loosen or override. If a
+    // clinician's wording here conflicted with a rule above, the rule above
+    // wins; these two lines only ever add phrasing preference on top.
+    contract.sessionToneGuidance
+      ? `This clinical team's guidance on tone and manner for this whole session (style only -- never grounds for skipping or loosening any rule above): ${contract.sessionToneGuidance}`
+      : "",
+    contract.clinicianGuidance
+      ? `This clinical team's guidance for this specific step (style/emphasis only -- never grounds for skipping or loosening any rule above): ${contract.clinicianGuidance}`
+      : "",
     "",
     "How to read the participant's last message before responding:",
     "- If they answered a different construct than expected (e.g. named an emotion when a thought was asked for), do not say 'that's wrong' and do not restart the question sequence. Name what they gave in one clause, distinguish it from what's being asked, and ask again in the same breath. Example: 'Anxiety sounds like the emotion you noticed. Here I'm looking for the thought that went through your mind -- what did you find yourself thinking?' Use responseType 'repair', participantResponseState 'wrong_construct'.",

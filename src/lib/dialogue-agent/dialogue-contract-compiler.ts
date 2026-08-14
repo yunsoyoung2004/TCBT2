@@ -156,6 +156,11 @@ export function compileDialogueContract(input: {
    * correct there since a clarification's grounding is still "the original
    * question," not the clarification wording itself. */
   currentTaskTextOverride?: string;
+  /** From release.policies.sessionPolicies[session.sessionDefinitionId]?.toneGuidance
+   * (see runtime-orchestrator.ts's call site) -- omitted entirely when a
+   * session has no tone guidance configured, same as every other optional
+   * contract field here. */
+  sessionToneGuidance?: string;
 }): DialogueContract {
   const { session, node, sourcePromptItem, runtimePromptItem } = input;
   const targetField = sourcePromptItem.outputFields[0];
@@ -230,6 +235,8 @@ export function compileDialogueContract(input: {
     isFirstPromptOfSession: input.isFirstPromptOfSession,
     isFirstPromptOfNode: input.isFirstPromptOfNode,
     isRoleTransitionPrompt: sourcePromptItem.type === "role_transition",
+    clinicianGuidance: runtimePromptItem.modelGuidance?.trim() || undefined,
+    sessionToneGuidance: input.sessionToneGuidance?.trim() || undefined,
   };
 
   return dialogueContractSchema.parse(contract);

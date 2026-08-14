@@ -447,6 +447,7 @@ function normalizePolicies(snapshot: SourceFidelityReleaseSnapshot): PolicyBundl
         ...(rules.sessionWideRequiredActions ?? []),
         ...(rules.sessionWideRestrictions ?? []),
       ],
+      toneGuidance: rules.roleAndStance?.trim() || undefined,
     },
   ]));
   return {
