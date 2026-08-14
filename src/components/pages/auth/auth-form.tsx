@@ -40,7 +40,7 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
     const supabase = getSupabaseBrowserClient();
     try {
       if (mode === "signup") {
-        const { error: signupError } = await supabase.auth.signUp({
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email,
           password,
           // Without this, the confirmation email's final redirect falls
@@ -57,7 +57,14 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
           options: { data: { role }, emailRedirectTo: `${window.location.origin}${redirectTo}` },
         });
         if (signupError) throw signupError;
-        setConfirmSent(true);
+        // With the project's "Confirm email" setting off, signUp() returns
+        // an already-active session (no email ever gets sent) -- showing
+        // the "check your email" screen in that case would be actively
+        // wrong, since no email is coming and the account is already
+        // usable right now. Only show it when there's genuinely no session
+        // yet, i.e. confirmation really is required.
+        if (signupData.session) router.push(redirectTo);
+        else setConfirmSent(true);
       } else {
         const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) throw loginError;
