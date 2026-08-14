@@ -37,7 +37,18 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
         const { error: signupError } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { role } },
+          // Without this, the confirmation email's final redirect falls
+          // back to the Supabase project's dashboard-configured "Site URL"
+          // -- which defaults to http://localhost:3000 and was never
+          // updated for production, so every confirmation link dead-ends
+          // with ERR_CONNECTION_REFUSED once it leaves Supabase's own
+          // verification step. window.location.origin always matches
+          // wherever the signup actually happened (production or local
+          // dev), so this is correct in both. Still requires that origin
+          // to be on the project's Auth > URL Configuration redirect
+          // allow-list, or Supabase silently ignores this and falls back
+          // to Site URL anyway.
+          options: { data: { role }, emailRedirectTo: `${window.location.origin}${redirectTo}` },
         });
         if (signupError) throw signupError;
         setConfirmSent(true);
