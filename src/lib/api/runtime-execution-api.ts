@@ -683,7 +683,7 @@ export async function startRuntimeSession(sessionId: string) {
     runtimeState,
     status: "active",
   });
-  await saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session started", { nodeId: runtimeState.activeNodeId }));
+  void saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session started", { nodeId: runtimeState.activeNodeId })).catch(() => {});
   await createRuntimeCheckpoint(sessionId);
   return executeCurrentNode(sessionId);
 }
@@ -693,7 +693,7 @@ export async function pauseRuntimeSession(sessionId: string, reason: string) {
   if (!view) throw new Error("Runtime session not found");
   if (!["active", "waiting_for_input"].includes(view.session.status)) throw new Error("Pause is not allowed in the current state");
   await setRuntimeSessionStatus(sessionId, "paused", { pausedAt: new Date().toISOString() });
-  await saveRuntimeLog(makeLog(sessionId, "session", "completed", `Session paused: ${reason}`));
+  void saveRuntimeLog(makeLog(sessionId, "session", "completed", `Session paused: ${reason}`)).catch(() => {});
   return createRuntimeCheckpoint(sessionId);
 }
 
@@ -712,7 +712,7 @@ export async function resumeRuntimeSession(sessionId: string) {
     // any prompt being encountered for the first time.
     runtimeContext: { ...view.session.runtimeContext, clarificationAttemptCount: 0, lastClarificationReason: undefined },
   });
-  await saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session resumed"));
+  void saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session resumed")).catch(() => {});
   return executeCurrentNode(sessionId);
 }
 
@@ -736,7 +736,7 @@ export async function retryStalledRuntimeNode(sessionId: string) {
   if (!["active", "processing"].includes(view.session.status)) {
     throw new Error("Retry is not allowed in the current state");
   }
-  await saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session retried after a stalled node"));
+  void saveRuntimeLog(makeLog(sessionId, "session", "completed", "Session retried after a stalled node")).catch(() => {});
   return executeCurrentNode(sessionId);
 }
 
@@ -746,13 +746,13 @@ export async function terminateRuntimeSession(sessionId: string, reason: string)
   if (["completed", "terminated"].includes(view.session.status)) throw new Error("Session cannot be terminated");
   assertRuntimeTransition(view.session.status, "terminated");
   await updateRuntimeSessionRecord(sessionId, { status: "terminated", terminatedAt: new Date().toISOString() });
-  await saveRuntimeLog(makeLog(sessionId, "session", "completed", `Session terminated: ${reason}`));
+  void saveRuntimeLog(makeLog(sessionId, "session", "completed", `Session terminated: ${reason}`)).catch(() => {});
   return createRuntimeCheckpoint(sessionId);
 }
 
 export async function completeRuntimeSession(sessionId: string) {
   await updateRuntimeSessionRecord(sessionId, { status: "completed", completedAt: new Date().toISOString() });
-  await saveRuntimeLog(makeLog(sessionId, "completion", "completed", "Session completed"));
+  void saveRuntimeLog(makeLog(sessionId, "completion", "completed", "Session completed")).catch(() => {});
   const checkpoint = await createRuntimeCheckpoint(sessionId);
   const summary = await generateSessionSummary(sessionId);
   await extractMemoryCandidates(summary.id);
@@ -820,7 +820,7 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
   const runtimeContext = retrieval ? injectLongitudinalMemory(session.runtimeContext, retrieval.selected) : session.runtimeContext;
   const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
   const activeSession = { ...session, runtimeContext, skippedPromptItemIds };
-  await saveRuntimeLog(makeLog(sessionId, "node_resolution", "completed", `Current node resolved: ${node.title}`, { nodeId: node.id }));
+  void saveRuntimeLog(makeLog(sessionId, "node_resolution", "completed", `Current node resolved: ${node.title}`, { nodeId: node.id })).catch(() => {});
   const promptItem = activePromptItem;
   if (promptItem) {
     if (activeStep.promptItem.requiresPatientInput) {
@@ -1031,12 +1031,19 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
   await updateRuntimeSessionRecord(sessionId, { status: "processing", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
   const executionSequence = session.executionLogIds.length + 1;
-  await saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient input received", { nodeId: currentNode.id, input: { kind: patientInput.kind } }));
-  await saveRuntimeLog(makeLog(sessionId, "state_extraction", "completed", "State extracted", { nodeId: currentNode.id, output: extracted as unknown as Record<string, unknown> }));
-  await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", safetyResult.triggered ? `Safety triggered: ${safetyResult.action}` : "Safety check passed", { nodeId: currentNode.id, output: safetyResult as unknown as Record<string, unknown> }));
+  // These three fire on every single patient turn and none of them feed
+  // this function's return value (logIds is always [] -- nothing ever
+  // reads these calls' results) -- awaiting them serially was three full
+  // network round-trips of pure added latency on the hot path for a
+  // diagnostic audit trail nothing downstream depends on. Fire-and-forget,
+  // matching the safety-alert email dispatch pattern below: a slow/failed
+  // log write must never delay or fail the patient's actual turn.
+  void saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient input received", { nodeId: currentNode.id, input: { kind: patientInput.kind } })).catch(() => {});
+  void saveRuntimeLog(makeLog(sessionId, "state_extraction", "completed", "State extracted", { nodeId: currentNode.id, output: extracted as unknown as Record<string, unknown> })).catch(() => {});
+  void saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", safetyResult.triggered ? `Safety triggered: ${safetyResult.action}` : "Safety check passed", { nodeId: currentNode.id, output: safetyResult as unknown as Record<string, unknown> })).catch(() => {});
   if (extracted.riskSignals.includes("ambiguous_safety_language") && !safetyResult.triggered) {
     const clarification = await deliverClarificationTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, release: view.release, runtimeState, patientMessage, reason: "safety_clarification", missingFields: extracted.missingFields, recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content) });
-    await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Ambiguous safety language requires neutral clarification", { nodeId: currentNode.id, output: { signals: extracted.riskSignals } }));
+    void saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Ambiguous safety language requires neutral clarification", { nodeId: currentNode.id, output: { signals: extracted.riskSignals } })).catch(() => {});
     await createRuntimeCheckpoint(sessionId);
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: clarification.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: clarification.sessionStatus, logIds: [] };
   }
@@ -1053,7 +1060,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       reason: "patient_refusal",
       recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
     });
-    await saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient declined to continue; session paused without protocol progression", { nodeId: currentNode.id }));
+    void saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient declined to continue; session paused without protocol progression", { nodeId: currentNode.id })).catch(() => {});
     await createRuntimeCheckpoint(sessionId);
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: refusal.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: refusal.sessionStatus, logIds: [] };
   }
@@ -1071,7 +1078,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
       recentMessages: view.messages,
     });
-    await saveRuntimeLog(makeLog(sessionId, "error", "skipped", "Input validation failed", { nodeId: currentNode.id, output: { missingFields: extracted.missingFields } }));
+    void saveRuntimeLog(makeLog(sessionId, "error", "skipped", "Input validation failed", { nodeId: currentNode.id, output: { missingFields: extracted.missingFields } })).catch(() => {});
     await createRuntimeCheckpoint(sessionId);
     return {
       sessionId,
@@ -1137,14 +1144,14 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       });
     if (suppressionDecision.suppressed && activeSuppression) {
       await consumeOrRecordSuppressionUse(activeSuppression);
-      await saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Safety trigger suppression reused existing event", {
+      void saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Safety trigger suppression reused existing event", {
         nodeId: currentNode.id,
         output: {
           suppressionId: activeSuppression.id,
           reason: suppressionDecision.reason,
           reusedSafetyEventId: safetyEvent?.id,
         },
-      }));
+      })).catch(() => {});
     }
     if (!safetyEvent) {
       throw new Error("Suppressed safety trigger could not resolve an existing safety event");
@@ -1167,7 +1174,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       });
       await updateRuntimeSessionRecord(sessionId, { status: "escalated", escalationIds: [...session.escalationIds, escalation.id] });
       await patchSafetyEvent(safetyEvent.id, { linkedEscalationId: escalation.id }, "Linked escalation to safety event");
-      await saveRuntimeLog(makeLog(sessionId, "escalation", "completed", "Clinician escalation created", { nodeId: currentNode.id }));
+      void saveRuntimeLog(makeLog(sessionId, "escalation", "completed", "Clinician escalation created", { nodeId: currentNode.id })).catch(() => {});
       if (escalation.severity === "high") {
         // Fire-and-forget, and deliberately routed through a real server
         // route (not a direct sendSafetyAlertEmail import): this module runs
