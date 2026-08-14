@@ -150,6 +150,26 @@ export function PatientSessionPage() {
 
   const messages = sessionData?.messages ?? [];
   const activeSession = sessionData?.session;
+  // A freshly-created session sits in "created" status until something
+  // calls startRuntimeSession -- patient-new-session-page.tsx used to
+  // await that itself (the first AI turn's full generation, sometimes
+  // chained through several auto-delivered nodes before the first one
+  // that actually needs a patient answer) before ever navigating here,
+  // so the "새 세션" button just sat there spinning with no feedback for
+  // however long that took. It now navigates immediately once the
+  // session row exists; this effect picks up the actual start from here
+  // instead, where the existing "처리 중" (processing) state below already
+  // gives the patient something to look at while it runs. autoStartedRef
+  // guards against re-firing on every refetch/re-render -- if the mutation
+  // itself fails, the still-present manual "Start" button (further down)
+  // is the fallback, not an automatic retry loop.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (activeSession?.status === "created" && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startMutation.mutate();
+    }
+  }, [activeSession?.status, startMutation]);
   const tts = useBrowserTts(activeSession?.locale ?? "en-US");
   const { supported: ttsSupported, speak, stop } = tts;
   const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");

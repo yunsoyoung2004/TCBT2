@@ -946,7 +946,15 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
 }
 
 export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number } = {}): Promise<RuntimeCycleResult> {
-  await cleanupExpiredTriggerSuppressions();
+  // Pure housekeeping (deletes rows past their expiry), unrelated to this
+  // turn's own correctness -- getActiveSafetyTriggerSuppressions below
+  // (only reached when safetyResult.triggered, i.e. rarely) already does
+  // its own cleanupExpiredTriggerSuppressions() call immediately before
+  // the read that actually needs a clean table, so this upfront call was
+  // never what made a triggered turn's suppression check correct. It ran
+  // on every single turn regardless, though -- fire-and-forget instead of
+  // paying for it on the hot path every time.
+  void cleanupExpiredTriggerSuppressions().catch(() => {});
   const initialView = await getRuntimeSession(sessionId);
   if (!initialView) throw new Error("Runtime session not found");
   const initialSession = initialView.session;
