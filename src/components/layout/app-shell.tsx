@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
@@ -29,6 +30,8 @@ import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
+import { fadeUp } from "@/lib/motion/motion-variants";
+import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { CLINICIAN_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
 import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
 import { cn } from "@/lib/utils";
@@ -115,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { locale, setLocale, t } = useT();
   const { user, role, signOut } = useAuth();
   const tour = useOnboardingTour("clinician");
+  const reducedMotion = useReducedMotionPreference();
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
@@ -352,7 +356,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Extra bottom clearance for the fixed mobile nav below, plus the
             iOS home-indicator safe area on top of that. Unchanged >=640px
             (no bottom nav there). */}
-        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">{children}</main>
+        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
+          {/* Every clinician page wraps itself in its own <AppShell> (see
+              studio-app.tsx's routing), so this is the one shared place that
+              gives every one of them the same subtle enter transition
+              instead of popping in instantly -- no per-page edits needed.
+              `key={pathname}` re-triggers it on navigation even though in
+              practice the whole AppShell instance already remounts too. */}
+          <motion.div
+            key={pathname}
+            initial={reducedMotion ? false : "initial"}
+            animate={reducedMotion ? undefined : "animate"}
+            variants={reducedMotion ? undefined : fadeUp}
+          >
+            {children}
+          </motion.div>
+        </main>
       </div>
 
       {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}

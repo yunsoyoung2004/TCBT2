@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { HelpCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui/primitives";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
+import { fadeUp } from "@/lib/motion/motion-variants";
+import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 
 export function PatientShell({
   title,
@@ -33,6 +36,8 @@ export function PatientShell({
 }) {
   const { t } = useT();
   const router = useRouter();
+  const pathname = usePathname();
+  const reducedMotion = useReducedMotionPreference();
   const { user, signOut } = useAuth();
   const handleLogout = async () => {
     await signOut();
@@ -82,7 +87,21 @@ export function PatientShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl p-4 lg:p-6">{children}</main>
+      <main className="mx-auto max-w-5xl p-4 lg:p-6">
+        {/* Every patient page wraps itself in its own <PatientShell> (see
+            studio-app.tsx's routing), so this is the one shared place that
+            gives every one of them the same subtle enter transition on
+            navigation instead of popping in instantly -- matches the same
+            treatment on the clinician side (see app-shell.tsx). */}
+        <motion.div
+          key={pathname}
+          initial={reducedMotion ? false : "initial"}
+          animate={reducedMotion ? undefined : "animate"}
+          variants={reducedMotion ? undefined : fadeUp}
+        >
+          {children}
+        </motion.div>
+      </main>
       <footer className="border-t border-border bg-surface px-4 py-3 text-xs text-text-secondary lg:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <span>{t("patientShell.demoNotice")}</span>
