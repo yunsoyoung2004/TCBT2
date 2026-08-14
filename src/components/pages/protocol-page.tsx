@@ -17,6 +17,7 @@ import {
 } from "@/lib/session-catalog";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyNodeChanges, type Connection, type NodeChange } from "@xyflow/react";
@@ -396,6 +397,9 @@ export function ProtocolPage() {
         meta={<Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>}
         actions={
           <>
+            <Link href={`/projects/demo/protocols/tbct-br-001/manual-reflection?sessionId=${selectedSessionMeta?.id ?? selectedSessionId}`}>
+              <Button variant="secondary">{t("protocolEditor.viewManualReflection")}</Button>
+            </Link>
             <div className="flex flex-col gap-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t("protocolEditor.session")}</div>
               <select

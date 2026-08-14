@@ -11,6 +11,7 @@ const AssetsPage = dynamic(() => import("@/components/pages/assets-page").then((
 const ClinicalAssetRegistrationPage = dynamic(() => import("@/components/pages/clinical-asset-registration-page").then((mod) => mod.ClinicalAssetRegistrationPage), { ssr: false });
 const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page").then((mod) => mod.ExtractionPage), { ssr: false });
 const ProtocolPage = dynamic(() => import("@/components/pages/protocol-page").then((mod) => mod.ProtocolPage), { ssr: false });
+const ProtocolManualReflectionPage = dynamic(() => import("@/components/pages/protocol-manual-reflection-page").then((mod) => mod.ProtocolManualReflectionPage), { ssr: false });
 const SafetyPage = dynamic(() => import("@/components/pages/safety-page").then((mod) => mod.SafetyPage), { ssr: false });
 const ValidationPage = dynamic(() => import("@/components/pages/validation-page").then((mod) => mod.ValidationPage), { ssr: false });
 const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mod) => mod.AuditPage), { ssr: false });
@@ -140,6 +141,7 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname.includes("/clinical-assets/new"), Page: ClinicalAssetRegistrationPage },
   { matches: (pathname) => pathname.includes("/assets"), Page: AssetsPage },
   { matches: (pathname) => pathname.includes("/extraction"), Page: ExtractionPage },
+  { matches: (pathname) => pathname.includes("/manual-reflection"), Page: ProtocolManualReflectionPage },
   { matches: (pathname) => pathname.includes("/canvas"), Page: ProtocolPage },
   { matches: (pathname) => pathname.includes("/safety"), Page: SafetyPage },
   { matches: (pathname) => pathname.includes("/validation"), Page: ValidationPage },
