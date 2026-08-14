@@ -200,6 +200,7 @@ const en = {
   patientMonitoring: {
     title: "Patient Monitoring",
     description: "Caseload overview across active TBCT sessions.",
+    viewDataDashboard: "View data dashboard",
     search: "Search patients",
     statusFilter: "Status",
     sessionFilter: "Session",
@@ -242,6 +243,28 @@ const en = {
       high: "High",
       medium: "Medium",
       low: "Low",
+    },
+  },
+  dataDashboard: {
+    pageTitle: "Data dashboard",
+    pageDescription: "Charts built from data this program already collects -- nothing new to set up.",
+    stats: {
+      participants: "Participants",
+      sessionsTotal: "Sessions (total)",
+      sessionsOpen: "Sessions in progress",
+      sessionsCompleted: "Sessions completed",
+      safetyOpen: "Open safety events",
+    },
+    trend: {
+      title: "Weekly trend",
+      hint: "Choose what to chart -- last 10 weeks, one week per point.",
+      sessions: "Sessions started",
+      safetyEvents: "Safety events",
+    },
+    assessments: {
+      title: "Screening check-ins",
+      averageScore: "average latest score",
+      sampleSize: "n={count}",
     },
   },
   patientDetail: {

@@ -18,6 +18,7 @@ const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mo
 const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((mod) => mod.SettingsPage), { ssr: false });
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
 const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
+const DataDashboardPage = dynamic(() => import("@/components/pages/data-dashboard-page").then((mod) => mod.DataDashboardPage), { ssr: false });
 const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
 const AdminUsersPage = dynamic(() => import("@/components/pages/admin-users-page").then((mod) => mod.AdminUsersPage), { ssr: false });
 const AdminDeletionRequestsPage = dynamic(() => import("@/components/pages/admin-deletion-requests-page").then((mod) => mod.AdminDeletionRequestsPage), { ssr: false });
@@ -100,6 +101,7 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => /^\/patients\/[^/]+\/report\/[^/]+\/?$/.test(pathname), Page: PatientSessionReportPage },
   { matches: (pathname) => pathname === "/account" || pathname === "/account/", Page: ClinicianAccountPage },
   { matches: (pathname) => /^\/patients\/[^/]+\/?$/.test(pathname), Page: PatientMonitoringDetailPage },
+  { matches: (pathname) => pathname === "/data-dashboard" || pathname === "/data-dashboard/", Page: DataDashboardPage },
   { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/checkin"), Page: PatientCheckinPage, audience: "patient" },

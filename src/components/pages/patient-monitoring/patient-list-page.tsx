@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, Search } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Card, EmptyState, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
 import { listRuntimeParticipants } from "@/lib/api/participant-api";
 import { listRuntimeSessions } from "@/lib/api/runtime-session-api";
@@ -150,7 +150,16 @@ export function PatientListPage() {
 
   return (
     <AppShell>
-      <PageHeader eyebrow="Clinician" title={t("patientMonitoring.title")} description="Caseload overview across active, paused, and completed protocol sessions." />
+      <PageHeader
+        eyebrow="Clinician"
+        title={t("patientMonitoring.title")}
+        description="Caseload overview across active, paused, and completed protocol sessions."
+        actions={
+          <Link href="/data-dashboard">
+            <Button variant="secondary">{t("patientMonitoring.viewDataDashboard")}</Button>
+          </Link>
+        }
+      />
       <div className="space-y-4 p-4 lg:p-6">
         {needsAttentionRows.length > 0 && (
           <Card className="p-3">

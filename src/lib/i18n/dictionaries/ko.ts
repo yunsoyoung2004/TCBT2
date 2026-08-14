@@ -200,6 +200,7 @@ const ko = {
   patientMonitoring: {
     title: "환자 모니터링",
     description: "진행 중인 TBCT 세션 전체에 대한 담당 환자 현황입니다.",
+    viewDataDashboard: "데이터 현황판 보기",
     search: "환자 검색",
     statusFilter: "상태",
     sessionFilter: "세션",
@@ -242,6 +243,28 @@ const ko = {
       high: "높음",
       medium: "중간",
       low: "낮음",
+    },
+  },
+  dataDashboard: {
+    pageTitle: "데이터 현황판",
+    pageDescription: "이 프로그램이 이미 모으고 있는 데이터로 만든 차트예요 -- 따로 설정할 건 없어요.",
+    stats: {
+      participants: "참가자 수",
+      sessionsTotal: "전체 세션",
+      sessionsOpen: "진행 중인 세션",
+      sessionsCompleted: "완료된 세션",
+      safetyOpen: "열린 안전 이벤트",
+    },
+    trend: {
+      title: "주간 추이",
+      hint: "무엇을 볼지 선택하세요 -- 최근 10주, 한 점당 한 주예요.",
+      sessions: "시작된 세션",
+      safetyEvents: "안전 이벤트",
+    },
+    assessments: {
+      title: "선별검사 체크인",
+      averageScore: "최근 평균 점수",
+      sampleSize: "n={count}",
     },
   },
   patientDetail: {
