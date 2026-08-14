@@ -1,0 +1,1335 @@
+{
+  "sessionId": "tbct-s08",
+  "locale": "ko-KR",
+  "model": "claude-sonnet-5",
+  "patientTurns": 54,
+  "programTurns": 57,
+  "finalStatus": "completed",
+  "stopReason": "completed",
+  "promptItemsExecuted": [
+    "tbct-s08-n01-p01-distressing-situation",
+    "tbct-s08-n01-p02-downward-arrow",
+    "tbct-s08-n02-p01-core-belief-rating",
+    "tbct-s08-n02-p02-baseline-emotion",
+    "tbct-s08-n02-p03-baseline-emotion-rating",
+    "tbct-s08-n04-p01-enter-defendant-role",
+    "tbct-s08-n04-p02-defendant-pre-prosecution-ratings",
+    "tbct-s08-n05-p01-visualize-prosecutor",
+    "tbct-s08-n06-p01-enter-prosecutor-role",
+    "tbct-s08-n06-p02-prosecution-evidence",
+    "tbct-s08-n07-p01-return-to-defendant",
+    "tbct-s08-n07-p02-visualize-defense",
+    "tbct-s08-n08-p01-enter-defense-role",
+    "tbct-s08-n08-p02-defense-evidence",
+    "tbct-s08-n09-p01-return-to-defendant",
+    "tbct-s08-n10-p01-return-to-prosecutor",
+    "tbct-s08-n10-p02-rebut-each-defense-item",
+    "tbct-s08-n11-p01-return-to-defendant",
+    "tbct-s08-n11-p02-unrebutted-defense-note",
+    "tbct-s08-n12-p01-return-to-defense",
+    "tbct-s08-n12-p02-surrebut-each-pair",
+    "tbct-s08-n12-p03-participant-therefore",
+    "tbct-s08-n13-p01-return-to-defendant",
+    "tbct-s08-n14-p01-enter-jury-role",
+    "tbct-s08-n14-p02-juror-role",
+    "tbct-s08-n14-p03-review-four-blocks",
+    "tbct-s08-n14-p04-participant-verdict",
+    "tbct-s08-n15-p01-announce-verdict",
+    "tbct-s08-n16-p01-post-verdict-defendant",
+    "tbct-s08-n16-p02-post-verdict-ratings",
+    "tbct-s08-n17-p01-trial-experience",
+    "tbct-s08-n17-p02-prosecution-satisfaction",
+    "tbct-s08-n17-p03-defense-demonstration",
+    "tbct-s08-n17-p04-preferred-ally",
+    "tbct-s08-n17-p05-good-defense",
+    "tbct-s08-n17-p06-what-defines-person",
+    "tbct-s08-n17-p07-upward-arrow",
+    "tbct-s08-n18-p01-participant-positive-belief",
+    "tbct-s08-n19-p01-appeal-evidence",
+    "tbct-s08-n20-p01-positive-belief-rating",
+    "tbct-s08-n21-p01-original-charge-final-ratings"
+  ],
+  "skippedPromptItemIds": [],
+  "fallbackCount": 2,
+  "providerErrorCount": 0,
+  "providerErrors": [],
+  "clarificationCount": 0,
+  "nonKoreanProgramTurns": [],
+  "duplicateProgramMessages": [],
+  "missingFields": [],
+  "fields": {
+    "distressingSituation": "지난주에 팀 회의에서 제 보고서가 사람들 앞에서 지적당했어요.",
+    "automaticThought": "나는 결국 이 일에서 잘리게 될 거라는 생각이 들었어요.",
+    "prosecutionEvidenceSufficient": false,
+    "defenseEvidenceSufficient": false,
+    "appealEvidenceSufficient": false,
+    "emotionReasonDialogueSufficient": false,
+    "coreBelief": "결국 나는 부족한 사람이라는 뜻인 것 같아요.",
+    "coreBeliefBaselinePercent": 55,
+    "baselineEmotion": "불안하고 좀 부끄러웠어요.",
+    "baselineEmotionIntensityPercent": 55,
+    "charge": "결국 나는 부족한 사람이라는 뜻인 것 같아요.",
+    "courtroomOrientationAcknowledged": true,
+    "defendantRoleReady": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "defendantPreProsecutionBeliefPercent": 55,
+    "defendantPreProsecutionEmotionIntensityPercent": 50,
+    "prosecutorImagery": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요.",
+    "prosecutorRoleReady": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "prosecutionEvidence": [
+      "그는 3월에 마감을 한 번 놓쳤습니다."
+    ],
+    "prosecutionEvidenceNoMore": false,
+    "prosecutionEvidenceDuplicate": true,
+    "prosecutionEvidenceCount": 1,
+    "defendantPostProsecutionBeliefPercent": 55,
+    "defendantPostProsecutionEmotionIntensityPercent": 50,
+    "defenseImagery": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요.",
+    "defenseRoleReady": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "defenseEvidence": [
+      "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    ],
+    "defenseEvidenceNoMore": false,
+    "defenseEvidenceDuplicate": true,
+    "defenseEvidenceCount": 1,
+    "defendantPostDefenseBeliefPercent": 55,
+    "defendantPostDefenseEmotionIntensityPercent": 50,
+    "prosecutionRebuttals": "그는 3월에 마감을 한 번 놓쳤습니다.",
+    "defendantPostRebuttalBeliefPercent": 55,
+    "defendantPostRebuttalEmotionIntensityPercent": 50,
+    "unrebuttedDefenseEvidence": "그는 다른 프로젝트는 전부 제때 끝냈습니다.",
+    "defenseSurrebuttals": "그는 다른 프로젝트는 전부 제때 끝냈습니다.",
+    "thereforeConclusions": "그는 다른 프로젝트는 전부 제때 끝냈습니다.",
+    "defendantPostSurrebuttalBeliefPercent": 55,
+    "defendantPostSurrebuttalEmotionIntensityPercent": 50,
+    "juryOrientation": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "juryReview": [
+      "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    ],
+    "juryReviewNoMore": false,
+    "juryReviewDuplicate": true,
+    "juryReviewCount": 1,
+    "verdict": "not_guilty",
+    "verdictAnnounced": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "defendantPostVerdictReady": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요.",
+    "defendantPostVerdictBeliefPercent": 55,
+    "defendantPostVerdictEmotionIntensityPercent": 50,
+    "trialDiscussion": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요.",
+    "positiveBelief": "결국 나는 부족한 사람이라는 뜻인 것 같아요.",
+    "appealEvidence": [
+      "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    ],
+    "appealEvidenceNoMore": false,
+    "appealEvidenceDuplicate": true,
+    "appealEvidenceCount": 1,
+    "appealHomeworkAcknowledged": true,
+    "positiveBeliefPercent": 55,
+    "originalChargeFinalBeliefPercent": 55,
+    "originalChargeFinalEmotionIntensityPercent": 50
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "nodeId": "tbct-s08-n01-investigation-and-core-belief",
+      "promptItemId": "tbct-s08-n01-p01-distressing-situation",
+      "programMessage": "힘들었던 상황과 그때 떠오른 자동적 사고를 하나 떠올려 주세요. 실제로 무슨 일이 있었고, 어떤 생각이 스쳐 지나갔나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "distressingSituation: 지난주에 팀 회의에서 제 보고서가 사람들 앞에서 지적당했어요.; automaticThought: 나는 결국 이 일에서 잘리게 될 거라는 생각이 들었어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 2,
+      "nodeId": "tbct-s08-n01-investigation-and-core-belief",
+      "promptItemId": "tbct-s08-n01-p02-downward-arrow",
+      "programMessage": "그 생각이 사실이라면, 그것은 본인에 대해 무엇을 의미하나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "결국 나는 부족한 사람이라는 뜻인 것 같아요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 3,
+      "nodeId": "tbct-s08-n02-baseline-ratings",
+      "promptItemId": "tbct-s08-n02-p01-core-belief-rating",
+      "programMessage": "\"결국 나는 부족한 사람이다\"라는 핵심 믿음을 찾아주셨네요. 이제 다음 단계로 넘어가서, 이 믿음을 지금 얼마나 강하게 믿고 계신지, 그리고 그와 함께 느껴지는 감정을 살펴보겠습니다. 먼저, 0에서 100% 사이로 표현한다면, 지금 이 순간 \"나는 부족한 사람이다\"라는 생각을 얼마나 믿고 계신가요? (0은 전혀 믿지 않음, 100은 완전히 확신함을 의미합니다)",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 4,
+      "nodeId": "tbct-s08-n02-baseline-ratings",
+      "promptItemId": "tbct-s08-n02-p02-baseline-emotion",
+      "programMessage": "55%로 믿고 계시는군요. 그렇다면 이 믿음을 느낄 때, 어떤 감정이 함께 드시나요? (예: 슬픔, 불안, 수치심, 좌절감 등)",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 5,
+      "nodeId": "tbct-s08-n02-baseline-ratings",
+      "promptItemId": "tbct-s08-n02-p03-baseline-emotion-rating",
+      "programMessage": "불안함과 부끄러움을 느끼셨군요. 그 감정들 중에서 지금 가장 강하게 느껴지는 감정의 강도를 0에서 100% 사이로 표현하면 어느 정도일까요? (0은 전혀 느끼지 않음, 100은 최대한 강하게 느껴짐을 의미합니다)",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 6,
+      "nodeId": "tbct-s08-n04-defendant-chair",
+      "promptItemId": "tbct-s08-n04-p01-enter-defendant-role",
+      "programMessage": "네, 이제 이 법정 절차를 시작해볼게요. 먼저 '피고인' 역할로 들어가서, 혐의를 받는 입장에서 이야기하시게 됩니다. 이제 피고인 의자로 옮겨 앉아 주세요. 잠시 그 자리에 자리 잡으신 뒤에 이어가겠습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 7,
+      "nodeId": "tbct-s08-n04-defendant-chair",
+      "promptItemId": "tbct-s08-n04-p02-defendant-pre-prosecution-ratings",
+      "programMessage": "좋습니다, 피고인 자리에 잘 앉으셨네요. 이제 피고인의 입장에서 다시 한 번 여쭤볼게요.\n\n1) \"나는 결국 부족한 사람이다\"라는 그 혐의를 지금 얼마나 믿으시나요? (0~100%)\n2) 그리고 그때 느껴지는 감정의 강도는 몇 %인가요? (0~100%)\n\n두 가지 숫자로 말씀해 주세요.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 8,
+      "nodeId": "tbct-s08-n05-prosecutor-imagery",
+      "promptItemId": "tbct-s08-n05-p01-visualize-prosecutor",
+      "programMessage": "믿음 강도 55%, 감정 강도 50%로 잘 확인했습니다.\n\n이제 다음 단계로 넘어가겠습니다. 이번에는 검사석—지금은 비어 있는 그 자리—을 바라봐 주세요. 이 법정에서 선생님을 고발할 검사의 모습을 마음속으로 그려보는 단계예요.\n\n그 사람을 떠올려 보세요. 남성인가요, 여성인가요? 나이는 어느 정도로 보이나요? 표정이나 태도는 어떤가요? 최대한 자세히 묘사해 주세요. 단, 부모님이나 형제자매 같은 가까운 가족, 혹은 친한 친구는 이 역할에서 제외해 주세요 — 대신 낯설지만 또렷하게 그려지는, 조금은 중립적인 인물을 상상해 보시면 좋겠습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 9,
+      "nodeId": "tbct-s08-n06-prosecution-evidence",
+      "promptItemId": "tbct-s08-n06-p01-enter-prosecutor-role",
+      "programMessage": "좋습니다. 40대 남성, 정장을 입고 표정이 단호한 검사의 모습이 또렷하게 그려지네요.\n\n이제 이 검사가 되어보실 차례입니다. 지금부터는 선생님이 그 이미지 속 검사로 들어가서, 피고인(자신)을 3인칭 '그' 또는 '그녀'로 지칭하며 법정에서 말하게 됩니다.\n\n이제 피고인 의자에서 나와 검사 의자로 옮겨 앉아 주세요. 천천히 하셔도 되고, 준비되시면 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 10,
+      "nodeId": "tbct-s08-n06-prosecution-evidence",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "programMessage": "좋습니다, 검사석에 잘 앉으셨네요. 이제부터 선생님은 검사입니다. 법정과 재판장을 향해 말씀하시고, 피고인은 '그' 또는 '그녀'라고 3인칭으로 지칭해 주세요.\n\n검사로서, 이 혐의 — \"그는 결국 부족한 사람이다\" — 를 뒷받침하는 증거를 법정에 제시해 주시기 바랍니다. 한 번에 하나씩 말씀해 주시면 됩니다. 꼭 최근 상황뿐 아니라, 그 사람의 인생 전체에서 가장 강력하다고 생각되는 증거를 떠올려 보셔도 좋습니다.\n\n첫 번째 증거는 무엇인가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 3월에 마감을 한 번 놓쳤습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 11,
+      "nodeId": "tbct-s08-n06-prosecution-evidence",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "programMessage": "알겠습니다. 첫 번째 증거로 기록하겠습니다 — \"그는 3월에 마감을 한 번 놓쳤다.\"\n\n검사님, 두 번째 증거는 무엇인가요? 그 사람의 인생 전체를 통틀어 떠오르는 것이면 됩니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 3월에 마감을 한 번 놓쳤습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 12,
+      "nodeId": "tbct-s08-n06-prosecution-evidence",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "programMessage": "검사님, 방금 말씀하신 내용은 첫 번째 증거로 이미 기록한 것과 동일하네요 — \"그는 3월에 마감을 한 번 놓쳤다.\"\n\n두 번째 증거를 말씀해 주시겠어요? 같은 사건이 아니어도 괜찮고, 그 사람의 인생 전체를 통틀어 떠오르는 다른 장면이어도 좋습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 3월에 마감을 한 번 놓쳤습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 13,
+      "nodeId": "tbct-s08-n06-prosecution-evidence",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "programMessage": "검사님, 같은 증거를 다시 말씀해 주셨네요 — \"그는 3월에 마감을 한 번 놓쳤다\"는 이미 첫 번째 증거로 기록되어 있습니다.\n\n혹시 지금은 다른 증거가 잘 떠오르지 않으실 수도 있을 것 같습니다. 그럴 땐 시간을 두고 그 사람의 학창 시절, 대인관계, 다른 일 처리 방식 등을 떠올려보셔도 좋습니다. 예를 들어 \"그는 예전에도 비슷한 실수를 한 적이 있다\"거나 \"그는 누군가에게 실망을 준 적이 있다\" 같은 것도 증거가 될 수 있습니다.\n\n두 번째 증거로 떠오르는 다른 내용이 있을까요? 없으시다면 지금은 하나의 증거만으로 진행해도 괜찮습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 3월에 마감을 한 번 놓쳤습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 14,
+      "nodeId": "tbct-s08-n07-defendant-return-defense-imagery",
+      "promptItemId": "tbct-s08-n07-p01-return-to-defendant",
+      "programMessage": "좋습니다. 이제 검사 역할에서 나와, 다시 피고인 의자로 돌아와 주세요. 지금부터는 검사가 아니라 피고인의 입장에서 답변해 주시면 됩니다.\n\n검사 측이 제시한 주장을 그대로 다시 읽어 드릴게요 — \"그는 3월에 마감을 한 번 놓쳤습니다.\"\n\n피고인으로서, 지금 이 혐의를 얼마나 믿으시나요? 0~100% 사이의 숫자로 말씀해 주세요. (0은 전혀 믿지 않음, 100은 완전히 확신함을 의미합니다) 그리고 이어서 그때 느껴지는 감정의 강도도 0~100%로 말씀해 주시면 됩니다.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 15,
+      "nodeId": "tbct-s08-n07-defendant-return-defense-imagery",
+      "promptItemId": "tbct-s08-n07-p02-visualize-defense",
+      "programMessage": "확인했습니다. 믿음 강도 55%, 감정 강도 50%로 기록할게요.\n\n이제 반대편 변호인석을 바라봐 주세요. 그곳에 당신을 변호해 줄 사람이 앉아 있다고 상상해 보세요. 그 사람은 남성인가요, 여성인가요? 어떤 외모와 분위기를 가지고 있고, 어떤 태도로 앉아 있나요? 다만 가까운 가족이나 친구는 떠올리지 마시고, 지혜롭고 따뜻하지만 당신과 개인적으로 아는 사이는 아닌 사람을 상상해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 16,
+      "nodeId": "tbct-s08-n08-defense-evidence",
+      "promptItemId": "tbct-s08-n08-p01-enter-defense-role",
+      "programMessage": "40대 남성, 정장을 입고 단호한 표정을 가진 변호인의 모습이 잘 그려지네요. 이제부터는 그 변호인이 되어 말씀하시게 됩니다 — 즉, 지금까지와는 다른 역할, 피고인을 변호하는 사람의 입장에서 이야기하시게 되는 거예요.\n\n이제 피고인 의자에서 나와 변호인 의자로 옮겨 앉아 주세요. 변호인으로서 피고인을 3인칭으로(\"그는/그 사람은\") 지칭해 주시고, 준비되시면 알려 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 17,
+      "nodeId": "tbct-s08-n08-defense-evidence",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "programMessage": "좋습니다. 변호인석에 앉아 준비되셨군요. 이제 변호인으로서, 이 혐의 — \"그는 3월에 마감을 한 번 놓쳤다\"는 주장에 반대되는 증거를 법정에 제시해 주세요. 검사가 말한 내용에 하나하나 반박하실 필요는 없습니다. 그 사람의 삶 전체에서 이 혐의가 사실이 아님을 보여주는 구체적인 근거를 한 가지만 먼저 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 18,
+      "nodeId": "tbct-s08-n08-defense-evidence",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "programMessage": "좋은 증거입니다. 다른 프로젝트들은 모두 제때 끝냈다는 사실, 잘 기록해 두겠습니다.\n\n변호인으로서, 그 사람이 부족한 사람이 아니라는 것을 보여주는 또 다른 증거가 있을까요? 한 가지만 더 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 19,
+      "nodeId": "tbct-s08-n08-defense-evidence",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "programMessage": "방금 말씀하신 내용은 바로 전에 주신 증거와 같네요 — \"다른 프로젝트는 전부 제때 끝냈다\"는 부분이요. 이미 잘 기록해 두었습니다.\n\n변호인으로서, 그 사람이 부족한 사람이 아니라는 걸 보여주는 또 다른 증거를 하나 더 말씀해 주시겠어요? 예를 들어 동료나 상사에게 인정받았던 순간, 어려운 상황을 잘 해결했던 경험, 혹은 꾸준히 노력해온 부분 등을 떠올려 보셔도 좋습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 20,
+      "nodeId": "tbct-s08-n08-defense-evidence",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "programMessage": "같은 증거를 다시 말씀해 주셨네요 — \"다른 프로젝트는 전부 제때 끝냈다\"는 이미 확실히 기록되어 있습니다.\n\n이번엔 그것과 다른, 새로운 증거를 한 가지 떠올려 주시겠어요? 예를 들어 동료나 상사가 그를 신뢰했던 순간, 힘든 상황에서도 책임을 다했던 경험, 혹은 그가 꾸준히 성실했던 다른 시기가 있었는지 생각해 보셔도 좋습니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 21,
+      "nodeId": "tbct-s08-n09-defendant-post-defense",
+      "promptItemId": "tbct-s08-n09-p01-return-to-defendant",
+      "programMessage": "좋습니다, 변호인 의자에서의 시간은 여기까지 하겠습니다. 이제 다시 피고인 의자로 돌아와 주세요.\n\n변호 측 주장을 다시 읽어 드릴게요 — \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n피고인으로서, 지금 그 혐의를 몇 %나 믿으시는지 0에서 100% 사이로 말씀해 주세요. 그다음에 그때 느껴지는 감정의 강도도 여쭤보겠습니다.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 22,
+      "nodeId": "tbct-s08-n10-prosecution-rebuttal",
+      "promptItemId": "tbct-s08-n10-p01-return-to-prosecutor",
+      "programMessage": "네, 55%로 확인했습니다. 이제 피고인 의자에서 나와 다시 검사 의자로 돌아와 주세요 — 지금부터는 그 사람을 검사의 입장에서, 3인칭으로 지칭하며 말씀해 주시면 됩니다. 준비되시면 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 23,
+      "nodeId": "tbct-s08-n10-prosecution-rebuttal",
+      "promptItemId": "tbct-s08-n10-p02-rebut-each-defense-item",
+      "programMessage": "좋습니다, 검사 의자에 다시 앉으셨네요.\n\n변호 측은 이렇게 말했습니다 — \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" — 하지만!\n\n검사로서, 여기에 어떻게 반박하시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 3월에 마감을 한 번 놓쳤습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 24,
+      "nodeId": "tbct-s08-n11-defendant-post-rebuttal",
+      "promptItemId": "tbct-s08-n11-p01-return-to-defendant",
+      "programMessage": "검사로서 반박을 잘 말씀해 주셨어요. 이제 검사 의자에서 나와 다시 피고인 의자로 돌아와 주세요.\n\n검사 측 반박을 다시 읽어 드릴게요 — (1) \"그는 3월에 마감을 한 번 놓쳤습니다.\"\n\n피고인으로서, 이 반박을 들은 지금, 그 혐의를 몇 %나 믿으시는지 0~100% 사이로 말씀해 주시고, 그때 느껴지는 감정의 강도도 0~100%로 말씀해 주세요.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 25,
+      "nodeId": "tbct-s08-n11-defendant-post-rebuttal",
+      "promptItemId": "tbct-s08-n11-p02-unrebutted-defense-note",
+      "programMessage": "믿음 55%, 감정 강도 50%로 확인했습니다.\n\n사실 이번에는 검사 측이 변호 측 주장 하나에는 반박하지 못했어요. 즉, \"그는 다른 프로젝트는 전부 제때 끝냈습니다\"라는 사실에 대해 검사 측은 반박을 찾지 못했습니다.\n\n피고인으로서, 반박되지 않고 그대로 남아있는 이 변호 측 증거가 무엇인지 직접 말씀해 주시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 26,
+      "nodeId": "tbct-s08-n12-defense-surrebuttal",
+      "promptItemId": "tbct-s08-n12-p01-return-to-defense",
+      "programMessage": "좋습니다, 반박되지 않고 남아있는 증거를 잘 확인해 주셨어요.\n\n이제 피고인 의자에서 나와, 다시 변호인 의자로 돌아와 주세요. 앞으로는 피고인을 3인칭(\"그는\")으로 지칭해 주시고요. 준비되시면 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 27,
+      "nodeId": "tbct-s08-n12-defense-surrebuttal",
+      "promptItemId": "tbct-s08-n12-p02-surrebut-each-pair",
+      "programMessage": "좋습니다, 변호인 의자에 잘 앉으셨네요.\n\n검사 측은 이렇게 말했습니다: \"그는 3월에 마감을 한 번 놓쳤습니다.\" — 하지만 변호 측은 이렇게 말했죠: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n변호인으로서, 이것이 피고인에 대해 무엇을 말해 주나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 28,
+      "nodeId": "tbct-s08-n12-defense-surrebuttal",
+      "promptItemId": "tbct-s08-n12-p03-participant-therefore",
+      "programMessage": "방금 말씀하신 \"그는 다른 프로젝트는 전부 제때 끝냈습니다\"는 변호 측 증거 내용 그 자체네요. 제가 여쭤보고 싶은 것은, 변호인으로서 이 증거가 피고인에 대해 무엇을 \"의미\"하는지—즉 이 사실이 그 사람을 어떻게 보여주는지—당신의 말로 설명해 주시는 거예요. 예를 들면 \"이건 그가 대체로 책임감 있고 성실한 사람이라는 뜻입니다\" 같은 식으로요. 이 증거가 그에 대해 무엇을 말해 주나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 29,
+      "nodeId": "tbct-s08-n13-defendant-post-surrebuttal",
+      "promptItemId": "tbct-s08-n13-p01-return-to-defendant",
+      "programMessage": "알겠습니다, 이제 변호인 역할은 마무리할게요. 변호인 의자에서 나와, 다시 피고인 의자로 돌아와 앉아 주세요.\n\n변호 측 전체 주장을 다시 읽어 드릴게요 — 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" 이에 대한 재반박과 결론 역시 \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"라는 내용이었죠.\n\n피고인으로서, 지금 그 혐의(\"결국 나는 부족한 사람이라는 뜻인 것 같아요\")를 몇 퍼센트(0~100%) 정도 믿으시나요? 그리고 그때 느끼는 감정의 강도는 어느 정도인가요?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 30,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p01-enter-jury-role",
+      "programMessage": "네, 55%의 믿음과 50의 감정 강도로 기록했습니다.\n\n이제 피고인 의자에서 나와 배심원석으로 옮겨 앉아 주세요. 이제부터는 배심원 1번의 역할을 맡으시게 됩니다 — 저는 배심원 2번이 되어 함께 심의를 진행할 거예요.\n\n배심원실은 완전히 비공개 공간입니다. 판사도, 검사도, 변호인도, 심지어 피고인 본인도 이 방에는 없습니다. 오직 배심원 두 사람만 있습니다. 여기서 나눈 이야기는 어느 쪽에도 다시 전달되지 않아요. 그리고 이제부터는 피고인을 3인칭(\"그\" 또는 \"그녀\")으로 지칭해 주세요.\n\n준비되셨으면, 먼저 하나 여쭤볼게요: 배심원의 역할은 무엇이라고 생각하시나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 31,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p02-juror-role",
+      "programMessage": "네, 자리에 앉으신 것 확인했습니다. 그럼 다시 여쭤볼게요 — 배심원의 역할은 무엇이라고 생각하시나요? 배심원이 심의할 때 어떤 자세나 태도를 가져야 한다고 생각하시는지 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 32,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "자리에 앉으신 것 확인했습니다. 이제 궁금한 건 배심원의 '역할'이에요 — 배심원실에 앉아 있다는 것 말고, 배심원으로서 심의할 때 어떤 자세나 태도를 가져야 한다고 생각하시나요? 예를 들어, 한쪽 편을 들지 않고 공정하게 판단하는 것 같은 걸 말씀해 주시면 됩니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 33,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "양쪽 이야기를 들으니 느낌이 달랐다는 말씀, 배심원으로서 공정하게 들으셨다는 뜻으로 이해했어요. 그게 바로 배심원의 역할이에요 — 어느 한쪽에 치우치지 않고 공정하게, 자기 임무를 성실히 하는 것이죠.\n\n이제 변호 측 증거를 다시 검토해볼게요. \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" — 이 부분에서 무엇이 눈에 띄나요? 이게 사실이고 맞는 이야기라고 보시나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 34,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "그 말씀은 양쪽 이야기를 들었을 때의 전체적인 느낌이신 것 같아요. 지금은 그것과는 조금 다른 걸 여쭤보고 싶어요 — 변호 측이 제시한 구체적인 증거, \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" 이 한 가지에 대해서만요. 이게 사실이고 맞는 이야기라고 보시나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 35,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "그 말씀은 계속 전체적인 느낌을 말씀해 주시는 것 같아요. 지금은 딱 한 가지, 변호 측이 내놓은 이 증거만 다시 짚어볼게요.\n\n\"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 문장 하나만 놓고 볼 때 — 이게 실제로 있었던 사실이라고 보시나요, 아니라고 보시나요? 예를 들어 \"네, 사실이에요\" 또는 \"아니요, 다르게 봐요\" 같은 식으로 말씀해 주시면 됩니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 36,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "같은 말씀을 다시 해주셨네요. 제가 여쭤보고 싶은 건 전체적인 느낌이 아니라, 아주 구체적인 한 가지예요.\n\n변호 측이 내놓은 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 한 문장만 놓고 볼 때, 이게 실제로 있었던 사실인가요? 예/아니요로 먼저 답해주시고, 이 부분에서 눈에 띄는 점이 있다면 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 37,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "programMessage": "같은 말씀을 계속 해주고 계신 것 같아 이번엔 예를 들어볼게요. 지금 여쭤보는 건 전체 느낌이 아니라, 아주 구체적인 한 문장에 대한 판단이에요.\n\n변호 측 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 문장만 딱 놓고 볼 때 — 예를 들어 \"네, 실제로 있었던 일이라 사실이에요\" 또는 \"이 부분은 좀 과장된 것 같아요\" 처럼, 이게 사실인지 아닌지, 그리고 여기서 눈에 띄는 점이 뭔지 말씀해 주시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 38,
+      "nodeId": "tbct-s08-n14-jury-deliberation",
+      "promptItemId": "tbct-s08-n14-p04-participant-verdict",
+      "programMessage": "같은 말씀을 세 번째로 해주고 계신 것 같아 잠시 짚고 넘어갈게요. 지금 여쭤보는 건 전체적인 느낌이 아니에요.\n\n변호 측 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 한 문장만 놓고, 딱 두 가지 중 하나로만 답해 주세요:\n1) \"네, 사실이에요\" — 실제로 있었던 일이라면\n2) \"아니요, 사실이 아니에요\" — 그렇지 않다면\n\n지금은 이 질문에만 집중해서 답해 주시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "무죄"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 39,
+      "nodeId": "tbct-s08-n15-court-officer-announcement",
+      "promptItemId": "tbct-s08-n15-p01-announce-verdict",
+      "programMessage": "좋습니다, \"무죄\"라는 배심원단의 판결이 나왔네요. 이제 역할을 바꿔볼게요 — 배심원이 아니라 법정 담당관이 되어, 그 판결을 판사(저)에게 공식적으로 알리는 역할입니다.\n\n배심원석에서 일어나 판사를 향해 서 주세요. 그리고 배심원단이 내린 판결을 소리 내어 온전한 문장으로 선고해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 40,
+      "nodeId": "tbct-s08-n16-defendant-post-verdict",
+      "promptItemId": "tbct-s08-n16-p01-post-verdict-defendant",
+      "programMessage": "좋습니다, 자리에 앉아 계시다니 잘됐어요. 이제 법정 담당관 역할에서 나와, 판사인 제가 다시 질문을 드리는 피고인 역할로 돌아와 주세요. 판결이 선고된 지금, 그 사람 입장에서 말씀해 주세요 — 죄목을 몇 퍼센트나 믿게 되었는지, 그리고 그 감정의 강도는 몇 퍼센트인지 알려주시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 41,
+      "nodeId": "tbct-s08-n16-defendant-post-verdict",
+      "promptItemId": "tbct-s08-n16-p02-post-verdict-ratings",
+      "programMessage": "그 말씀은 이전 단계(증거를 떠올리는 부분)에 해당하는 것 같아요. 지금은 그 단계가 아니라, 판결이 선고된 지금 피고인 입장에서 답해주실 차례예요.\n\n0에서 100% 사이로 두 가지를 알려주세요:\n1) 그 혐의를 지금 얼마나 믿으시나요?\n2) 그때 느껴지는 감정의 강도는 얼마나 되나요?\n\n(0은 전혀 믿지 않거나 느끼지 않는다는 뜻이고, 100은 완전히 확신하거나 최대한 강하게 느낀다는 뜻이에요.)",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 42,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p01-trial-experience",
+      "programMessage": "네, 55%의 믿음과 50%의 감정 강도로 확인했습니다. 이제 역할극에서 나와 다시 본래의 자리로 돌아와, 이번 재판 전체에 대해 함께 이야기 나눠볼게요.\n\n이 재판을 직접 겪어 보니 어떠셨나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 43,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p02-prosecution-satisfaction",
+      "programMessage": "양쪽 이야기를 다 들으니 느낌이 달랐다는 말씀, 잘 들었어요. 그럼 이어서 여쭤볼게요 — 검사 측은 이번 판결 결과에 만족했을까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 44,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p03-defense-demonstration",
+      "programMessage": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변이신 것 같아요. 이번엔 다른 질문을 드릴게요 — 검사 측은 이번 판결 결과에 만족했을까요? (만족하지 않았다면, 항소를 요청할 수도 있다는 뜻이 될 거예요.)",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 45,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p04-preferred-ally",
+      "programMessage": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변과 같은 내용이네요. 이번엔 다른 질문이에요 — 검사 측과 변호인 측 중, 당신 편에 서 줄 사람으로 누구를 더 원하시나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 46,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p05-good-defense",
+      "programMessage": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변과 같은 내용이네요. 이번엔 새로운 질문을 드릴게요 — 좋은 변호인은 증거를 찾기 어려울 때 어떤 일을 한다고 생각하시나요? 그리고 좋은 의뢰인은 변호인을 돕기 위해 무엇을 할까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 47,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p06-what-defines-person",
+      "programMessage": "그 말씀은 재판 전체를 겪은 소감과 같은 내용이라, 이번 질문에 대한 답이라기보다는 앞서 주신 답변이 반복된 것 같아요. 이번엔 전혀 다른 질문을 드릴게요 — 한 사람을 정의하는 것은 무엇이라고 생각하시나요? 예를 들어, 매일 반복되는 평범한 일상의 행동들일까요, 아니면 특별하고 영웅적인 순간들일까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 48,
+      "nodeId": "tbct-s08-n17-open-discussion",
+      "promptItemId": "tbct-s08-n17-p07-upward-arrow",
+      "programMessage": "그 말씀은 재판 전체를 겪은 소감과 같은 내용이라, 계속 같은 답변이 반복되고 있어요. 이번엔 새로운 질문이니 잠시 다르게 생각해 보시겠어요? 만약 변호 측과 배심원의 판단, 즉 '무죄'가 옳다면, 그것은 당신이라는 사람에 대해 무엇을 말해 준다고 생각하시나요? 예를 들면 \"나는 실수를 해도 괜찮은 사람이다\" 같은 식으로 답해 보실 수 있어요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 49,
+      "nodeId": "tbct-s08-n18-positive-belief",
+      "promptItemId": "tbct-s08-n18-p01-participant-positive-belief",
+      "programMessage": "양쪽 이야기를 들으며 느낌이 달라졌다는 말씀, 그 소감은 이미 잘 들었어요. 이제는 다음 단계로 넘어가서, 그 재판 결과가 '나'라는 사람에 대해 무엇을 말해주는지를 한 문장으로 정리해보려 해요. 무죄 판결이 옳다면, 그것은 당신에 대해 어떤 긍정적인 믿음을 말해준다고 느끼시나요? 예를 들어 \"나는 그 정도면 충분히 잘하고 있다\"처럼, 원래의 혐의를 대신할 새로운 믿음을 본인의 말로 표현해 주시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "결국 나는 부족한 사람이라는 뜻인 것 같아요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 50,
+      "nodeId": "tbct-s08-n19-appeal-preparation",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "programMessage": "\"결국 나는 부족한 사람\"이라는 문장은 이전 혐의(부정적 믿음) 쪽에 가까운 표현이에요. 우리가 재판을 통해 확인한 새로운 긍정적 믿음은 \"나는 그 정도면 충분히 잘하고 있다\"였죠.\n\n이제 다음 단계로 넘어가서, 오늘 하루 동안 그 긍정적 믿음(\"나는 그 정도면 충분히 잘하고 있다\")을 뒷받침해주는 작은 증거들을 함께 모아볼게요. 오늘 하루가 아직 끝나지 않았으니 계속 추가하실 수 있고, 이렇게 매일 증거를 모으고 믿음의 정도를 다시 평가하는 것이 앞으로의 핵심 과제가 될 거예요.\n\n오늘 있었던 일 중에서, 그 새로운 믿음을 뒷받침해주는 증거를 하나 말씀해 주시겠어요? 최소 두 가지가 필요해요. 첫 번째는 무엇인가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 51,
+      "nodeId": "tbct-s08-n19-appeal-preparation",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "programMessage": "이번 주에 있었던 일을 떠올리셨다니 좋아요. 이제 그 일이 구체적으로 무엇이었는지 말씀해 주시겠어요? 예를 들어 \"회의에서 내 의견을 말했고 잘 받아들여졌다\"처럼, 오늘 그 새로운 믿음(\"나는 그 정도면 충분히 잘하고 있다\")을 뒷받침해주는 구체적인 순간 하나를 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 52,
+      "nodeId": "tbct-s08-n19-appeal-preparation",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "programMessage": "아직 구체적인 내용은 듣지 못했어요. \"이번 주에 있었던 일\"이라고 하셨는데, 그게 정확히 어떤 순간이었는지 궁금해요. 예를 들어 \"회의에서 발표를 무사히 마쳤다\"처럼, 그 일을 한 문장으로 말씀해 주시겠어요? 그게 \"나는 그 정도면 충분히 잘하고 있다\"는 믿음을 뒷받침해주는 첫 번째 증거가 될 거예요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 53,
+      "nodeId": "tbct-s08-n20-positive-belief-rating",
+      "promptItemId": "tbct-s08-n20-p01-positive-belief-rating",
+      "programMessage": "같은 말씀을 계속 해주고 계신 것 같아 제가 다시 여쭤볼게요. \"떠올려 봤다\"는 마음가짐 말고, 실제로 무슨 일이 있었는지가 필요해요. 예를 들어 \"오늘 회의에서 내 의견을 말했고 받아들여졌다\"처럼, 이번 주에 실제로 있었던 아주 작은 일 하나를 한 문장으로 적어주시겠어요?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 54,
+      "nodeId": "tbct-s08-n21-original-charge-final-ratings",
+      "promptItemId": "tbct-s08-n21-p01-original-charge-final-ratings",
+      "programMessage": "마지막으로 처음의 혐의를 다시 돌아볼게요. 0에서 100% 사이로: 지금은 그것을 얼마나 믿으시나요, 그리고 감정의 강도는 어느 정도인가요?",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55, 50"
+      },
+      "sessionStatus": "completed"
+    }
+  ],
+  "messages": [
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n01-p01-distressing-situation",
+      "content": "힘들었던 상황과 그때 떠오른 자동적 사고를 하나 떠올려 주세요. 실제로 무슨 일이 있었고, 어떤 생각이 스쳐 지나갔나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n01-p01-distressing-situation",
+      "content": "distressingSituation: 지난주에 팀 회의에서 제 보고서가 사람들 앞에서 지적당했어요.; automaticThought: 나는 결국 이 일에서 잘리게 될 거라는 생각이 들었어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n01-p02-downward-arrow",
+      "content": "그 생각이 사실이라면, 그것은 본인에 대해 무엇을 의미하나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n01-p02-downward-arrow",
+      "content": "결국 나는 부족한 사람이라는 뜻인 것 같아요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n02-p01-core-belief-rating",
+      "content": "\"결국 나는 부족한 사람이다\"라는 핵심 믿음을 찾아주셨네요. 이제 다음 단계로 넘어가서, 이 믿음을 지금 얼마나 강하게 믿고 계신지, 그리고 그와 함께 느껴지는 감정을 살펴보겠습니다. 먼저, 0에서 100% 사이로 표현한다면, 지금 이 순간 \"나는 부족한 사람이다\"라는 생각을 얼마나 믿고 계신가요? (0은 전혀 믿지 않음, 100은 완전히 확신함을 의미합니다)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n02-p01-core-belief-rating",
+      "content": "55"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n02-p02-baseline-emotion",
+      "content": "55%로 믿고 계시는군요. 그렇다면 이 믿음을 느낄 때, 어떤 감정이 함께 드시나요? (예: 슬픔, 불안, 수치심, 좌절감 등)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n02-p02-baseline-emotion",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n02-p03-baseline-emotion-rating",
+      "content": "불안함과 부끄러움을 느끼셨군요. 그 감정들 중에서 지금 가장 강하게 느껴지는 감정의 강도를 0에서 100% 사이로 표현하면 어느 정도일까요? (0은 전혀 느끼지 않음, 100은 최대한 강하게 느껴짐을 의미합니다)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n02-p03-baseline-emotion-rating",
+      "content": "55"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n03-p01-state-charge",
+      "content": "이 법정에서 다뤄질 혐의는 이것입니다 — \"결국 나는 부족한 사람이라는 뜻인 것 같아요.\""
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n03-p02-roles-orientation",
+      "content": "지금까지 다룬 상황은 이 믿음이 드러난 하나의 '계기'였을 뿐이에요. 정작 살펴볼 필요가 있는 건, \"결국 나는 부족한 사람이다\"라는 믿음 자체입니다. 이건 특정 상황을 넘어서 스스로에 대해 오래 품어온 일종의 '혐의'와 같아요.\n\n이제 이 혐의를 상징적인 마음속 법정에서 함께 검토해볼게요. 제가 진행을 안내하는 동안, 선생님께서는 피고인 · 검사 · 변호인 · 배심원, 이렇게 네 자리를 차례로 옮겨 다니며 이야기하시게 됩니다.\n\n이 법정에서 다뤄질 혐의는 이것입니다 — \"나는 결국 부족한 사람이다.\"\n\n이 방식으로 진행해봐도 괜찮으실까요?"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n04-p01-enter-defendant-role",
+      "content": "네, 이제 이 법정 절차를 시작해볼게요. 먼저 '피고인' 역할로 들어가서, 혐의를 받는 입장에서 이야기하시게 됩니다. 이제 피고인 의자로 옮겨 앉아 주세요. 잠시 그 자리에 자리 잡으신 뒤에 이어가겠습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n04-p01-enter-defendant-role",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n04-p02-defendant-pre-prosecution-ratings",
+      "content": "좋습니다, 피고인 자리에 잘 앉으셨네요. 이제 피고인의 입장에서 다시 한 번 여쭤볼게요.\n\n1) \"나는 결국 부족한 사람이다\"라는 그 혐의를 지금 얼마나 믿으시나요? (0~100%)\n2) 그리고 그때 느껴지는 감정의 강도는 몇 %인가요? (0~100%)\n\n두 가지 숫자로 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n04-p02-defendant-pre-prosecution-ratings",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n05-p01-visualize-prosecutor",
+      "content": "믿음 강도 55%, 감정 강도 50%로 잘 확인했습니다.\n\n이제 다음 단계로 넘어가겠습니다. 이번에는 검사석—지금은 비어 있는 그 자리—을 바라봐 주세요. 이 법정에서 선생님을 고발할 검사의 모습을 마음속으로 그려보는 단계예요.\n\n그 사람을 떠올려 보세요. 남성인가요, 여성인가요? 나이는 어느 정도로 보이나요? 표정이나 태도는 어떤가요? 최대한 자세히 묘사해 주세요. 단, 부모님이나 형제자매 같은 가까운 가족, 혹은 친한 친구는 이 역할에서 제외해 주세요 — 대신 낯설지만 또렷하게 그려지는, 조금은 중립적인 인물을 상상해 보시면 좋겠습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n05-p01-visualize-prosecutor",
+      "content": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n06-p01-enter-prosecutor-role",
+      "content": "좋습니다. 40대 남성, 정장을 입고 표정이 단호한 검사의 모습이 또렷하게 그려지네요.\n\n이제 이 검사가 되어보실 차례입니다. 지금부터는 선생님이 그 이미지 속 검사로 들어가서, 피고인(자신)을 3인칭 '그' 또는 '그녀'로 지칭하며 법정에서 말하게 됩니다.\n\n이제 피고인 의자에서 나와 검사 의자로 옮겨 앉아 주세요. 천천히 하셔도 되고, 준비되시면 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n06-p01-enter-prosecutor-role",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "좋습니다, 검사석에 잘 앉으셨네요. 이제부터 선생님은 검사입니다. 법정과 재판장을 향해 말씀하시고, 피고인은 '그' 또는 '그녀'라고 3인칭으로 지칭해 주세요.\n\n검사로서, 이 혐의 — \"그는 결국 부족한 사람이다\" — 를 뒷받침하는 증거를 법정에 제시해 주시기 바랍니다. 한 번에 하나씩 말씀해 주시면 됩니다. 꼭 최근 상황뿐 아니라, 그 사람의 인생 전체에서 가장 강력하다고 생각되는 증거를 떠올려 보셔도 좋습니다.\n\n첫 번째 증거는 무엇인가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "그는 3월에 마감을 한 번 놓쳤습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "알겠습니다. 첫 번째 증거로 기록하겠습니다 — \"그는 3월에 마감을 한 번 놓쳤다.\"\n\n검사님, 두 번째 증거는 무엇인가요? 그 사람의 인생 전체를 통틀어 떠오르는 것이면 됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "그는 3월에 마감을 한 번 놓쳤습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "검사님, 방금 말씀하신 내용은 첫 번째 증거로 이미 기록한 것과 동일하네요 — \"그는 3월에 마감을 한 번 놓쳤다.\"\n\n두 번째 증거를 말씀해 주시겠어요? 같은 사건이 아니어도 괜찮고, 그 사람의 인생 전체를 통틀어 떠오르는 다른 장면이어도 좋습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "그는 3월에 마감을 한 번 놓쳤습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "검사님, 같은 증거를 다시 말씀해 주셨네요 — \"그는 3월에 마감을 한 번 놓쳤다\"는 이미 첫 번째 증거로 기록되어 있습니다.\n\n혹시 지금은 다른 증거가 잘 떠오르지 않으실 수도 있을 것 같습니다. 그럴 땐 시간을 두고 그 사람의 학창 시절, 대인관계, 다른 일 처리 방식 등을 떠올려보셔도 좋습니다. 예를 들어 \"그는 예전에도 비슷한 실수를 한 적이 있다\"거나 \"그는 누군가에게 실망을 준 적이 있다\" 같은 것도 증거가 될 수 있습니다.\n\n두 번째 증거로 떠오르는 다른 내용이 있을까요? 없으시다면 지금은 하나의 증거만으로 진행해도 괜찮습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n06-p02-prosecution-evidence",
+      "content": "그는 3월에 마감을 한 번 놓쳤습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n07-p01-return-to-defendant",
+      "content": "좋습니다. 이제 검사 역할에서 나와, 다시 피고인 의자로 돌아와 주세요. 지금부터는 검사가 아니라 피고인의 입장에서 답변해 주시면 됩니다.\n\n검사 측이 제시한 주장을 그대로 다시 읽어 드릴게요 — \"그는 3월에 마감을 한 번 놓쳤습니다.\"\n\n피고인으로서, 지금 이 혐의를 얼마나 믿으시나요? 0~100% 사이의 숫자로 말씀해 주세요. (0은 전혀 믿지 않음, 100은 완전히 확신함을 의미합니다) 그리고 이어서 그때 느껴지는 감정의 강도도 0~100%로 말씀해 주시면 됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n07-p01-return-to-defendant",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n07-p02-visualize-defense",
+      "content": "확인했습니다. 믿음 강도 55%, 감정 강도 50%로 기록할게요.\n\n이제 반대편 변호인석을 바라봐 주세요. 그곳에 당신을 변호해 줄 사람이 앉아 있다고 상상해 보세요. 그 사람은 남성인가요, 여성인가요? 어떤 외모와 분위기를 가지고 있고, 어떤 태도로 앉아 있나요? 다만 가까운 가족이나 친구는 떠올리지 마시고, 지혜롭고 따뜻하지만 당신과 개인적으로 아는 사이는 아닌 사람을 상상해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n07-p02-visualize-defense",
+      "content": "40대 남성이고, 정장을 입었고, 표정이 단호해요. 아는 사람은 아니에요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n08-p01-enter-defense-role",
+      "content": "40대 남성, 정장을 입고 단호한 표정을 가진 변호인의 모습이 잘 그려지네요. 이제부터는 그 변호인이 되어 말씀하시게 됩니다 — 즉, 지금까지와는 다른 역할, 피고인을 변호하는 사람의 입장에서 이야기하시게 되는 거예요.\n\n이제 피고인 의자에서 나와 변호인 의자로 옮겨 앉아 주세요. 변호인으로서 피고인을 3인칭으로(\"그는/그 사람은\") 지칭해 주시고, 준비되시면 알려 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n08-p01-enter-defense-role",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "좋습니다. 변호인석에 앉아 준비되셨군요. 이제 변호인으로서, 이 혐의 — \"그는 3월에 마감을 한 번 놓쳤다\"는 주장에 반대되는 증거를 법정에 제시해 주세요. 검사가 말한 내용에 하나하나 반박하실 필요는 없습니다. 그 사람의 삶 전체에서 이 혐의가 사실이 아님을 보여주는 구체적인 근거를 한 가지만 먼저 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "좋은 증거입니다. 다른 프로젝트들은 모두 제때 끝냈다는 사실, 잘 기록해 두겠습니다.\n\n변호인으로서, 그 사람이 부족한 사람이 아니라는 것을 보여주는 또 다른 증거가 있을까요? 한 가지만 더 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "방금 말씀하신 내용은 바로 전에 주신 증거와 같네요 — \"다른 프로젝트는 전부 제때 끝냈다\"는 부분이요. 이미 잘 기록해 두었습니다.\n\n변호인으로서, 그 사람이 부족한 사람이 아니라는 걸 보여주는 또 다른 증거를 하나 더 말씀해 주시겠어요? 예를 들어 동료나 상사에게 인정받았던 순간, 어려운 상황을 잘 해결했던 경험, 혹은 꾸준히 노력해온 부분 등을 떠올려 보셔도 좋습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "같은 증거를 다시 말씀해 주셨네요 — \"다른 프로젝트는 전부 제때 끝냈다\"는 이미 확실히 기록되어 있습니다.\n\n이번엔 그것과 다른, 새로운 증거를 한 가지 떠올려 주시겠어요? 예를 들어 동료나 상사가 그를 신뢰했던 순간, 힘든 상황에서도 책임을 다했던 경험, 혹은 그가 꾸준히 성실했던 다른 시기가 있었는지 생각해 보셔도 좋습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n08-p02-defense-evidence",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n09-p01-return-to-defendant",
+      "content": "좋습니다, 변호인 의자에서의 시간은 여기까지 하겠습니다. 이제 다시 피고인 의자로 돌아와 주세요.\n\n변호 측 주장을 다시 읽어 드릴게요 — \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n피고인으로서, 지금 그 혐의를 몇 %나 믿으시는지 0에서 100% 사이로 말씀해 주세요. 그다음에 그때 느껴지는 감정의 강도도 여쭤보겠습니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n09-p01-return-to-defendant",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n10-p01-return-to-prosecutor",
+      "content": "네, 55%로 확인했습니다. 이제 피고인 의자에서 나와 다시 검사 의자로 돌아와 주세요 — 지금부터는 그 사람을 검사의 입장에서, 3인칭으로 지칭하며 말씀해 주시면 됩니다. 준비되시면 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n10-p01-return-to-prosecutor",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n10-p02-rebut-each-defense-item",
+      "content": "좋습니다, 검사 의자에 다시 앉으셨네요.\n\n변호 측은 이렇게 말했습니다 — \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" — 하지만!\n\n검사로서, 여기에 어떻게 반박하시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n10-p02-rebut-each-defense-item",
+      "content": "그는 3월에 마감을 한 번 놓쳤습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n11-p01-return-to-defendant",
+      "content": "검사로서 반박을 잘 말씀해 주셨어요. 이제 검사 의자에서 나와 다시 피고인 의자로 돌아와 주세요.\n\n검사 측 반박을 다시 읽어 드릴게요 — (1) \"그는 3월에 마감을 한 번 놓쳤습니다.\"\n\n피고인으로서, 이 반박을 들은 지금, 그 혐의를 몇 %나 믿으시는지 0~100% 사이로 말씀해 주시고, 그때 느껴지는 감정의 강도도 0~100%로 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n11-p01-return-to-defendant",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n11-p02-unrebutted-defense-note",
+      "content": "믿음 55%, 감정 강도 50%로 확인했습니다.\n\n사실 이번에는 검사 측이 변호 측 주장 하나에는 반박하지 못했어요. 즉, \"그는 다른 프로젝트는 전부 제때 끝냈습니다\"라는 사실에 대해 검사 측은 반박을 찾지 못했습니다.\n\n피고인으로서, 반박되지 않고 그대로 남아있는 이 변호 측 증거가 무엇인지 직접 말씀해 주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n11-p02-unrebutted-defense-note",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n12-p01-return-to-defense",
+      "content": "좋습니다, 반박되지 않고 남아있는 증거를 잘 확인해 주셨어요.\n\n이제 피고인 의자에서 나와, 다시 변호인 의자로 돌아와 주세요. 앞으로는 피고인을 3인칭(\"그는\")으로 지칭해 주시고요. 준비되시면 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n12-p01-return-to-defense",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n12-p02-surrebut-each-pair",
+      "content": "좋습니다, 변호인 의자에 잘 앉으셨네요.\n\n검사 측은 이렇게 말했습니다: \"그는 3월에 마감을 한 번 놓쳤습니다.\" — 하지만 변호 측은 이렇게 말했죠: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n변호인으로서, 이것이 피고인에 대해 무엇을 말해 주나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n12-p02-surrebut-each-pair",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n12-p03-participant-therefore",
+      "content": "방금 말씀하신 \"그는 다른 프로젝트는 전부 제때 끝냈습니다\"는 변호 측 증거 내용 그 자체네요. 제가 여쭤보고 싶은 것은, 변호인으로서 이 증거가 피고인에 대해 무엇을 \"의미\"하는지—즉 이 사실이 그 사람을 어떻게 보여주는지—당신의 말로 설명해 주시는 거예요. 예를 들면 \"이건 그가 대체로 책임감 있고 성실한 사람이라는 뜻입니다\" 같은 식으로요. 이 증거가 그에 대해 무엇을 말해 주나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n12-p03-participant-therefore",
+      "content": "그는 다른 프로젝트는 전부 제때 끝냈습니다."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n13-p01-return-to-defendant",
+      "content": "알겠습니다, 이제 변호인 역할은 마무리할게요. 변호인 의자에서 나와, 다시 피고인 의자로 돌아와 앉아 주세요.\n\n변호 측 전체 주장을 다시 읽어 드릴게요 — 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" 이에 대한 재반박과 결론 역시 \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"라는 내용이었죠.\n\n피고인으로서, 지금 그 혐의(\"결국 나는 부족한 사람이라는 뜻인 것 같아요\")를 몇 퍼센트(0~100%) 정도 믿으시나요? 그리고 그때 느끼는 감정의 강도는 어느 정도인가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n13-p01-return-to-defendant",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p01-enter-jury-role",
+      "content": "네, 55%의 믿음과 50의 감정 강도로 기록했습니다.\n\n이제 피고인 의자에서 나와 배심원석으로 옮겨 앉아 주세요. 이제부터는 배심원 1번의 역할을 맡으시게 됩니다 — 저는 배심원 2번이 되어 함께 심의를 진행할 거예요.\n\n배심원실은 완전히 비공개 공간입니다. 판사도, 검사도, 변호인도, 심지어 피고인 본인도 이 방에는 없습니다. 오직 배심원 두 사람만 있습니다. 여기서 나눈 이야기는 어느 쪽에도 다시 전달되지 않아요. 그리고 이제부터는 피고인을 3인칭(\"그\" 또는 \"그녀\")으로 지칭해 주세요.\n\n준비되셨으면, 먼저 하나 여쭤볼게요: 배심원의 역할은 무엇이라고 생각하시나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p01-enter-jury-role",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p02-juror-role",
+      "content": "네, 자리에 앉으신 것 확인했습니다. 그럼 다시 여쭤볼게요 — 배심원의 역할은 무엇이라고 생각하시나요? 배심원이 심의할 때 어떤 자세나 태도를 가져야 한다고 생각하시는지 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p02-juror-role",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "자리에 앉으신 것 확인했습니다. 이제 궁금한 건 배심원의 '역할'이에요 — 배심원실에 앉아 있다는 것 말고, 배심원으로서 심의할 때 어떤 자세나 태도를 가져야 한다고 생각하시나요? 예를 들어, 한쪽 편을 들지 않고 공정하게 판단하는 것 같은 걸 말씀해 주시면 됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 들으니 느낌이 달랐다는 말씀, 배심원으로서 공정하게 들으셨다는 뜻으로 이해했어요. 그게 바로 배심원의 역할이에요 — 어느 한쪽에 치우치지 않고 공정하게, 자기 임무를 성실히 하는 것이죠.\n\n이제 변호 측 증거를 다시 검토해볼게요. \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" — 이 부분에서 무엇이 눈에 띄나요? 이게 사실이고 맞는 이야기라고 보시나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "그 말씀은 양쪽 이야기를 들었을 때의 전체적인 느낌이신 것 같아요. 지금은 그것과는 조금 다른 걸 여쭤보고 싶어요 — 변호 측이 제시한 구체적인 증거, \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\" 이 한 가지에 대해서만요. 이게 사실이고 맞는 이야기라고 보시나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "그 말씀은 계속 전체적인 느낌을 말씀해 주시는 것 같아요. 지금은 딱 한 가지, 변호 측이 내놓은 이 증거만 다시 짚어볼게요.\n\n\"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 문장 하나만 놓고 볼 때 — 이게 실제로 있었던 사실이라고 보시나요, 아니라고 보시나요? 예를 들어 \"네, 사실이에요\" 또는 \"아니요, 다르게 봐요\" 같은 식으로 말씀해 주시면 됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "같은 말씀을 다시 해주셨네요. 제가 여쭤보고 싶은 건 전체적인 느낌이 아니라, 아주 구체적인 한 가지예요.\n\n변호 측이 내놓은 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 한 문장만 놓고 볼 때, 이게 실제로 있었던 사실인가요? 예/아니요로 먼저 답해주시고, 이 부분에서 눈에 띄는 점이 있다면 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "같은 말씀을 계속 해주고 계신 것 같아 이번엔 예를 들어볼게요. 지금 여쭤보는 건 전체 느낌이 아니라, 아주 구체적인 한 문장에 대한 판단이에요.\n\n변호 측 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 문장만 딱 놓고 볼 때 — 예를 들어 \"네, 실제로 있었던 일이라 사실이에요\" 또는 \"이 부분은 좀 과장된 것 같아요\" 처럼, 이게 사실인지 아닌지, 그리고 여기서 눈에 띄는 점이 뭔지 말씀해 주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p03-review-four-blocks",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n14-p04-participant-verdict",
+      "content": "같은 말씀을 세 번째로 해주고 계신 것 같아 잠시 짚고 넘어갈게요. 지금 여쭤보는 건 전체적인 느낌이 아니에요.\n\n변호 측 증거: \"그는 다른 프로젝트는 전부 제때 끝냈습니다.\"\n\n이 한 문장만 놓고, 딱 두 가지 중 하나로만 답해 주세요:\n1) \"네, 사실이에요\" — 실제로 있었던 일이라면\n2) \"아니요, 사실이 아니에요\" — 그렇지 않다면\n\n지금은 이 질문에만 집중해서 답해 주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n14-p04-participant-verdict",
+      "content": "무죄"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n15-p01-announce-verdict",
+      "content": "좋습니다, \"무죄\"라는 배심원단의 판결이 나왔네요. 이제 역할을 바꿔볼게요 — 배심원이 아니라 법정 담당관이 되어, 그 판결을 판사(저)에게 공식적으로 알리는 역할입니다.\n\n배심원석에서 일어나 판사를 향해 서 주세요. 그리고 배심원단이 내린 판결을 소리 내어 온전한 문장으로 선고해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n15-p01-announce-verdict",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n16-p01-post-verdict-defendant",
+      "content": "좋습니다, 자리에 앉아 계시다니 잘됐어요. 이제 법정 담당관 역할에서 나와, 판사인 제가 다시 질문을 드리는 피고인 역할로 돌아와 주세요. 판결이 선고된 지금, 그 사람 입장에서 말씀해 주세요 — 죄목을 몇 퍼센트나 믿게 되었는지, 그리고 그 감정의 강도는 몇 퍼센트인지 알려주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n16-p01-post-verdict-defendant",
+      "content": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n16-p02-post-verdict-ratings",
+      "content": "그 말씀은 이전 단계(증거를 떠올리는 부분)에 해당하는 것 같아요. 지금은 그 단계가 아니라, 판결이 선고된 지금 피고인 입장에서 답해주실 차례예요.\n\n0에서 100% 사이로 두 가지를 알려주세요:\n1) 그 혐의를 지금 얼마나 믿으시나요?\n2) 그때 느껴지는 감정의 강도는 얼마나 되나요?\n\n(0은 전혀 믿지 않거나 느끼지 않는다는 뜻이고, 100은 완전히 확신하거나 최대한 강하게 느낀다는 뜻이에요.)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n16-p02-post-verdict-ratings",
+      "content": "55, 50"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p01-trial-experience",
+      "content": "네, 55%의 믿음과 50%의 감정 강도로 확인했습니다. 이제 역할극에서 나와 다시 본래의 자리로 돌아와, 이번 재판 전체에 대해 함께 이야기 나눠볼게요.\n\n이 재판을 직접 겪어 보니 어떠셨나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p01-trial-experience",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p02-prosecution-satisfaction",
+      "content": "양쪽 이야기를 다 들으니 느낌이 달랐다는 말씀, 잘 들었어요. 그럼 이어서 여쭤볼게요 — 검사 측은 이번 판결 결과에 만족했을까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p02-prosecution-satisfaction",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p03-defense-demonstration",
+      "content": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변이신 것 같아요. 이번엔 다른 질문을 드릴게요 — 검사 측은 이번 판결 결과에 만족했을까요? (만족하지 않았다면, 항소를 요청할 수도 있다는 뜻이 될 거예요.)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p03-defense-demonstration",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p04-preferred-ally",
+      "content": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변과 같은 내용이네요. 이번엔 다른 질문이에요 — 검사 측과 변호인 측 중, 당신 편에 서 줄 사람으로 누구를 더 원하시나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p04-preferred-ally",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p05-good-defense",
+      "content": "그 말씀은 앞서 재판 전체를 겪은 느낌에 대한 답변과 같은 내용이네요. 이번엔 새로운 질문을 드릴게요 — 좋은 변호인은 증거를 찾기 어려울 때 어떤 일을 한다고 생각하시나요? 그리고 좋은 의뢰인은 변호인을 돕기 위해 무엇을 할까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p05-good-defense",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p06-what-defines-person",
+      "content": "그 말씀은 재판 전체를 겪은 소감과 같은 내용이라, 이번 질문에 대한 답이라기보다는 앞서 주신 답변이 반복된 것 같아요. 이번엔 전혀 다른 질문을 드릴게요 — 한 사람을 정의하는 것은 무엇이라고 생각하시나요? 예를 들어, 매일 반복되는 평범한 일상의 행동들일까요, 아니면 특별하고 영웅적인 순간들일까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p06-what-defines-person",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n17-p07-upward-arrow",
+      "content": "그 말씀은 재판 전체를 겪은 소감과 같은 내용이라, 계속 같은 답변이 반복되고 있어요. 이번엔 새로운 질문이니 잠시 다르게 생각해 보시겠어요? 만약 변호 측과 배심원의 판단, 즉 '무죄'가 옳다면, 그것은 당신이라는 사람에 대해 무엇을 말해 준다고 생각하시나요? 예를 들면 \"나는 실수를 해도 괜찮은 사람이다\" 같은 식으로 답해 보실 수 있어요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n17-p07-upward-arrow",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n18-p01-participant-positive-belief",
+      "content": "양쪽 이야기를 들으며 느낌이 달라졌다는 말씀, 그 소감은 이미 잘 들었어요. 이제는 다음 단계로 넘어가서, 그 재판 결과가 '나'라는 사람에 대해 무엇을 말해주는지를 한 문장으로 정리해보려 해요. 무죄 판결이 옳다면, 그것은 당신에 대해 어떤 긍정적인 믿음을 말해준다고 느끼시나요? 예를 들어 \"나는 그 정도면 충분히 잘하고 있다\"처럼, 원래의 혐의를 대신할 새로운 믿음을 본인의 말로 표현해 주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n18-p01-participant-positive-belief",
+      "content": "결국 나는 부족한 사람이라는 뜻인 것 같아요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "\"결국 나는 부족한 사람\"이라는 문장은 이전 혐의(부정적 믿음) 쪽에 가까운 표현이에요. 우리가 재판을 통해 확인한 새로운 긍정적 믿음은 \"나는 그 정도면 충분히 잘하고 있다\"였죠.\n\n이제 다음 단계로 넘어가서, 오늘 하루 동안 그 긍정적 믿음(\"나는 그 정도면 충분히 잘하고 있다\")을 뒷받침해주는 작은 증거들을 함께 모아볼게요. 오늘 하루가 아직 끝나지 않았으니 계속 추가하실 수 있고, 이렇게 매일 증거를 모으고 믿음의 정도를 다시 평가하는 것이 앞으로의 핵심 과제가 될 거예요.\n\n오늘 있었던 일 중에서, 그 새로운 믿음을 뒷받침해주는 증거를 하나 말씀해 주시겠어요? 최소 두 가지가 필요해요. 첫 번째는 무엇인가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "이번 주에 있었던 일을 떠올리셨다니 좋아요. 이제 그 일이 구체적으로 무엇이었는지 말씀해 주시겠어요? 예를 들어 \"회의에서 내 의견을 말했고 잘 받아들여졌다\"처럼, 오늘 그 새로운 믿음(\"나는 그 정도면 충분히 잘하고 있다\")을 뒷받침해주는 구체적인 순간 하나를 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "아직 구체적인 내용은 듣지 못했어요. \"이번 주에 있었던 일\"이라고 하셨는데, 그게 정확히 어떤 순간이었는지 궁금해요. 예를 들어 \"회의에서 발표를 무사히 마쳤다\"처럼, 그 일을 한 문장으로 말씀해 주시겠어요? 그게 \"나는 그 정도면 충분히 잘하고 있다\"는 믿음을 뒷받침해주는 첫 번째 증거가 될 거예요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n19-p01-appeal-evidence",
+      "content": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n19-p02-daily-appeal-homework",
+      "content": "같은 말씀을 세 번째 하고 계신 것 같아서, 제가 좀 더 구체적으로 여쭤볼게요. \"떠올렸다\"는 것 말고, 그 순간에 실제로 무슨 일이 있었는지가 필요해요.\n\n예를 들면 이런 식이에요:\n- \"동료가 내 작업물에 대해 고맙다고 말해줬다\"\n- \"마감을 하루 앞두고 일을 끝냈다\"\n- \"누군가 도움을 요청했을 때 잘 도와줬다\"\n\n이렇게 오늘이나 이번 주에 실제로 있었던 아주 작은 일 하나를, 한 문장으로 적어주시겠어요? 그게 \"나는 그 정도면 충분히 잘하고 있다\"는 믿음을 뒷받침하는 첫 번째 증거가 될 거예요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n20-p01-positive-belief-rating",
+      "content": "같은 말씀을 계속 해주고 계신 것 같아 제가 다시 여쭤볼게요. \"떠올려 봤다\"는 마음가짐 말고, 실제로 무슨 일이 있었는지가 필요해요. 예를 들어 \"오늘 회의에서 내 의견을 말했고 받아들여졌다\"처럼, 이번 주에 실제로 있었던 아주 작은 일 하나를 한 문장으로 적어주시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n20-p01-positive-belief-rating",
+      "content": "55"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s08-n21-p01-original-charge-final-ratings",
+      "content": "마지막으로 처음의 혐의를 다시 돌아볼게요. 0에서 100% 사이로: 지금은 그것을 얼마나 믿으시나요, 그리고 감정의 강도는 어느 정도인가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s08-n21-p01-original-charge-final-ratings",
+      "content": "55, 50"
+    }
+  ]
+}

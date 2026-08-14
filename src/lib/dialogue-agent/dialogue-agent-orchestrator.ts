@@ -89,7 +89,13 @@ export async function resolveDialogueAgentMessage(input: {
 
   const result = await callDialogueAgent(contract, { sessionId: input.session.id, turnId: input.turnId });
   if (result.failed) {
-    return { patientMessage: input.deterministicFallbackText, decision: result.decision, usedFallback: true, fallbackReason: result.failureReason, provider: result.provider };
+    // An environment with no dialogue provider configured is running
+    // deterministically by design, exactly like a safety-critical prompt --
+    // the provider was never consulted, so there is nothing to have fallen
+    // back FROM. Counting it as a fallback made every turn of a provider-free
+    // run look like a quality regression and hid the real fallbacks among them.
+    const notConfigured = result.notConfigured === true;
+    return { patientMessage: input.deterministicFallbackText, decision: result.decision, usedFallback: !notConfigured, fallbackReason: notConfigured ? "dialogue_provider_not_configured" : result.failureReason, provider: result.provider };
   }
   const validation = validateDialogueDecision(result.decision, contract);
   if (!validation.accepted) {

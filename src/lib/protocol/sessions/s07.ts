@@ -37,12 +37,21 @@ export const spec: SessionSpec = {
       title: "Session Opening and Consent",
       type: "session_start",
       source: [1475, 1479],
-      requiredFields: ["crpConsent"],
+      requiredFields: ["crpConsent", "crpWorksheetReady"],
       safetyRuleIds: ["TBCT-S07-CRISIS-STOP"],
       restrictions: [sourceText([1475, 1479])],
       prompts: [
-        { slug: "crp-offer", type: "opening", source: [1475, 1479], marker: "I'd like to propose", outputFields: ["crpConsent"], validation: { kind: "informed_consent", noPressure: true } },
+        // Both prompts used to write `crpConsent`: the free-text offer stored
+        // whatever the participant said, and the boolean confirmation one turn
+        // later silently overwrote it. The offer keeps its own field so consent
+        // has a single writer (the explicit boolean) and the participant's own
+        // words are not lost.
+        { slug: "crp-offer", type: "opening", source: [1475, 1479], marker: "I'd like to propose", outputFields: ["crpOfferResponse"], validation: { kind: "informed_consent", noPressure: true } },
         { slug: "crp-consent", type: "confirmation", source: [1475, 1479], marker: "Would you like to try it", outputFields: ["crpConsent"], validation: { kind: "boolean" } },
+        // The participant guide promises "The guide will check you have it
+        // before you begin" of the CRP worksheet -- the session used to open
+        // straight into Step 0 without ever mentioning it.
+        { slug: "crp-worksheet-ready", type: "confirmation", source: [1475, 1479], outputFields: ["crpWorksheetReady"], validation: { kind: "boolean" } },
       ],
     },
     {
@@ -65,7 +74,11 @@ export const spec: SessionSpec = {
       source: [1370, 1379],
       requiredFields: ["ambivalenceAcknowledged"],
       prompts: [
-        { slug: "ambivalence-normalization", type: "explanation", source: [1370, 1379], outputFields: ["ambivalenceAcknowledged"] },
+        // "question", not "explanation": Step 0's psychoeducation invites a
+        // reaction ("how does that land for you?") rather than moving on the
+        // moment it is delivered -- an explanation-typed prompt completed on
+        // delivery and never waited for one.
+        { slug: "ambivalence-normalization", type: "question", source: [1370, 1379], outputFields: ["ambivalenceAcknowledged"] },
       ],
     },
     {
@@ -77,8 +90,31 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([1380, 1391])],
       prompts: [
         { slug: "action-in-own-words", type: "question", source: [1380, 1391], outputFields: ["desiredOrFearedAction"], validation: { kind: "participant_owned_text" } },
-        { slug: "disadvantages-first", type: "question", source: [1380, 1391], marker: "What are the downsides", outputFields: ["disadvantages"], validation: { kind: "array", disadvantagesBeforeAdvantages: true, maxItems: 7 } },
-        { slug: "advantages-second", type: "question", source: [1380, 1391], marker: "What are the upsides", outputFields: ["advantages"], validation: { kind: "array", maxItems: 7, afterField: "disadvantages" } },
+        // Both lists are collected one item at a time up to the source's cap
+        // of seven, ending early when the participant says there is nothing
+        // more -- a single-turn question could only ever store one blob.
+        {
+          slug: "disadvantages-first",
+          type: "question",
+          source: [1380, 1391],
+          marker: "What are the downsides",
+          outputFields: ["disadvantages"],
+          validation: { kind: "array", disadvantagesBeforeAdvantages: true, maxItems: 7 },
+          executionMode: "repeat_until",
+          maxIterations: 8,
+          completionCondition: { kind: "field", field: "disadvantagesSufficient", operator: "equals", value: true },
+        },
+        {
+          slug: "advantages-second",
+          type: "question",
+          source: [1380, 1391],
+          marker: "What are the upsides",
+          outputFields: ["advantages"],
+          validation: { kind: "array", maxItems: 7, afterField: "disadvantages" },
+          executionMode: "repeat_until",
+          maxIterations: 8,
+          completionCondition: { kind: "field", field: "advantagesSufficient", operator: "equals", value: true },
+        },
       ],
     },
     {
@@ -86,11 +122,18 @@ export const spec: SessionSpec = {
       title: "Step 2 - Weigh Ambivalence",
       type: "assessment",
       source: [1392, 1407],
-      requiredFields: ["emotionDisadvantageWeight", "reasonAdvantageWeight"],
+      requiredFields: ["emotionDisadvantageWeight", "reasonAdvantageWeight", "ambivalenceSplitNamed"],
       restrictions: [sourceText([1392, 1407])],
       prompts: [
         { slug: "emotion-weight", type: "rating", source: [1392, 1407], marker: "Emotion", outputFields: ["emotionDisadvantageWeight"], validation: { kind: "rating", min: 0, max: 100, perspective: "emotion" } },
         { slug: "reason-weight", type: "rating", source: [1392, 1407], marker: "Reason", outputFields: ["reasonAdvantageWeight"], validation: { kind: "rating", min: 0, max: 100, perspective: "reason" } },
+        // "The guide will name the split plainly as a conflict between, say,
+        // 'your Reason' and 'your Emotion,' and then let it stand." Stating
+        // it is the step's own clinical act -- the two numbers used to be
+        // collected and then simply left unremarked. Composed from the two
+        // recorded weights (static-messages/s07.ts) and delivered without
+        // interpretation, so naming the split never becomes evaluating it.
+        { slug: "name-the-split", type: "explanation", source: [1392, 1407], outputFields: ["ambivalenceSplitNamed"], validation: { kind: "state_split_without_interpretation" } },
       ],
     },
     {
@@ -110,11 +153,15 @@ export const spec: SessionSpec = {
           marker: "Is there more",
           outputFields: ["emotionReasonDialogue"],
           validation: { kind: "array", maxItems: 8 },
-          // Keeps alternating exchanges going until at least two have
-          // happened (or the participant says there is nothing more),
-          // rather than accepting one "Is there more?" answer and moving on.
+          // "Several exchanges is a floor, not a target. Do not close Step 3
+          // early." The sufficiency rule (runtime-context.ts) keeps the
+          // dialogue going to six utterances -- alternating the chairs via
+          // the composed prompt text in static-messages/s07.ts -- and honors
+          // "nothing more" only after at least three utterances, so one
+          // premature stop earns a gentle invitation to stay instead of
+          // closing the step.
           executionMode: "repeat_until",
-          maxIterations: 4,
+          maxIterations: 7,
           completionCondition: { kind: "field", field: "emotionReasonDialogueSufficient", operator: "equals", value: true },
         },
       ],
@@ -124,11 +171,33 @@ export const spec: SessionSpec = {
       title: "Step 4 - Consensus Chair",
       type: "dialogue",
       source: [1433, 1441],
-      requiredFields: ["consensusLearning"],
+      requiredFields: ["consensusLearning", "consensusSurprise", "consensusEmotionIntent", "consensusPartsNeeds"],
       prompts: [
         { slug: "consensus-transition", type: "role_transition", source: [1433, 1441], outputFields: ["consensusChairReady"], validation: { kind: "role_transition_confirmed" } },
-        { slug: "consensus-learning", type: "question", source: [1433, 1441], marker: "What did you learn", outputFields: ["consensusLearning"] },
-        { slug: "consensus-surprise", type: "question", source: [1433, 1441], marker: "What surprised you", outputFields: ["consensusLearning"] },
+        // The source asks for at least two learnings; a single-turn question
+        // accepted one answer and moved on.
+        {
+          slug: "consensus-learning",
+          type: "question",
+          source: [1433, 1441],
+          marker: "What did you learn",
+          outputFields: ["consensusLearning"],
+          validation: { kind: "array", minItems: 2 },
+          executionMode: "repeat_until",
+          maxIterations: 4,
+          completionCondition: { kind: "field", field: "consensusLearningSufficient", operator: "equals", value: true },
+        },
+        // Both Step 4 questions used to write `consensusLearning`, so the
+        // answer to "what surprised you?" silently overwrote the answer to
+        // "what did you learn?" -- two distinct debrief answers collapsed
+        // into one stored value.
+        { slug: "consensus-surprise", type: "question", source: [1433, 1441], marker: "What surprised you", outputFields: ["consensusSurprise"] },
+        // The debrief asks about the CONVERSATION, not only its conclusion:
+        // "What did Emotion turn out to be trying to do? What did each part
+        // seem to need?" Both were missing, so the Consensus chair only ever
+        // reported an outcome.
+        { slug: "consensus-emotion-intent", type: "question", source: [1433, 1441], outputFields: ["consensusEmotionIntent"] },
+        { slug: "consensus-parts-needs", type: "question", source: [1433, 1441], outputFields: ["consensusPartsNeeds"] },
       ],
     },
     {
@@ -147,11 +216,22 @@ export const spec: SessionSpec = {
       title: "Step 6 - Decision",
       type: "assessment",
       source: [1450, 1461],
-      requiredFields: ["implementationReadiness"],
+      requiredFields: ["implementationReadiness", "colourCodedScopeAcknowledged"],
       restrictions: [sourceText([1450, 1461])],
       prompts: [
-        { slug: "readiness-decision", type: "question", source: [1450, 1461], marker: "Are you ready to implement", outputFields: ["implementationReadiness"], validation: { kind: "enum", values: ["ready", "not_ready"], notReadyIsValid: true, forbiddenValues: ["I will do it"] } },
+        // Step 6 records exactly two outcomes ("Yes, I'm ready" / "No, I'm not
+        // ready"); the source's rule is that a conditional or undecided answer
+        // is reflected back and never rounded UP to readiness, so "undecided"
+        // is an alias of not_ready rather than a third value.
+        { slug: "readiness-decision", type: "question", source: [1450, 1461], marker: "Are you ready to implement", outputFields: ["implementationReadiness"], validation: { kind: "enum", values: ["ready", "not_ready"], aliases: { ready: ["yes", "yes i am ready", "yes i'm ready", "i am ready", "i'm ready", "준비됨", "준비됐어요", "준비되었어요", "네 준비됐어요"], not_ready: ["no", "no i am not ready", "no i'm not ready", "i am not ready", "i'm not ready", "undecided", "not sure", "아직 준비 안 됨", "아직 준비 안 됐어요", "준비 안 됨", "준비 안 됐어요", "아직 결정 못함", "잘 모르겠어요"] }, notReadyIsValid: true, forbiddenValues: ["I will do it"] } },
         { slug: "prepare-later", type: "follow_up", source: [1450, 1461], marker: "Would you like to be ready later", activationCondition: { field: "implementationReadiness", operator: "equals", value: "not_ready" }, outputFields: ["laterReadinessPreparation"] },
+        // Safety boundary carried over from the exposure work, stated just
+        // before the plan is built: green items are the participant's to
+        // practise alone; anything at the yellow or red end is done WITH
+        // their therapist, never alone. CRP produces the decision and the
+        // plan -- not permission to attempt a distressing item unaccompanied
+        // -- and nothing in this session used to say so.
+        { slug: "green-only-scope", type: "explanation", source: [1450, 1461], outputFields: ["colourCodedScopeAcknowledged"] },
       ],
     },
     {

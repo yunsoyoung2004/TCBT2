@@ -20,6 +20,7 @@ function cloneState(state: RuntimeSessionState): RuntimeSessionState {
     completedNodeIds: [...state.completedNodeIds],
     completedPromptItemIds: [...state.completedPromptItemIds],
     fields: { ...state.fields },
+    promptIterationCounts: { ...(state.promptIterationCounts ?? {}) },
   };
 }
 
@@ -42,10 +43,21 @@ export function reduceRuntimeState(input: {
     : { "turn.assistant_message_delivered": true };
   if (input.event === "patient_input_accepted" && input.activeStep.promptItem.executionMode === "repeat_until") {
     state.nodeIterationCount += 1;
+    // The repeat budget must be per-prompt: nodeIterationCount is shared by
+    // every prompt in the node, so a second repeat_until prompt in the same
+    // node would inherit the first loop's spent iterations and force-complete
+    // almost immediately (S07 Step 1's two lists, S08 Step 12's surrebuttal +
+    // "Therefore" loops).
+    const counts = state.promptIterationCounts ?? {};
+    counts[input.activeStep.promptItem.id] = (counts[input.activeStep.promptItem.id] ?? 0) + 1;
+    state.promptIterationCounts = counts;
   }
   const completionConditionMet = evaluateRuntimeCondition(input.activeStep.promptItem.completionCondition, state, completionFlags);
+  const repeatIterations = state.promptIterationCounts
+    ? state.promptIterationCounts[input.activeStep.promptItem.id] ?? 0
+    : state.nodeIterationCount;
   const repeatLimitReached = input.activeStep.promptItem.executionMode === "repeat_until"
-    && state.nodeIterationCount >= (input.activeStep.promptItem.maxIterations ?? 1);
+    && repeatIterations >= (input.activeStep.promptItem.maxIterations ?? 1);
   const promptComplete = completionConditionMet && (input.event === "patient_input_accepted" || !input.activeStep.promptItem.requiresPatientInput)
     || repeatLimitReached;
   if (!promptComplete) {

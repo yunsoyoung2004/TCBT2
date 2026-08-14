@@ -52,6 +52,14 @@ export const dialogueContractSchema = z.object({
   forbiddenActions: z.array(z.string()),
   relevantTerminology: z.array(z.object({ term: z.string(), meaning: z.string() })).optional(),
   scaleExplanation: z.string().optional(),
+  // Source-mandated conduct rules for THIS specific step (S07/S08's CRITICAL
+  // POINTs and Key Principles: therapist silence in the empty chair, never
+  // coaching the prosecutor, the Juror-2 "prosecutor's voice" intervention,
+  // gentle third-person corrections, ...). Curated per-prompt by
+  // dialogue-contract-compiler.ts's stepSpecificGuidanceFor -- previously
+  // these reached the model only by accident, when the raw source excerpt
+  // that happened to contain them landed inside therapeuticObjective.
+  stepSpecificGuidance: z.array(z.string()).optional(),
   lastParticipantMessage: z.string().optional(),
   recentContext: z.array(z.object({ role: z.enum(["patient", "assistant"]), content: z.string() })),
   safetyStatus: z.string(),
@@ -152,4 +160,10 @@ export type DialogueDecision = z.infer<typeof dialogueDecisionSchema>;
 
 export type DialogueAgentResult =
   | { decision: DialogueDecision; provider: string; model?: string; latencyMs: number; failed: false }
-  | { decision: DialogueDecision; provider: "none"; failed: true; failureReason: string };
+  // `notConfigured` separates "no provider is set up in this environment" from
+  // "the provider was called and let us down". Both ship the deterministic
+  // text, but only the second is a quality signal -- see
+  // DialogueAgentTurnResult.usedFallback, which already draws the same line
+  // for safety-critical prompts. Without it, an unconfigured environment
+  // reports a 100% fallback rate and buries the real ones.
+  | { decision: DialogueDecision; provider: "none"; failed: true; failureReason: string; notConfigured?: boolean };

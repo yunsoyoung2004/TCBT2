@@ -133,6 +133,108 @@ function scaleExplanationFor(expectedInputType: ExpectedInputType) {
   return undefined;
 }
 
+// Source-mandated conduct rules (S07/S08 CRITICAL POINTs and Key Principles)
+// keyed by the prompt they govern. These are live conversational behaviors --
+// naming the prosecutor's voice in the jury room, offering to replace a
+// passive defense attorney, gently correcting a first-person slip -- that no
+// deterministic branch can perform, so they must reach the model explicitly.
+// Before this, their only channel was the raw source excerpt that happened to
+// fall inside a node's therapeuticObjective; several (the defense-step
+// interventions, the session-wide "never coach" restriction list) fell
+// outside every node's range and never reached the model at all.
+const THIRD_PERSON_RULE = "Third-person rule: in this courtroom role the participant must speak about the defendant in the third person. If they slip into 'I', correct once, gently and immediately -- e.g. \"I noticed you said 'I' -- remember, right now you are speaking as this role about the defendant\" -- then continue without dwelling on it.";
+const NO_COACHING_RULE = "Never coach the prosecution: do not help build, sharpen, suggest, or improve prosecution evidence or rebuttals in any way. Receive what the participant offers and move on.";
+// The prosecutor's chair is where the accusation gets said out loud in
+// someone else's voice; softening it there is what keeps it unexaminable.
+const LET_PROSECUTOR_BE_UNFAIR = "Let the prosecutor be unfair. Sweeping, harsh or plainly illogical accusations are exactly what this chair is for -- do not correct them, soften them, balance them, or reassure the participant about them. They get examined later, by the jury.";
+// Both participant guides make the same promise: these sessions are for
+// learning the method on something moderate, and the heaviest material
+// belongs with the participant's own therapist.
+const MODERATE_TOPIC_RULE = "This exercise is for something real but moderate -- not the very heaviest thing they carry. If what they bring sounds like their heaviest material, gently say a more moderate one works better for learning the method and that the harder ones are worth bringing to their therapist, then invite them to choose another.";
+const IMAGINED_FIGURE_RULE ="This figure must be imagined and never a real person close to them -- not a parent, partner, friend, or colleague. If they name someone real and close, gently ask them to picture a neutral imagined figure instead, and say that people who matter to them can be looked at another time in a different exercise.";
+const EMPTY_CHAIR_SILENCE = [
+  "Empty-chair dialogue rules: the two parts speak DIRECTLY to each other, never to you. Stay out of the exchange -- do not summarise what was just said, do not paraphrase it, do not affirm or empathize with it, and do not reflect it back.",
+  "Your only permitted interventions here: direct a part to speak to the other chair (\"Say that to Reason, in the other chair\"), invite the other part to answer (\"Reason, how do you respond?\"), or invite a chair switch. When a part stops after one sentence, invite it to stay with it rather than switching immediately.",
+  "Let Emotion speak freely, even when it is fearful, stubborn, harsh or plainly unreasonable -- that is exactly what this chair is for. Do not rescue it, soften it, correct it, or take Reason's side against it.",
+];
+// S07's own promise to the participant: naming reason and emotion as separate
+// parts helps most people, but not everyone experiences them that way.
+const REASON_EMOTION_ALTERNATIVE = "If the participant says they cannot tell Reason from Emotion apart, do not insist on the labels: ask instead about \"the inner voice that says go, or yes\" and \"the inner voice that says don't, or no\", and keep using that wording from then on.";
+const NO_PRESSURE_REMINDER = "If naming this stirs something -- hesitation, upset, going quiet -- slow down, acknowledge it plainly, and remind them they will never be pressured into taking the feared action, before carrying on.";
+const STEP_GUIDANCE_BY_PROMPT_ID: Record<string, string[]> = {
+  // --- S07 Step 3: therapist silence during the empty chair ---
+  "tbct-s07-n06-p02-emotion-to-reason": EMPTY_CHAIR_SILENCE,
+  "tbct-s07-n06-p03-continue-dialogue": EMPTY_CHAIR_SILENCE,
+  // --- S07 Step 1: the decisional balance is a conversation, not a form ---
+  "tbct-s07-n04-p01-action-in-own-words": ["The action must be concrete and in the participant's own words (\"take the lift instead of the stairs\"), not large and vague (\"stop being anxious\"). If it comes out vague, ask what doing it would actually look like.", MODERATE_TOPIC_RULE, NO_PRESSURE_REMINDER],
+  "tbct-s07-n04-p02-disadvantages-first": ["Keep each item small and real (\"the stairwell makes me short of breath\" rather than \"it's awful\"). This is a conversation, not a form being filled in.", NO_PRESSURE_REMINDER],
+  "tbct-s07-n04-p03-advantages-second": ["Keep each item small and real. This is a conversation, not a form being filled in.", NO_PRESSURE_REMINDER],
+  // --- S07 Steps 2/5: anchors, no editorializing ---
+  "tbct-s07-n05-p01-emotion-weight": ["Before asking for the number, briefly re-introduce the two selves as genuinely different parts of the same person with different jobs -- Emotion protects, Reason weighs things up -- and both on their side. One or two sentences, not a lecture.", "Offer the anchors 60/70/80/90/100 if the participant hesitates. State the split back without evaluating it.", REASON_EMOTION_ALTERNATIVE],
+  "tbct-s07-n05-p02-reason-weight": ["Offer the anchors 60/70/80/90/100 if the participant hesitates. State the split back without evaluating it.", REASON_EMOTION_ALTERNATIVE],
+  "tbct-s07-n05-p03-name-the-split": ["Name the split plainly as a conflict between their Reason and their Emotion, then LET IT STAND. Do not interpret it, do not say which side is right or more reasonable, do not call the gap large or significant, and do not move toward resolving it -- the next step is where the two parts speak for themselves."],
+  "tbct-s07-n08-p01-consensus-weights": ["Offer the same anchors (60-100) if the participant hesitates. Do NOT editorialize about the new weights -- no comment on how much they changed, no 'that's a big shift'. Record and restate them plainly."],
+  // --- S07 Step 4: the debrief is about the conversation, not its verdict ---
+  "tbct-s07-n07-p02-consensus-learning": ["If \"I don't know\" comes up, do not rush past it -- leave room and let them come back to it; an unhurried pause here often produces the most important line of the session.", "Never add learnings of your own, and never upgrade theirs into something more decisive than they meant."],
+  "tbct-s07-n07-p04-consensus-emotion-intent": ["Never supply the answer (\"Emotion was trying to protect you\") -- it must be the participant's own read of what their Emotion was doing."],
+  "tbct-s07-n07-p05-consensus-parts-needs": ["Never supply the answer -- what each part needed is the participant's to name."],
+  // --- S07 Step 6: two outcomes only ---
+  "tbct-s07-n09-p01-readiness-decision": ["Only two outcomes exist: ready, or not ready. Never round a conditional or undecided answer UP to 'ready' -- reflect it back and record it as not ready for now. Both outcomes are equally acceptable; show no preference."],
+  // --- S08 Step 1: one specific situation, then down to the belief ---
+  "tbct-s08-n01-p04-distressing-situation": ["Ask for ONE real, specific situation -- a particular moment, not a general pattern -- together with the thought that went through their mind at the time.", MODERATE_TOPIC_RULE],
+  "tbct-s08-n01-p05-downward-arrow": [
+    "Follow the thought downward one step at a time (\"if that were true, what would it mean about you?\") until it reaches a belief about who they are. Never propose the belief yourself.",
+    "If they wonder why the work moves from the upsetting moment to a belief about their whole self, say plainly: the situation is only the spark, while the belief is the deeper accusation carried across their life -- and the situation is not discarded, since its facts often become useful evidence later in the trial.",
+    MODERATE_TOPIC_RULE,
+  ],
+  // --- S08 opening: the orientation is short, and its reaction is invited ---
+  "tbct-s08-n01-p02-belief-as-charge-orientation": ["Keep this to a short orientation, not a lecture -- a few plain sentences, no theory, no jargon."],
+  "tbct-s08-n01-p03-orientation-reaction": ["Accept whatever they make of it, including doubt or dislike of the idea. Do not argue them into agreeing, and do not defend the method -- just take their reaction and move on."],
+  // --- S08 Steps 5/7: the imagined figures ---
+  "tbct-s08-n05-p01-visualize-prosecutor": [IMAGINED_FIGURE_RULE, "The prosecutor is a stern, imagined figure -- a lawyer they invent. Build the picture concretely: sex, age, appearance, manner, expression."],
+  "tbct-s08-n07-p02-visualize-defense": [IMAGINED_FIGURE_RULE, "The defense attorney is an imagined figure who is wise and kind. Build the picture concretely: sex, age, appearance, manner, expression."],
+  // --- S08 Step 6/10: prosecution turns are never coached ---
+  "tbct-s08-n06-p02-prosecution-evidence": [NO_COACHING_RULE, LET_PROSECUTOR_BE_UNFAIR, "One piece of evidence at a time -- up to three, exceptionally four.", THIRD_PERSON_RULE],
+  "tbct-s08-n10-p02-rebut-each-defense-item": [NO_COACHING_RULE, "One rebuttal per defense item, presented individually with an emphasized BUT -- never grouped.", THIRD_PERSON_RULE],
+  // --- S08 Step 8: defense support rules ---
+  "tbct-s08-n08-p02-defense-evidence": [
+    "If the defense's evidence is vague or general, ask for one concrete, specific occasion that shows it.",
+    "If the participant, as the defense, starts presenting evidence AGAINST the defendant, challenge it at least once: ask \"Who is speaking right now -- the defense, or the prosecution?\" and redirect them to the defense's task.",
+    "If the defense attorney seems passive or unable to find anything to say, offer to replace them: suggest imagining a different, more effective defense attorney taking over.",
+    THIRD_PERSON_RULE,
+  ],
+  "tbct-s08-n12-p02-surrebut-each-pair": ["One answer per rebuttal, with an emphasized BUT. The meaning drawn from the evidence must come from the participant.", THIRD_PERSON_RULE],
+  "tbct-s08-n12-p03-participant-therefore": ["The \"Therefore...\" conclusion must be completed by the participant in their own words -- never supply, suggest, or complete it yourself.", THIRD_PERSON_RULE],
+  // --- S08 Step 14: the therapist sits as Juror 2 ---
+  "tbct-s08-n14-p02-juror-role": ["You sit beside the participant as Juror 2. The jury room is private: nothing said here is argued back to either side."],
+  "tbct-s08-n14-p03-review-four-blocks": [
+    "You sit beside the participant as Juror 2.",
+    "Take this block ONE PIECE AT A TIME. Each piece quoted in the task gets its own look before the next; if the participant answers about the block as a whole, or lumps several pieces together, gently walk them back to the first piece they skipped. Do not rush this -- looking at each piece on its own is where the shift usually happens.",
+    "If a statement in the jury room sounds like the prosecutor arguing (accusing, condemning, re-litigating), name it as Juror 2: that is the prosecutor's voice, and it is not allowed in the jury room -- ask it to leave, and return to weighing the evidence.",
+    "For the prosecution's blocks, help the jury look for cognitive distortions and for relevance ('even if true, is it enough to convict?'). Distortions worth naming when they appear: labelling, all-or-nothing thinking, discounting the positive, mind reading, should statements, blaming, overgeneralising, catastrophising, personalising, magnifying/minimising, mental filter, unfair comparisons. For the defense's blocks, check that the content is factual and true. Never state the conclusion for the participant.",
+  ],
+  "tbct-s08-n14-p04-participant-verdict": ["The verdict may only ever be stated by the participant. Never suggest, hint at, lean toward, or supply a verdict, and never react to it with approval or disappointment."],
+  "tbct-s08-n14-p05-guilty-verdict-recheck": ["A guilty verdict is re-examined through the evidence, never argued against directly. Walk the four blocks again and let the participant decide; the verdict remains theirs either way."],
+  // --- S08 Step 15: the one moment you play a character ---
+  "tbct-s08-n15-p01-announce-verdict": ["For this one moment -- and only this one -- you take the role of the judge, so the verdict is announced TO someone. Receive it formally and briefly, as a court would ('The court has heard the verdict'), then step straight back out of the role. This is the only character you ever play.", "Do not react to which verdict it is: no approval, no relief, no disappointment."],
+  // --- S08 Step 19: the appeal is the real homework ---
+  "tbct-s08-n19-p02-daily-appeal-homework": ["Say plainly why this record matters: the old belief rarely gives up quietly, and a day or two later it starts arguing again. A line or two each day with a fresh rating is what keeps the new belief standing -- this is the part that carries the trial into the rest of their life."],
+  // --- S08 Step 17: the appeal bridge ---
+  "tbct-s08-n17-p02-prosecution-satisfaction": ["If the participant says the prosecution was NOT satisfied, respond with the source's bridge: the prosecution may be requesting an appeal -- which is exactly why an appeal record will be prepared next. Then continue."],
+};
+
+export function stepSpecificGuidanceFor(sourcePromptItem: PromptItem): string[] | undefined {
+  const curated = STEP_GUIDANCE_BY_PROMPT_ID[sourcePromptItem.id] ?? [];
+  const validation = sourcePromptItem.validation as { requiresThirdPerson?: boolean; stateScaleEveryTime?: boolean } | null;
+  const derived: string[] = [];
+  // Declarative flags the catalog already carries, honored generically so a
+  // prompt outside the curated table still gets its rule.
+  if (validation?.requiresThirdPerson && !curated.includes(THIRD_PERSON_RULE)) derived.push(THIRD_PERSON_RULE);
+  if (validation?.stateScaleEveryTime) derived.push("State the scale explicitly every time you ask for this rating -- the words 'from 0 to 100' must survive your paraphrase.");
+  const all = [...curated, ...derived];
+  return all.length ? all : undefined;
+}
+
 export function compileDialogueContract(input: {
   session: RuntimeSession;
   node: ClinicalStageNode;
@@ -219,6 +321,7 @@ export function compileDialogueContract(input: {
     ],
     relevantTerminology: terminology ? [terminology] : undefined,
     scaleExplanation: scaleExplanationFor(expectedInputType),
+    stepSpecificGuidance: stepSpecificGuidanceFor(sourcePromptItem),
     lastParticipantMessage: input.lastParticipantMessage,
     recentContext: input.recentMessages
       .filter((message): message is RuntimeMessage & { role: "patient" | "assistant" } => message.role === "patient" || message.role === "assistant")

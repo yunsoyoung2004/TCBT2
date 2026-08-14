@@ -1,9 +1,9 @@
 # TBCT-S06 fidelity audit
 
 - Release: demo-release
-- Patient turns: 19
-- Program turns: 28
-- PromptItems executed: 19
+- Patient turns: 23
+- Program turns: 30
+- PromptItems executed: 21
 - PromptItems skipped: 2
 - Fallbacks: 0
 - Repairs: 0
@@ -31,12 +31,14 @@
 - tbct-s06-n08-p04-homework-confirmation
 - tbct-s06-n09-p01-relief-curve
 - tbct-s06-n09-p02-next-meeting
+- tbct-s06-n10-p01-introduce-safety-behaviors
 - tbct-s06-n10-p02-patient-formulates-ua
+- tbct-s06-n10-p03-render-circuit-two
 - tbct-s06-n10-p04-place-on-diagram
 - tbct-s06-n10-p05-circuit-two-summary
 
 ## Field extraction
 
 - Expected reachable fields: sessionLanguage, languageLocked, symptomItems, inRoomSafetyBehaviorCheck, colorScalePresented, calibrationScore, colorZoneRulesAcknowledged, symptomItemScores, discomfortDistressSummary, greenHomeworkItems, accountabilityPartner, fallbackPlan, exposurePrinciplesAcknowledged, reliefVersusOvercomingInsight, safetyBehaviors, underlyingAssumption, circuitTwo, circuitTwoSummary, ccshWorksheet, homeworkSelectionCorrection
-- Captured fields: sessionLanguage, languageLocked, symptomItems, calibrationScore, symptomItemScores, discomfortDistressSummary, greenHomeworkItems, accountabilityPartner, fallbackPlan, reliefVersusOvercomingInsight, underlyingAssumption, circuitTwo, circuitTwoSummary
+- Captured fields: sessionLanguage, languageLocked, prosecutionEvidenceSufficient, defenseEvidenceSufficient, appealEvidenceSufficient, emotionReasonDialogueSufficient, disadvantagesSufficient, advantagesSufficient, consensusLearningSufficient, prosecutionRebuttalsComplete, defenseSurrebuttalsComplete, thereforeConclusionsComplete, symptomItems, symptomItemsNoMore, symptomItemsDuplicate, symptomCoreSituation, symptomItemsCount, allSymptomItemsRated, colorScalePresented, calibrationScore, colorZoneRulesAcknowledged, symptomItemScores, currentSymptomScore, symptomItemScoresCount, discomfortDistressSummary, greenHomeworkItems, accountabilityPartner, fallbackPlan, exposurePrinciplesAcknowledged, reliefVersusOvercomingInsight, safetyBehaviors, underlyingAssumption, circuitTwo, circuitTwoSummary, ccshWorksheet
 - Missing fields: none

@@ -52,11 +52,19 @@ function systemPrompt(contract: DialogueContract) {
     contract.scaleExplanation ? `Scale meaning if asked: ${contract.scaleExplanation}` : "",
     contract.participantOwned ? "This field's value must come from the participant, in their own words." : "",
     contract.assistantMustNotSupply ? "You must NEVER supply, suggest, or complete this field's value yourself -- only the participant may state it." : "",
+    // Step-specific conduct rules from the protocol source. These are
+    // clinical requirements for THIS step, not style preferences: where they
+    // conflict with any general phrasing guidance below (e.g. the default
+    // "reference what they just said" habit vs. the empty chair's silence
+    // rule), the step rule wins.
+    contract.stepSpecificGuidance?.length
+      ? `Protocol rules for THIS step -- these are mandatory and override any general phrasing guidance below:\n${contract.stepSpecificGuidance.map((rule) => `- ${rule}`).join("\n")}`
+      : "",
     contract.isFirstPromptOfSession
       ? "This is the very first message the participant will see in this whole session. Before the current task, add one short, warm welcome sentence naming (in plain, everyday language, not clinical jargon) what today's session will focus on -- ground it in the therapeutic objective above, do not invent detail beyond it. Then move naturally into the current task."
       : contract.isFirstPromptOfNode
         ? contract.isRoleTransitionPrompt
-          ? "The participant is moving into a step that involves switching roles or speaking from a different perspective (e.g. voicing another person's likely thoughts, or moving between two internal 'parts'/chairs). Before the current task, add one short sentence that plainly names this switch -- e.g. what role/perspective they're about to speak from or move into -- grounded in the therapeutic objective above, so they aren't caught off guard. Then give the current task."
+          ? "The participant is moving into a step that involves switching roles or speaking from a different perspective (e.g. voicing another person's likely thoughts, or moving between two internal 'parts'/chairs). Before the current task, add one short sentence that plainly names this switch -- naming both the role/chair being left and the one being entered -- grounded in the therapeutic objective above, so they aren't caught off guard. Then give the current task."
           : "The participant is moving into a new part of the session (they've already been through earlier parts). Before the current task, add one short sentence letting them know you're moving into the next part and, grounded in the therapeutic objective above, briefly what it involves. Then give the current task."
         : "",
     (contract.isFirstPromptOfSession || contract.isFirstPromptOfNode)
@@ -76,9 +84,15 @@ function systemPrompt(contract: DialogueContract) {
     "- If they gave part of what's needed (e.g. named the feeling but not its intensity), do not re-ask the whole thing. Ask only for the missing piece. Use responseType 'request_missing_field', participantResponseState 'partial_answer'.",
     "- If they answered with words instead of the expected number (e.g. 'pretty scared' when 0-100 was expected), acknowledge what they said in a few words, then ask for the number using the scale meaning above. Do not just repeat the original question verbatim.",
     "- If they ask a process question ('why are you asking this', 'what does this mean', 'what am I supposed to write') answer briefly using the objective/rationale/construct above, then return to the exact same unresolved task. Do not treat the process question as having answered the task.",
+    // Both participant guides promise this explicitly: the session stays on
+    // its one exercise, and anything else is warmly handed to their therapist
+    // rather than taken up here or brushed aside.
+    "- If they raise something outside this exercise (another problem, a life event, a question about their care), acknowledge it warmly in one clause, say plainly that it is worth bringing to their therapist, and return to the current task. Do not take the topic up, and do not ignore it either.",
+    "- If a rating feels to them like it sits between two numbers, say that either is fine and help them settle on one -- never press for precision, and never pick the number for them.",
+    "- They are never rushed. If they ask to slow down, pause, or continue another day, say plainly that this is fine and that the work is saved where it stands. Never imply the session must be finished in one sitting.",
     "- If they say they can't see a list, options, or the worksheet, do not advance -- use responseType 'show_required_visual' with the matching visualAction so the UI restores it.",
     "- If they say they answered something earlier incorrectly or want to change a past answer, respond naturally and honestly: point them to the worksheet edit control if worksheetEditAvailable is true (their edit becomes canonical automatically), or say plainly that changing an earlier answer isn't automated in this conversation yet if it is false. Never promise a branch/redo the runtime doesn't support. Use participantResponseState 'revision_request'.",
-    "- If they gave a clearly sufficient, on-construct answer, keep your response brief: a short transition (optionally one clause referencing what they just said) and the current task -- no example, no extra explanation. Use explanationDepth 'minimal'.",
+    "- If they gave a clearly sufficient, on-construct answer, keep your response brief: a short transition (optionally one clause referencing what they just said, unless a step rule above forbids reflecting) and the current task -- no example, no extra explanation. Use explanationDepth 'minimal'.",
     "- Only escalate to explanationDepth 'expanded' (a short definition, and at most one neutral example) when they are explicitly confused, ask what something means, or this is a genuinely unfamiliar/abstract task and no rationale has been given yet in this exchange. Never default to 'expanded'. Prefer 'standard' (one concise clarifying sentence, then the task) over 'expanded' when in doubt.",
     "- Do not open with stock filler like 'Thank you for sharing', 'That's a great example', or 'I appreciate your honesty' on every turn -- use at most one short acknowledgement clause, and only when it aids continuity, followed by the current task.",
     "Return your decision using the submit_dialogue_decision tool only.",
@@ -90,8 +104,15 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   const parsedContract = dialogueContractSchema.parse(contract);
   const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
-  if (!apiKey) {
-    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
+  // AI_PROVIDER=mock is how the rest of the runtime says "do not call a live
+  // model in this process" -- the simulated-patient audit sets it for exactly
+  // that reason. This function used to key off ANTHROPIC_API_KEY alone, so a
+  // developer with a key in their environment silently turned the
+  // deterministic audit into a live, billed, non-reproducible one.
+  const providerDisabled = (process.env.AI_PROVIDER ?? "").trim().toLowerCase() === "mock";
+  if (!apiKey || providerDisabled) {
+    const failureReason = providerDisabled ? "Dialogue provider disabled (AI_PROVIDER=mock)" : "Missing ANTHROPIC_API_KEY";
+    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason, notConfigured: true };
   }
   const maxTokens = Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 500);
   const timeoutMs = Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 15000);

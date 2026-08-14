@@ -1,3 +1,4 @@
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/lib/browser-storage";
 import {
   CANONICAL_PROTOCOL_ID,
   CANONICAL_PROMPT_ITEMS,
@@ -168,15 +169,6 @@ function createSourceFidelityStore(): SourceFidelityCatalogStore {
   };
 }
 
-function getBrowserStorage() {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -212,9 +204,8 @@ function legacyBackupFrom(value: unknown): SourceFidelityBackup {
 }
 
 function preserveLegacyCatalogBackup(value: unknown) {
-  const storage = getBrowserStorage();
-  if (!storage || storage.getItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY)) return;
-  storage.setItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY, JSON.stringify(legacyBackupFrom(value)));
+  if (readBrowserStorageItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY)) return;
+  writeBrowserStorageItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY, JSON.stringify(legacyBackupFrom(value)));
 }
 
 function sourceAnchorMatches(value: unknown, sourcePrompt: PromptItem) {
@@ -321,9 +312,7 @@ function mergePersistedSourceStore(value: unknown, baseline: SourceFidelityCatal
 
 function readSourceFidelityStore(): SourceFidelityCatalogStore {
   const baseline = createSourceFidelityStore();
-  const storage = getBrowserStorage();
-  if (!storage) return baseline;
-  const raw = storage.getItem(STORAGE_KEY);
+  const raw = readBrowserStorageItem(STORAGE_KEY);
   if (!raw) return baseline;
 
   try {
@@ -332,11 +321,11 @@ function readSourceFidelityStore(): SourceFidelityCatalogStore {
     if (record?.schemaVersion !== SOURCE_FIDELITY_SCHEMA_VERSION) {
       preserveLegacyCatalogBackup(parsed);
       const migrated = { ...baseline, migrationConflicts: collectMigrationConflicts(parsed, baseline) };
-      storage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      writeBrowserStorageItem(STORAGE_KEY, JSON.stringify(migrated));
       return migrated;
     }
     const merged = mergePersistedSourceStore(parsed, baseline);
-    storage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    writeBrowserStorageItem(STORAGE_KEY, JSON.stringify(merged));
     return merged;
   } catch {
     return baseline;
@@ -373,10 +362,11 @@ function getSourceFidelityStore() {
 }
 
 function persistSourceFidelityStore(store: SourceFidelityCatalogStore) {
+  // In-memory state is updated first, so a blocked write costs persistence
+  // across reloads but never correctness within the session.
   sourceFidelityStore = store;
   synchronizeSessionCatalog(store);
-  const storage = getBrowserStorage();
-  if (storage) storage.setItem(STORAGE_KEY, JSON.stringify(store));
+  writeBrowserStorageItem(STORAGE_KEY, JSON.stringify(store));
 }
 
 function canonicalCatalogSessionId(sessionId?: string) {
@@ -565,7 +555,7 @@ export function getSessionPrompts(sessionId: string, nodeId?: string) {
   });
 }
 export function getSourceFidelityCatalogBackup() {
-  const raw = getBrowserStorage()?.getItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY);
+  const raw = readBrowserStorageItem(SOURCE_FIDELITY_BACKUP_STORAGE_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as SourceFidelityBackup;

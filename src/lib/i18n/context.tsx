@@ -4,13 +4,31 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import en from "@/lib/i18n/dictionaries/en";
 import ko from "@/lib/i18n/dictionaries/ko";
 import { DEFAULT_LOCALE, isUiLocale, type UiLocale } from "@/lib/i18n/locales";
+import { readBrowserStorageItem, writeBrowserStorageItem } from "@/lib/browser-storage";
 
 const DICTIONARIES: Record<UiLocale, Record<string, unknown>> = { en, ko };
 const STORAGE_KEY = "tbct-ui-locale";
 
+function readLocaleCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  // decodeURIComponent throws URIError on a mangled value (a bare "%"), and
+  // this runs inside the provider's mount effect -- an unguarded decode
+  // would take the whole app down for a bad cookie. A cookie we cannot read
+  // is the same as no cookie.
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${STORAGE_KEY}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 function readStoredLocale(): UiLocale {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  // The cookie is the fallback, not decoration: when storage is blocked
+  // (Safari private mode, blocked cookies-and-storage settings) it is the only
+  // thing setLocale managed to write, and without reading it back the chosen
+  // locale silently reverted to DEFAULT_LOCALE on every load.
+  const stored = readBrowserStorageItem(STORAGE_KEY) ?? readLocaleCookie();
   return isUiLocale(stored) ? stored : DEFAULT_LOCALE;
 }
 
@@ -52,10 +70,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback((next: UiLocale) => {
     setLocaleState(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, next);
+    // Cookie first: it used to run after the storage write, so a throwing
+    // setItem meant neither was persisted and the choice was lost on reload.
+    if (typeof document !== "undefined") {
       document.cookie = `${STORAGE_KEY}=${next}; path=/; max-age=31536000`;
     }
+    writeBrowserStorageItem(STORAGE_KEY, next);
   }, []);
 
   const t = useCallback(

@@ -12,50 +12,12 @@ import type { RuntimeContext } from "@/types/runtime-session";
 
 export type StaticMessageResult = { patientMessage: string; source: "approved_static"; llmCalled: false };
 
-export function firstText(value: unknown) {
-  if (Array.isArray(value)) return value.map(String).find(Boolean);
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-export function ratingNumbers(value: unknown): number[] {
-  if (Array.isArray(value)) return value.flatMap(ratingNumbers);
-  if (typeof value === "number" && Number.isFinite(value)) return [value];
-  if (typeof value === "string") return [...value.matchAll(/\b[0-5]\b/g)].map((match) => Number(match[0]));
-  return [];
-}
-
-// The manual's 0-5 color scale (tbct-source-text.generated.ts:305-310,
-// 359-364) -- fixed number-to-color mapping, not a per-item field, so it's
-// computed here rather than invented as a new tracked field.
-const SCALE_COLORS = ["light blue", "dark blue", "light green", "dark green", "yellow", "red"];
-function colorForScore(score: number) {
-  return SCALE_COLORS[score] ?? "";
-}
-
-function stringList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
-/**
- * Builds the "reflect the just-rated item, then ask for the next one" text
- * for a rate-one-list-item-at-a-time prompt (CCPH problems, CCGH goals) --
- * see runtime-context.ts's LIST_RATING_PAIRS, which this mirrors using the
- * same two arrays (the list and its parallel ratings) rather than a separate
- * pointer, since the just-rated item's own name isn't kept anywhere once the
- * pointer field advances to the next item.
- */
-export function reflectThenAskForNextRating(input: { listField: unknown; ratingsField: unknown; askVerb: string }) {
-  const list = stringList(input.listField);
-  const ratings = ratingNumbers(input.ratingsField);
-  const parts: string[] = [];
-  if (ratings.length > 0 && list[ratings.length - 1]) {
-    const score = ratings[ratings.length - 1];
-    parts.push(`Thank you. So ${list[ratings.length - 1]} is a ${score} — ${colorForScore(score)} — for you right now.`);
-  }
-  const next = list[ratings.length];
-  if (next) parts.push(`${input.askVerb} ${next}?`);
-  return parts.join(" ") || undefined;
-}
+// Owned by static-messages/field-helpers.ts, a leaf module: the per-session
+// static-message modules need these, and importing them from here created a
+// cycle (normalizer -> static-messages/s0N -> here -> normalizer) that could
+// leave REVIEWED_KOREAN_PROMPT_TEXT empty depending on module order.
+// Re-exported so existing importers of this module keep working.
+export { firstText, ratingNumbers, reflectThenAskForNextRating } from "@/lib/runtime/static-messages/field-helpers";
 
 // Each session owns its own dynamic-text branches, its own safety-pause
 // line (if it has one), and its own slice of the approved static-text map --
@@ -72,7 +34,7 @@ const SESSION_HANDLERS: Record<number, (promptItem: PromptItem, fields: Record<s
   4: (promptItem) => s04.resolveStaticText(promptItem),
   5: (promptItem, fields) => s05.resolveStaticText(promptItem, fields),
   6: (promptItem, fields) => s06.resolveStaticText(promptItem, fields),
-  7: (promptItem) => s07.resolveStaticText(promptItem),
+  7: (promptItem, fields, locale) => s07.resolveStaticText(promptItem, fields, locale),
   8: (promptItem, fields, locale) => s08.resolveStaticText(promptItem, fields, locale),
 };
 

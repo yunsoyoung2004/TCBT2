@@ -1,6 +1,6 @@
 {
   "sessionId": "tbct-s04",
-  "runtimeSessionId": "RTS-b153ece9",
+  "runtimeSessionId": "RTS-dd01e79c",
   "releaseId": "demo-release",
   "patientTurns": 25,
   "programTurns": 27,
@@ -63,6 +63,17 @@
   ],
   "capturedFields": [
     "interpersonalSituation",
+    "prosecutionEvidenceSufficient",
+    "defenseEvidenceSufficient",
+    "appealEvidenceSufficient",
+    "emotionReasonDialogueSufficient",
+    "disadvantagesSufficient",
+    "advantagesSufficient",
+    "consensusLearningSufficient",
+    "prosecutionRebuttalsComplete",
+    "defenseSurrebuttalsComplete",
+    "thereforeConclusionsComplete",
+    "interpersonalPathway",
     "patientAutomaticThought",
     "patientAutomaticThoughtBeliefPercent",
     "patientEmotion",
@@ -126,15 +137,13 @@
       "activePromptFidelity": "pass",
       "sequenceFidelity": "pass",
       "roleFidelity": "pass",
-      "responseContingency": "partial",
+      "responseContingency": "pass",
       "languageFidelity": "pass",
       "safetyFidelity": "pass",
       "transitionFidelity": "pass",
       "exposureSafety": "pass",
       "responsiveness": "pass",
-      "reasons": [
-        "No patient input was associated with this assistant turn."
-      ]
+      "reasons": []
     },
     {
       "activePromptFidelity": "pass",

@@ -190,7 +190,22 @@ export function isPatientSafeFallbackText(value: string | undefined) {
   if (/^(?:---\s*)?(?:#{1,6}\s*)?(?:interaction style|role and purpose|safety and clinical guardrails|important guidelines)\b/i.test(text)) return false;
   if (/^(?:```|[-*]\s+(?:use|do not|never|always|close by|from reason|from emotion)\b)/i.test(text)) return false;
   if (INTERNAL_GUIDANCE_PATTERN.test(text) || /^Step\s+\d+\s*:/i.test(text) || /\b(?:ask|invite|guide|instruct) the participant\b/i.test(text)) return false;
-  return !/(?:\bai\b|model|prompt|instruction|system message|node[-_ ]?id|role id|runtime state)/i.test(text);
+  // Word-bounded on purpose. These terms are here to stop INTERNAL vocabulary
+  // (a system prompt, a model name, an authoring instruction) leaking into a
+  // patient message -- but unbounded they also match ordinary words inside
+  // the PARTICIPANT's own answers, which composed messages quote back. A
+  // defense evidence item as innocuous as "my manager thanked me, unprompted"
+  // contains "prompt", which failed this check and replaced the entire
+  // composed message -- the read-back, the jury's block review, the
+  // "Therefore..." task -- with the content-free generic locale line. Seen on
+  // three separate turns of a single audited S08 run.
+  // "role model" is dropped first for the same reason: it is ordinary
+  // participant vocabulary ("my sister sees me as a role model"), not a
+  // reference to a language model. Removed by replace rather than a
+  // lookbehind, which older Safari cannot parse -- a syntax error here would
+  // take down the whole patient bundle, not just this check.
+  const withoutOrdinaryUses = text.replace(/\brole models?\b/gi, " ");
+  return !/(?:\bai\b|\bmodels?\b|\bprompts?\b|\binstructions?\b|system message|node[-_ ]?id|role id|runtime state)/i.test(withoutOrdinaryUses);
 }
 
 function humanizeField(field: string) {
@@ -251,6 +266,24 @@ function returningArrowQuestion(promptItem: PromptItem) {
   return undefined;
 }
 
+/** Last-resort role naming for a role_transition prompt with no approved text:
+ * the authored slug already says which chair the step moves into. */
+const ROLE_NAMES_BY_SLUG_FRAGMENT: Array<[RegExp, string]> = [
+  [/defendant/, "the defendant's chair"],
+  [/prosecutor/, "the prosecutor's chair"],
+  [/defense/, "the defense attorney's chair"],
+  [/jury|juror/, "the jury's seat"],
+  [/verdict/, "the court officer's position"],
+  [/consensus/, "the Consensus chair"],
+  [/emotion/, "the Emotion chair"],
+  [/reason/, "the Reason chair"],
+];
+
+function roleNameFromPromptSlug(promptItemId: string) {
+  const slug = promptItemId.replace(/^.*-p\d+-/, "");
+  return ROLE_NAMES_BY_SLUG_FRAGMENT.find(([pattern]) => pattern.test(slug))?.[1];
+}
+
 function sourceSpecificRuntimeFallback(promptItem: PromptItem) {
   const fields = promptItem.outputFields;
   const subject = fields[0] ? humanizeField(fields[0]) : "this step";
@@ -259,6 +292,16 @@ function sourceSpecificRuntimeFallback(promptItem: PromptItem) {
   const validationKind = String(validation?.kind ?? "");
   const arrowQuestion = returningArrowQuestion(promptItem);
   if (arrowQuestion) return arrowQuestion;
+  // Must precede the generic /^paired_ratings/ branch, which this kind also
+  // matches: the source requires reading the argument just made back to the
+  // defendant BEFORE they re-rate, and being swallowed by the generic branch
+  // turned those steps into a bare double-rating question. The read-back
+  // itself needs runtime fields, which don't exist at release-compile time,
+  // so this is only the frame -- static-messages/s08.ts fills in the actual
+  // quoted evidence at delivery.
+  if (validationKind === "paired_ratings_after_readback" && fields.length >= 2) {
+    return `Back in the defendant's chair, I will first read back what was just argued. Then, ${scaleRangeText(validation).toLowerCase()}, how would you rate both ${humanizeField(fields[0])} and ${humanizeField(fields[1])} right now?`;
+  }
   if (/^paired_ratings/.test(validationKind) && fields.length >= 2) {
     return `${scaleRangeText(validation)}, how would you rate both ${humanizeField(fields[0])} and ${humanizeField(fields[1])} right now?`;
   }
@@ -269,6 +312,12 @@ function sourceSpecificRuntimeFallback(promptItem: PromptItem) {
   if (promptItem.type === "role_transition") {
     const marker = promptItem.markerHint?.trim();
     if (marker && /^(?:please|take a moment)/i.test(marker)) return marker.endsWith(".") ? marker : `${marker}.`;
+    // Naming the role is the whole point of a slow, explicit transition (S08
+    // Key Principle 2), so derive it from the prompt's own slug rather than
+    // shipping a line that names no role at all. The slug is authored, not
+    // participant data, so this stays deterministic.
+    const roleName = roleNameFromPromptSlug(promptItem.id);
+    if (roleName) return `Let's move into ${roleName} now. Take a moment to settle there before we continue, and tell me when you are ready.`;
     return "Let's move into that role now. Take a moment to settle there before we continue.";
   }
   if (fields[0] && /evidence/i.test(fields[0])) {
@@ -322,7 +371,7 @@ const PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS = new Set([
  * patient answer, even if their prompt happens to declare outputFields. */
 const IMMEDIATE_COMPLETION_EFFECTS = new Set(["pause_session", "complete_session"]);
 
-function promptRequiresPatientInput(promptItem: PromptItem) {
+export function promptRequiresPatientInput(promptItem: PromptItem) {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
   if (["calculated_problem_totals", "calculated_goal_totals"].includes(validationKind) || promptItem.id === "tbct-s02-n11-p02-recorded-summary") return false;
   if (["question", "clarification", "follow_up", "confirmation", "reflection", "rating"].includes(promptItem.type)) return true;
@@ -332,6 +381,27 @@ function promptRequiresPatientInput(promptItem: PromptItem) {
     return promptItem.outputFields.length > 0 && PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS.has(validationKind);
   }
   return promptItem.outputFields.length > 0;
+}
+
+/**
+ * Fields a prompt records simply by being delivered.
+ *
+ * A prompt that never waits for an answer and has no field-writing effect can
+ * only mean one thing by its outputFields: "this content was delivered". Any
+ * such field had no writer anywhere in the runtime and stayed undefined for
+ * the whole programme -- S07's psychoeducation acknowledgements and plan
+ * summary, S08's courtroom orientation and appeal homework, and the
+ * equivalent scale-presented / worksheet-delivered flags in S01-S06 -- while
+ * the catalog claimed the step captured them.
+ *
+ * Deliberately narrow: an input-requiring prompt that fails to capture its
+ * field is a real defect and must keep surfacing as missing.
+ */
+export function acknowledgedOnDeliveryFields(promptItem: PromptItem): string[] {
+  if (promptRequiresPatientInput(promptItem)) return [];
+  const effect = promptItem.completionEffect as { type?: unknown; to?: unknown; field?: unknown } | null;
+  const writtenByEffect = new Set([effect?.to, effect?.field].filter((value): value is string => typeof value === "string"));
+  return promptItem.outputFields.filter((field) => !writtenByEffect.has(field));
 }
 
 function defaultCompletionCondition(promptItem: PromptItem): ConditionExpression {

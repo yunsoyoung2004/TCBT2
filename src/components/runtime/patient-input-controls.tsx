@@ -8,6 +8,28 @@ import { useSpeechRecognition } from "@/lib/speech/use-speech-recognition";
 
 type PatientPromptInput = Pick<PromptItem, "type" | "validation" | "outputFields">;
 
+// Choice buttons used to print the catalog's raw canonical value, so the two
+// most consequential answers in the programme appeared as "not_ready" and
+// "not_guilty" -- untranslated, and visibly not the wording the question had
+// just used. The submitted value stays canonical; only the label changes.
+const CHOICE_LABELS: Record<string, { en: string; ko: string }> = {
+  ready: { en: "Ready", ko: "준비됐어요" },
+  not_ready: { en: "Not ready", ko: "아직 준비 안 됐어요" },
+  guilty: { en: "Guilty", ko: "유죄" },
+  not_guilty: { en: "Not guilty", ko: "무죄" },
+  not_started: { en: "Not started", ko: "시작 못 했어요" },
+  partial: { en: "Partly done", ko: "일부 했어요" },
+  completed: { en: "Completed", ko: "완료했어요" },
+  not_assigned: { en: "Not assigned", ko: "부여되지 않음" },
+  pending: { en: "In progress", ko: "진행 중" },
+};
+
+function choiceLabel(choice: string, locale?: string) {
+  const entry = CHOICE_LABELS[choice];
+  if (!entry) return choice.replace(/_/g, " ");
+  return locale?.startsWith("ko") ? entry.ko : entry.en;
+}
+
 export function PatientInputControls({
   payload,
   promptItem,
@@ -49,34 +71,35 @@ export function PatientInputControls({
   // outputFields[0]/[1] in that order (line ~441), matching the order
   // PairedRatingInput renders and submits its two inputs in.
   if (/^paired_ratings/.test(promptValidationKind) || promptValidationKind === "consensus_weights") {
-    return <PairedRatingInput disabled={disabled} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
+    return <PairedRatingInput disabled={disabled} locale={locale} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
   }
   if (kind === "single_choice") {
     return (
       <div className="grid gap-2">
         {choices.map((choice) => (
-          <Button key={choice} variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "single_choice", value: choice })}>{choice}</Button>
+          <Button key={choice} variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "single_choice", value: choice })}>{choiceLabel(choice, locale)}</Button>
         ))}
       </div>
     );
   }
   if (kind === "multi_choice") {
-    return <MultiChoiceInput choices={choices} disabled={disabled} onSubmit={(value) => onSubmit({ kind: "multi_choice", value })} />;
+    return <MultiChoiceInput choices={choices} locale={locale} disabled={disabled} onSubmit={(value) => onSubmit({ kind: "multi_choice", value })} />;
   }
   if (kind === "rating" || promptKind === "rating" || promptValidationKind === "rating") {
     return <RatingInput disabled={disabled} min={Number(payload?.min ?? validation.min ?? 0)} max={Number(payload?.max ?? validation.max ?? 100)} onSubmit={(value) => onSubmit({ kind: "rating", value })} />;
   }
   if (kind === "activity_completion") {
-    return <ChoiceRow disabled={disabled} options={["not_started", "partial", "completed"]} onSelect={(value) => onSubmit({ kind: "activity_completion", value })} />;
+    return <ChoiceRow disabled={disabled} locale={locale} options={["not_started", "partial", "completed"]} onSelect={(value) => onSubmit({ kind: "activity_completion", value })} />;
   }
   if (kind === "homework_status") {
-    return <ChoiceRow disabled={disabled} options={["not_assigned", "pending", "completed"]} onSelect={(value) => onSubmit({ kind: "homework_status", value })} />;
+    return <ChoiceRow disabled={disabled} locale={locale} options={["not_assigned", "pending", "completed"]} onSelect={(value) => onSubmit({ kind: "homework_status", value })} />;
   }
   if (kind === "boolean") {
+    const isKorean = locale?.startsWith("ko");
     return (
       <div className="flex gap-2">
-        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: true })}>Yes</Button>
-        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: false })}>No</Button>
+        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: true })}>{isKorean ? "네" : "Yes"}</Button>
+        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: false })}>{isKorean ? "아니요" : "No"}</Button>
       </div>
     );
   }
@@ -93,15 +116,17 @@ export function PatientInputControls({
   );
 }
 
-function readableFieldLabel(field: string, index: number) {
-  if (/belief/i.test(field)) return "Belief in the charge (%)";
-  if (/emotion|intensity/i.test(field)) return "Emotion intensity (%)";
-  if (/advantage/i.test(field)) return "Advantages weight (%)";
-  if (/disadvantage/i.test(field)) return "Disadvantages weight (%)";
-  return `Rating ${index + 1} (%)`;
+function readableFieldLabel(field: string, index: number, locale?: string) {
+  const isKorean = locale?.startsWith("ko");
+  // "disadvantage" contains "advantage", so it must be tested first.
+  if (/disadvantage/i.test(field)) return isKorean ? "단점 비중 (%)" : "Disadvantages weight (%)";
+  if (/advantage/i.test(field)) return isKorean ? "장점 비중 (%)" : "Advantages weight (%)";
+  if (/belief/i.test(field)) return isKorean ? "혐의에 대한 믿음 (%)" : "Belief in the charge (%)";
+  if (/emotion|intensity/i.test(field)) return isKorean ? "감정 강도 (%)" : "Emotion intensity (%)";
+  return isKorean ? `평가 ${index + 1} (%)` : `Rating ${index + 1} (%)`;
 }
 
-function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?: boolean; min: number; max: number; fields: string[]; onSubmit: (first: number, second: number) => void }) {
+function PairedRatingInput({ disabled, min, max, fields, locale, onSubmit }: { disabled?: boolean; min: number; max: number; fields: string[]; locale?: string; onSubmit: (first: number, second: number) => void }) {
   const initial = Math.round((min + max) / 2);
   const [first, setFirst] = useState(initial);
   const [second, setSecond] = useState(initial);
@@ -109,11 +134,11 @@ function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?
     <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit(first, second); }}>
       {[[first, setFirst], [second, setSecond]].map(([value, setter], index) => (
         <label key={index} className="grid gap-1 text-sm text-text-secondary">
-          {readableFieldLabel(fields[index] ?? "", index)}
+          {readableFieldLabel(fields[index] ?? "", index, locale)}
           <input type="number" min={min} max={max} value={value as number} disabled={disabled} onChange={(event) => (setter as (value: number) => void)(Math.max(min, Math.min(max, Number(event.target.value))))} className={inputClass} />
         </label>
       ))}
-      <Button disabled={disabled}>Submit both ratings</Button>
+      <Button disabled={disabled}>{locale?.startsWith("ko") ? "두 값 모두 제출" : "Submit both ratings"}</Button>
     </form>
   );
 }
@@ -248,19 +273,19 @@ function RatingInput({ disabled, min, max, onSubmit }: { disabled?: boolean; min
   );
 }
 
-function ChoiceRow({ disabled, options, onSelect }: { disabled?: boolean; options: string[]; onSelect: (value: string) => void }) {
+function ChoiceRow({ disabled, options, locale, onSelect }: { disabled?: boolean; options: string[]; locale?: string; onSelect: (value: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((option) => (
         <Button key={option} variant="secondary" disabled={disabled} onClick={() => onSelect(option)}>
-          {option.replace(/_/g, " ")}
+          {choiceLabel(option, locale)}
         </Button>
       ))}
     </div>
   );
 }
 
-function MultiChoiceInput({ choices, disabled, onSubmit }: { choices: string[]; disabled?: boolean; onSubmit: (value: string[]) => void }) {
+function MultiChoiceInput({ choices, disabled, locale, onSubmit }: { choices: string[]; disabled?: boolean; locale?: string; onSubmit: (value: string[]) => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (choice: string) => {
     setSelected((current) => (current.includes(choice) ? current.filter((item) => item !== choice) : [...current, choice]));
@@ -270,7 +295,7 @@ function MultiChoiceInput({ choices, disabled, onSubmit }: { choices: string[]; 
       <div className="flex flex-wrap gap-2">
         {choices.map((choice) => (
           <Button key={choice} type="button" variant={selected.includes(choice) ? "primary" : "secondary"} disabled={disabled} onClick={() => toggle(choice)}>
-            {choice}
+            {choiceLabel(choice, locale)}
           </Button>
         ))}
       </div>

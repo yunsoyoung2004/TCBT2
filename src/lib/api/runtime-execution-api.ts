@@ -5,7 +5,7 @@ import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
 import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/session-summary-api";
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
 import { getRuntimeParticipant } from "@/lib/api/participant-api";
-import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
+import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal, violatesThirdPersonRequirement } from "@/lib/runtime/runtime-context";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
 import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tracer";
@@ -14,9 +14,11 @@ import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
 import { projectRuntimeFieldsToWorksheet } from "@/lib/worksheet/worksheet-projection";
 import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
 import { resolveBracketPlaceholders } from "@/lib/runtime/runtime-static-message";
+import { composeCrpPlanSummary } from "@/lib/runtime/static-messages/s07";
+import { composeTrialClosingSummary } from "@/lib/runtime/static-messages/s08";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
-import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
+import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, acknowledgedOnDeliveryFields, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 import { reduceRuntimeState } from "@/lib/runtime/runtime-state-reducer";
 import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
 import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
@@ -53,7 +55,7 @@ function getPromptCompletionEffectType(promptItem: PromptItem) {
   return typeof promptItem.completionEffect?.type === "string" ? promptItem.completionEffect.type : "advance_prompt";
 }
 
-function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem): RuntimeSession["runtimeContext"] {
+function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem, locale = "en-US"): RuntimeSession["runtimeContext"] {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
   const ratingValues = (value: unknown): number[] => {
     if (Array.isArray(value)) return value.flatMap(ratingValues);
@@ -68,6 +70,21 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
   if (validationKind === "calculated_goal_totals") {
     const ratings = ratingValues(runtimeContext.fields.goalRatings);
     return { ...runtimeContext, fields: { ...runtimeContext.fields, totalGoalsScore: ratings.reduce((sum, value) => sum + value, 0), yellowRedGoalsCount: ratings.filter((value) => value >= 4).length } };
+  }
+  // S07's closing summarizes the six action-plan fields back to the
+  // participant and then completes the session on delivery -- it never waits
+  // for an answer, so nothing could ever write crpPlanSummary and the field
+  // stayed empty in every completed run. Record the exact string that was
+  // spoken (composeCrpPlanSummary is the same composer the static-message
+  // resolver uses) so the message and the stored summary cannot drift.
+  if (validationKind === "plan_summary_without_praise_or_persuasion") {
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, crpPlanSummary: composeCrpPlanSummary(runtimeContext.fields, locale) } };
+  }
+  // S08's Step 21 closing works the same way: the warm before/after
+  // comparison is spoken on delivery and completes the session, so the
+  // identical composed string is recorded here rather than left unwritten.
+  if (validationKind === "warm_before_after_comparison") {
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, trialClosingSummary: composeTrialClosingSummary(runtimeContext.fields, locale) } };
   }
   const effect = promptItem.completionEffect;
   // Copies an already-confirmed field's value into a second field this
@@ -86,6 +103,11 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
   if (effect?.type === "redirect_to_three_person_example") {
     return { ...runtimeContext, fields: { ...runtimeContext.fields, redirectToThreePersonExample: true } };
   }
+  // See acknowledgedOnDeliveryFields: a passive prompt's outputFields can only
+  // mean "this content was delivered", and nothing else in the runtime could
+  // ever write them.
+  const acknowledged = Object.fromEntries(acknowledgedOnDeliveryFields(promptItem).filter((field) => runtimeContext.fields[field] === undefined).map((field) => [field, true]));
+  if (Object.keys(acknowledged).length) return { ...runtimeContext, fields: { ...runtimeContext.fields, ...acknowledged } };
   return runtimeContext;
 }
 
@@ -101,6 +123,23 @@ function deterministicValidation(finalText: string) {
 }
 
 const MAX_CLARIFICATION_ATTEMPTS = 3;
+
+/** Names the courtroom role a prompt is spoken from, for the third-person
+ * correction below. Keyed on the NODE id, not the prompt slug: Step 10's
+ * prompt is "rebut-each-defense-item" but is argued by the PROSECUTOR, so
+ * matching the slug would name the wrong role at exactly the moment the
+ * correction is meant to remind the participant which role they are in. The
+ * node id ("...n10-prosecution-rebuttal") is authored, never participant
+ * data, so this stays deterministic. */
+const ROLE_NAME_BY_NODE_FRAGMENT: Array<[RegExp, { en: string; ko: string }]> = [
+  [/prosecut/, { en: "the prosecutor", ko: "검사" }],
+  [/defense|surrebuttal/, { en: "the defense attorney", ko: "변호인" }],
+  [/jury|juror/, { en: "a juror", ko: "배심원" }],
+];
+
+export function courtroomRoleNameForNode(nodeId: string) {
+  return ROLE_NAME_BY_NODE_FRAGMENT.find(([pattern]) => pattern.test(nodeId))?.[1];
+}
 
 async function deliverClarificationTurn(input: {
   session: RuntimeSession;
@@ -123,13 +162,27 @@ async function deliverClarificationTurn(input: {
   // than ask a question -- a short reply here is usually the patient asking to move on,
   // not an incomplete answer, so it should never be met with "give a concrete example."
   const isPassiveNode = PASSIVE_CLARIFICATION_PROMPT_TYPES.has(input.promptItem.type);
-  const sourceSpecificClarification = input.promptItem.id === "tbct-s08-n01-p01-distressing-situation"
+  // S08 Key Principle 3: a first-person slip inside a courtroom role gets ONE
+  // gentle, immediate correction naming the role -- not a generic "could you
+  // give a concrete example". extractRuntimeState routes only the first such
+  // turn here (see its clarificationAttemptCount === 0 gate), so this can
+  // never become a loop.
+  const roleName = courtroomRoleNameForNode(input.promptItem.nodeId);
+  const thirdPersonCorrection = roleName
+    && (input.promptItem.validation as { requiresThirdPerson?: boolean } | null)?.requiresThirdPerson
+    && violatesThirdPersonRequirement(input.patientMessage.content)
+    ? tr(
+        `I noticed you said "I" just now -- remember, right now you are speaking as ${roleName.en}, about the defendant. Could you say that again in the third person?`,
+        `방금 "저"라고 말씀하셨어요 -- 지금은 ${roleName.ko}(으)로서 피고인에 대해 이야기하시는 중이에요. 3인칭으로 다시 말씀해 주시겠어요?`,
+      )
+    : undefined;
+  const sourceSpecificClarification = thirdPersonCorrection ?? (input.promptItem.id === "tbct-s08-n01-p04-distressing-situation"
     ? missing.has("distressingSituation") && !missing.has("automaticThought")
       ? tr("Please describe a specific distressing situation and the important facts of what actually happened.", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc911\uc694\ud55c \uc0ac\uc2e4\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694?")
       : missing.has("automaticThought") && !missing.has("distressingSituation")
         ? tr("What automatic thought did that situation trigger?", "\uadf8 \uc0c1\ud669\uc5d0\uc11c \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
         : tr("Please identify a specific distressing situation and the automatic thought it triggered. What actually happened, and what went through your mind?", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uadf8\ub54c \ub5a0\uc624\ub978 \uc0dd\uac01\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc2e4\uc81c\ub85c \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\uace0, \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
-    : undefined;
+    : undefined);
   const proposedContent = input.reason === "patient_refusal"
     ? tr(
         "I understand. We can pause here, and you do not need to continue. You can end the session or resume later only if you choose. If it helps, I can summarize what we've covered so far instead.",
@@ -864,7 +917,7 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
       : await deliverRuntimePrompt({ session: activeSession, node, promptItem, release: view.release, recentMessages: view.messages });
     const nextRuntimeState = delivered?.stateReduction.state ?? runtimeState;
     const completedPromptItemIds = nextRuntimeState.completedPromptItemIds;
-    const nextContext = applyPromptCompletionEffect(runtimeContext, promptItem);
+    const nextContext = applyPromptCompletionEffect(runtimeContext, promptItem, activeSession.locale);
     const completionEffectType = getPromptCompletionEffectType(promptItem);
     if (completionEffectType === "pause_session") {
       await updateRuntimeSessionRecord(sessionId, {
@@ -1241,7 +1294,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   });
   const completedPromptItemIds = reduction.state.completedPromptItemIds;
   const reducedSkippedPromptItemIds = mergePromptItemIds(skippedPromptItemIds, reduction.skippedPromptItemIds);
-  const contextAfterCompletion = applyPromptCompletionEffect(nextContext, currentPromptItem);
+  const contextAfterCompletion = applyPromptCompletionEffect(nextContext, currentPromptItem, initialSession.locale);
   const completionEffectType = getPromptCompletionEffectType(currentPromptItem);
   if (completionEffectType === "pause_session") {
     await updateRuntimeSessionRecord(sessionId, {
