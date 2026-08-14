@@ -6,7 +6,11 @@ import ko from "@/lib/i18n/dictionaries/ko";
 import { DEFAULT_LOCALE, isUiLocale, type UiLocale } from "@/lib/i18n/locales";
 
 const DICTIONARIES: Record<UiLocale, Record<string, unknown>> = { en, ko };
-const STORAGE_KEY = "tbct-ui-locale";
+// Exported so callers can check "has anyone ever explicitly picked a UI
+// language on this browser" without duplicating the key -- see
+// patient-list-page.tsx's one-time auto-adopt-from-participant-locale.
+export const UI_LOCALE_STORAGE_KEY = "tbct-ui-locale";
+const STORAGE_KEY = UI_LOCALE_STORAGE_KEY;
 
 function readStoredLocale(): UiLocale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;

@@ -6,6 +6,7 @@ import { HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { Badge, Button } from "@/components/ui/primitives";
+import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -66,6 +67,7 @@ export function PatientShell({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
+            <LocaleToggle />
             <span data-tour-id="theme-toggle"><ThemeToggle /></span>
             {/* Replays the onboarding tour -- it only ever mounts on the
                 session-list page (see patient-list-page.tsx), so this

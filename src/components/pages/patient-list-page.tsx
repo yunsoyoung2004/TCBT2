@@ -14,19 +14,36 @@ import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
 import { PATIENT_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
 import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
 import { HOMEWORK_LABEL_BY_SESSION, hasHomeworkActivity } from "@/types/homework";
-import { useT } from "@/lib/i18n/context";
+import { UI_LOCALE_STORAGE_KEY, useT } from "@/lib/i18n/context";
+import { mapToUiLocale } from "@/lib/i18n/locales";
 import { useAuth } from "@/lib/auth/auth-context";
 
 type ListedSession = Awaited<ReturnType<typeof listRuntimeSessionsForParticipant>>[number];
 
 export function PatientListPage() {
-  const { t } = useT();
+  const { t, setLocale } = useT();
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = user?.id ?? "";
   const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
   const participant = participantQuery.data;
+  // participant.locale drives the actual therapy session content's
+  // language (see runtime-execution-api.ts) -- a distinct, clinically-
+  // significant setting from this app's own UI chrome text, which
+  // defaults to Korean for everyone and (until now) never looked at this
+  // field at all. That left a patient whose record clearly says "en-US"
+  // landing on a portal that's entirely in Korean with no obvious reason
+  // why and no way to fix it themselves. Auto-adopt it once, the very
+  // first time this page loads for them -- but only if nothing (this
+  // patient, or a clinician sharing this browser) has ever explicitly
+  // picked a UI language before, so it never overrides a real choice.
+  useEffect(() => {
+    if (!participant?.locale || typeof window === "undefined") return;
+    if (window.localStorage.getItem(UI_LOCALE_STORAGE_KEY)) return;
+    const mapped = mapToUiLocale(participant.locale);
+    if (mapped) setLocale(mapped);
+  }, [participant?.locale, setLocale]);
   // Scoped to this logged-in patient's own participant -- never the full
   // cross-patient list (that's the clinician-facing Patient Monitoring page).
   const sessionsQuery = useQuery({
