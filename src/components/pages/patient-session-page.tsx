@@ -17,7 +17,7 @@ import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-s
 import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
 import { computeSessionProgressPercent } from "@/lib/runtime/session-progress-estimate";
 import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
-import type { PatientInput } from "@/types/runtime-session";
+import type { PatientInput, PatientRuntimeSessionView } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
 import { useT } from "@/lib/i18n/context";
 
@@ -114,13 +114,38 @@ export function PatientSessionPage() {
   });
   const inputMutation = useMutation({
     mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion, locale: uiLocale === "ko" ? "ko-KR" : "en-US" }),
+    onMutate: async ({ patientInput, clientTurnId }) => {
+      const queryKey = ["patient-runtime-session", sessionId] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<PatientRuntimeSessionView | null>(queryKey);
+      const content = Array.isArray(patientInput.value) ? patientInput.value.join(", ") : String(patientInput.value);
+      if (previous) {
+        const now = new Date().toISOString();
+        queryClient.setQueryData<PatientRuntimeSessionView>(queryKey, {
+          ...previous,
+          messages: [
+            ...previous.messages,
+            {
+              id: `optimistic-${clientTurnId}`,
+              role: "patient",
+              content,
+              status: "delivered",
+              createdAt: now,
+              deliveredAt: now,
+            },
+          ],
+        });
+      }
+      return { previous };
+    },
     onSuccess: async (result) => {
       if (result.stateExtraction?.missingFields.length) {
         toast.info("Please share a little more so we can stay with this question.");
       }
       await refresh();
     },
-    onError: () => {
+    onError: (_error, _variables, context) => {
+      if (context?.previous !== undefined) queryClient.setQueryData(["patient-runtime-session", sessionId], context.previous);
       toast.error("We could not submit that response. Please try again.");
     },
     onSettled: () => {
