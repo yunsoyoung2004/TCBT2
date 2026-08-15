@@ -238,7 +238,12 @@ export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessi
 export async function getRuntimeSessionForTurn(sessionId: string): Promise<RuntimeSessionView | null> {
   const session = await getRuntimeSessionRecord(sessionId);
   if (!session) return null;
-  const storedRelease = await getProtocolRelease(session.releaseId);
+  // The canonical demo release is compiled into the application. Prefer it
+  // directly so the server turn executor never tries to open browser-only
+  // IndexedDB through protocol-repository.
+  const storedRelease = session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId)
+    ? null
+    : await getProtocolRelease(session.releaseId);
   const release: ProtocolReleaseVersion | null = storedRelease
     ?? (session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId) ? createCanonicalDemoRelease() : null);
   if (!release || !hasRuntimeSourceSnapshot(release)) throw new Error(`Runtime session ${session.id} references an unavailable immutable release.`);

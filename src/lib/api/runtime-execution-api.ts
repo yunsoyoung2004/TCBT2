@@ -23,6 +23,33 @@ import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
 import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
 import type { ProtocolReleaseVersion } from "@/types/protocol-runtime";
 import type { PatientInput, RuntimeCycleResult, RuntimeMessage, RuntimeSession, RuntimeSessionStatus, RuntimeSessionView, SessionExecutionLog } from "@/types/runtime-session";
+
+async function submitPatientInputOverStream(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string }): Promise<RuntimeCycleResult> {
+  const response = await fetch("/api/runtime/turn", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify({ sessionId, patientInput, options }),
+  });
+  if (!response.ok || !response.body) throw new Error(`Patient turn failed (${response.status})`);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() ?? "";
+    for (const frame of frames) {
+      const dataLine = frame.split("\n").find((line) => line.startsWith("data:"));
+      if (!dataLine) continue;
+      const event = JSON.parse(dataLine.slice(5).trim()) as { type: string; result?: RuntimeCycleResult; error?: string };
+      if (event.type === "result" && event.result) return event.result;
+      if (event.type === "error") throw new Error(event.error ?? "Patient turn failed");
+    }
+    if (done) break;
+  }
+  throw new Error("Patient turn stream ended without a result");
+}
 import type { SafetyTriggerSuppression } from "@/types/safety-operations";
 
 function makeId(prefix: string) {
@@ -1060,6 +1087,7 @@ export async function executeCurrentNode(sessionId: string, prefetchedView?: Run
 }
 
 export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string } = {}): Promise<RuntimeCycleResult> {
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") return submitPatientInputOverStream(sessionId, patientInput, options);
   // Pure housekeeping (deletes rows past their expiry), unrelated to this
   // turn's own correctness -- getActiveSafetyTriggerSuppressions below
   // (only reached when safetyResult.triggered, i.e. rarely) already does

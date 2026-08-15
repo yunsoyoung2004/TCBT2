@@ -1,5 +1,5 @@
 import { RUNTIME_STORE_ENDPOINT } from "@/lib/runtime/runtime-store-ops";
-import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
+import { resolveStoreUrl, runtimeFetch } from "@/lib/runtime/resolve-store-url";
 import type {
   CommitRuntimeAssistantTurnInput,
   CommitRuntimeAssistantTurnResult,
@@ -25,7 +25,7 @@ export type { RuntimePatientTurnClaim, CommitRuntimeAssistantTurnInput };
 // Neon Postgres, not local IndexedDB -- every function here keeps its
 // original name and signature so call sites across the app are unaffected.
 async function callStore<T>(op: RuntimeStoreOp): Promise<T> {
-  const response = await fetch(resolveStoreUrl(RUNTIME_STORE_ENDPOINT), {
+  const response = await runtimeFetch(resolveStoreUrl(RUNTIME_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),

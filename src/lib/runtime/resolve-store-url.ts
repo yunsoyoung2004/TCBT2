@@ -14,3 +14,14 @@ export function resolveStoreUrl(endpoint: string): string {
   const base = host ? `https://${host}` : "http://localhost:3000";
   return `${base}${endpoint}`;
 }
+
+type InternalFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+const INTERNAL_FETCH_KEY = "__tbctInternalFetch";
+
+/** Uses the normal browser fetch, or the request-scoped authenticated fetch
+ * installed by the server turn endpoint. Kept in this client-safe module so
+ * shared runtime code never imports node:async_hooks into the browser bundle. */
+export function runtimeFetch(input: string | URL | Request, init?: RequestInit) {
+  const internal = (globalThis as typeof globalThis & { [INTERNAL_FETCH_KEY]?: InternalFetch })[INTERNAL_FETCH_KEY];
+  return internal ? internal(input, init) : fetch(input, init);
+}
