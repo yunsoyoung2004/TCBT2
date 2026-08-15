@@ -41,7 +41,11 @@ function deterministicFallbackDecision(contract: DialogueContract): import("@/li
 const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["responseType", "patientFacingMessage", "keepCurrentNode", "participantResponseState"],
+  // Only natural-language text truly needs model generation. The remaining
+  // fields are descriptive metadata or deterministic invariants and are
+  // normalized below; requiring Haiku to spend tokens restating them caused
+  // otherwise-good 1-3s responses to be discarded as fallbacks.
+  required: ["patientFacingMessage"],
   properties: {
     responseType: { type: "string", enum: ["acknowledge", "reflect_and_ask", "clarify", "repair", "request_missing_field", "explain_term", "explain_scale", "explain_rationale", "restore_context", "show_required_visual", "acknowledge_pause"] },
     patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 },
@@ -156,7 +160,17 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
     const json = (await response.json()) as { content?: Array<{ type?: string; name?: string; input?: unknown }>; usage?: { input_tokens?: number; output_tokens?: number } };
     const toolInput = json.content?.find((item) => item.type === "tool_use" && item.name === "submit_dialogue_decision")?.input;
     if (!toolInput) throw new Error("Anthropic omitted the structured dialogue decision");
-    const decision = dialogueDecisionSchema.parse(toolInput);
+    const partial = toolInput && typeof toolInput === "object" ? toolInput as Record<string, unknown> : {};
+    const responseType = typeof partial.responseType === "string" ? partial.responseType : "reflect_and_ask";
+    const participantResponseState = typeof partial.participantResponseState === "string" ? partial.participantResponseState : "valid_answer";
+    const decision = dialogueDecisionSchema.parse({
+      ...partial,
+      responseType,
+      // Progression is never model-owned; normalize this invariant instead
+      // of rejecting useful text when the model omits or contradicts it.
+      keepCurrentNode: true,
+      participantResponseState,
+    });
     recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "anthropic", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: json.usage?.input_tokens ?? null, outputTokens: json.usage?.output_tokens ?? null, totalTokens: json.usage?.input_tokens !== undefined && json.usage.output_tokens !== undefined ? json.usage.input_tokens + json.usage.output_tokens : null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: true });
     return { decision, provider: "anthropic", model, latencyMs: Math.round(performance.now() - started), failed: false };
   } catch (error) {
