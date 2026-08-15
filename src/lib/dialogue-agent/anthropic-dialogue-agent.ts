@@ -46,12 +46,7 @@ const RESPONSE_SCHEMA = {
     responseType: { type: "string", enum: ["acknowledge", "reflect_and_ask", "clarify", "repair", "request_missing_field", "explain_term", "explain_scale", "explain_rationale", "restore_context", "show_required_visual", "acknowledge_pause"] },
     patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 },
     keepCurrentNode: { type: "boolean", enum: [true] },
-    targetField: { type: "string" },
     participantResponseState: { type: "string", enum: ["valid_answer", "partial_answer", "wrong_construct", "question_not_understood", "missing_visual", "missing_context", "participant_question", "duplicate_answer", "revision_request", "declines", "pause_request", "off_topic"] },
-    visualAction: { type: "string", enum: ["none", "focus_field", "show_options", "restore_worksheet", "show_scale"] },
-    clarificationReason: { type: "string" },
-    explanationDepth: { type: "string", enum: ["minimal", "standard", "expanded"] },
-    candidateFieldMention: { type: "object", additionalProperties: false, required: ["field", "value"], properties: { field: { type: "string" }, value: {} } },
   },
 } as const;
 
@@ -122,7 +117,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   }
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
-  const maxTokens = Math.min(220, Math.max(80, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 140)));
+  const maxTokens = Math.min(220, Math.max(100, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
   const timeoutMs = Math.min(5000, Math.max(500, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 4000)));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
