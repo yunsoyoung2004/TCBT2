@@ -94,9 +94,9 @@ export function PatientListPage() {
         progressLabel={participant?.locale}
         actions={
           <>
-            <Link href="/projects/demo/patient/profile"><Button variant="secondary">{t("patientPortal.profile")}</Button></Link>
+            <span data-tour-id="profile-link"><Link href="/projects/demo/patient/profile"><Button variant="secondary">{t("patientPortal.profile")}</Button></Link></span>
             <span data-tour-id="messages-link"><Link href="/projects/demo/patient/messages"><Button variant="secondary">{t("messages.title")}</Button></Link></span>
-            <Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientPortal.memory")}</Button></Link>
+            <span data-tour-id="memory-link"><Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientPortal.memory")}</Button></Link></span>
             <span data-tour-id="new-session"><Link href="/projects/demo/patient/sessions/new"><Button>{t("patientPortal.newSession")}</Button></Link></span>
           </>
         }

@@ -95,6 +95,7 @@ function isActive(pathname: string, href: string) {
 // attribute (querySelector on it just never matches).
 function tourIdForNavItem(item: NavItem): string | undefined {
   if (item.href.includes("/canvas")) return "nav-protocol-editor";
+  if (item.href.includes("/manual-reflection")) return "nav-manual-reflection";
   if (item.href === "/patients") return "nav-patient-monitoring";
   return undefined;
 }

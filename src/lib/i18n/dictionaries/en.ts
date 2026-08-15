@@ -737,59 +737,71 @@ const en = {
       next: "Next",
       back: "Back",
       skip: "Skip",
-      finish: "Done",
+      finish: "Got it, thanks!",
       stepOf: "Step {current} of {total}",
     },
     patient: {
       stats: {
-        title: "Your session overview",
-        body: "See how many sessions you've started, finished, or still need to pick back up, at a glance.",
+        title: "Welcome! Here's your session overview",
+        body: "This little dashboard is your home base. \"In progress\" is anything you've started but haven't finished yet, and \"Complete\" is everything you've already worked through. There's no rush and no score here -- it's just so you always know exactly where you left off.",
       },
       moodCheckin: {
         title: "Daily mood check-in",
-        body: "One tap logs how you're feeling today. Your clinician can see the trend over time.",
+        body: "One tap on an emoji logs how you're feeling right now -- it takes about two seconds. Do it as often as you like, even on days you don't have a session. Over time this builds a simple mood trend your clinician can see, which often says more than words can in the moment.",
       },
       appointments: {
         title: "Upcoming appointments",
-        body: "Any session your clinician has scheduled with you shows up here first.",
+        body: "If your clinician has scheduled a session with you, it'll always show up right here first, with the date and time -- so you never have to go hunting for it. Nothing to set up on your end; this fills in automatically.",
       },
-      newSession: {
-        title: "Start a new session",
-        body: "Begin the next session in your program whenever you're ready.",
+      profile: {
+        title: "Your profile",
+        body: "This is where your basic info lives, and also where you can download a copy of everything stored about you, or ask for your data to be deleted, whenever you want. It's entirely up to you -- nothing here is required.",
+      },
+      memory: {
+        title: "Memory",
+        body: "Think of this as your program's running memory of things you've shared -- the situations, thoughts, and patterns that have come up across your sessions. It helps later sessions build naturally on earlier ones instead of starting from zero every time.",
       },
       messages: {
         title: "Message your clinician",
-        body: "Send a message between sessions -- your clinician is notified right away.",
+        body: "Something come up between sessions? Send a quick message here any time, day or night. Your clinician gets notified right away and can reply whenever they're free -- this isn't for emergencies (see the red crisis button for that), just for everyday check-ins.",
+      },
+      newSession: {
+        title: "Start a new session",
+        body: "Whenever you're ready -- no need to wait for a scheduled time -- tap here to begin the next session in your program. Each one picks up naturally from where the last one left off, and you can always pause and come back later if you need to.",
       },
       themeToggle: {
-        title: "Light or dark",
-        body: "Switch between light, dark, or match your device automatically.",
+        title: "Light or dark, your choice",
+        body: "Prefer a darker screen at night, or a brighter one in daylight? Tap this to cycle through light, dark, or automatically matching whatever your phone or computer is already set to. Purely cosmetic -- switch it as often as you like.",
       },
       crisisHelp: {
         title: "In crisis? Get help immediately",
-        body: "This always opens right away with real hotline numbers -- no login needed.",
+        body: "This button is always here, on every single page, and you never need to be logged in to use it. One tap opens real, free 24/7 hotline numbers you can call right now. If things ever feel like an emergency, please use this before anything else in the app.",
       },
     },
     clinician: {
       protocolEditor: {
         title: "Protocol Editor",
-        body: "Design and edit the treatment protocol your patients go through.",
+        body: "This is where the actual treatment protocol your patients go through lives -- every session, step, and question, laid out on a visual canvas. You can review or fine-tune the wording here, though most day-to-day edits are easier from Manual Reflection, just next door.",
+      },
+      manualReflection: {
+        title: "Manual Reflection -- edits made easy",
+        body: "Built for exactly the kind of hands-on tweaking that doesn't require touching the technical canvas view: for every question a session asks, see the original manual wording side by side with whatever's been changed, plus a plain-language guide for what each field actually does. You can even adjust the AI's overall tone here. Changes only reach real patients once you publish, so there's no risk of an accidental live edit.",
       },
       patientMonitoring: {
         title: "Patient Monitoring",
-        body: "See every patient's session status, safety alerts, and progress in one list.",
+        body: "Your full caseload in one list -- every patient's current session, their status, and anything that needs your attention (a safety flag, a stalled session, a patient who's gone quiet) is surfaced right at the top so you never have to go looking for it.",
       },
       search: {
-        title: "Quick search",
-        body: "Press Ctrl/Cmd+K anytime to jump to a step, asset, or patient.",
+        title: "Quick search, anywhere",
+        body: "Stuck trying to find a specific step, a patient, or an asset? Press Ctrl+K (or Cmd+K on Mac) from literally any page and jump straight there -- much faster than clicking through menus once you get used to it.",
       },
       themeToggle: {
-        title: "Light or dark",
-        body: "Switch between light, dark, or match your device automatically.",
+        title: "Light or dark, your choice",
+        body: "Long day of reviewing sessions? Tap this to cycle through light, dark, or automatically matching your device's own setting. Purely cosmetic, switch it whenever suits you.",
       },
       help: {
         title: "Need this tour again?",
-        body: "Click this anytime to replay the tour.",
+        body: "No problem at all -- click this button any time and the whole walkthrough starts over from the beginning. Nothing to remember; it's always right here if you need a refresher.",
       },
     },
   },
