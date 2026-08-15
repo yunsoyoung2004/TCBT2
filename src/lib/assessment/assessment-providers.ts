@@ -63,6 +63,18 @@ abstract class BaseAssessmentModel implements AssessmentModel {
 }
 
 class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
+  // Set once healthCheck() has confirmed a usable model on this instance --
+  // getAssessmentModel() below already caches ONE instance per warm
+  // serverless invocation, but invoke() used to call healthCheck() (a real
+  // network round-trip to list available models) on every single call
+  // regardless, roughly doubling this provider's per-turn latency for no
+  // reason once the model was already confirmed good once. A later
+  // genuine outage/misconfiguration still surfaces -- just at the real
+  // completion request below instead of pre-emptively here -- which
+  // assessRuntimePatientInput's caller already treats as a normal
+  // "needs_clarification" fallback either way, so this trades an
+  // early-and-clean error for a slightly-later one, not a silent failure.
+  private healthConfirmed = false;
   constructor(private readonly provider: "groq" | "ollama", private readonly baseUrl: string, private readonly apiKey: string, private model: string) { super(); }
   getProviderMetadata(): AssessmentProviderMetadata { return { provider: this.provider, model: this.model || undefined, privacyBoundary: this.provider === "ollama" ? "local" : "cloud" }; }
   async healthCheck() {
@@ -77,7 +89,11 @@ class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
     } catch { return { ok: false, provider: this.provider, model: this.model || undefined, message: `${this.provider} is unavailable` }; }
   }
   protected async invoke(request: AssessmentRequest) {
-    const health = await this.healthCheck(); if (!health.ok) throw new Error(health.message);
+    if (!this.healthConfirmed) {
+      const health = await this.healthCheck();
+      if (!health.ok) throw new Error(health.message);
+      this.healthConfirmed = true;
+    }
     const started = performance.now(); const cloud = this.provider === "groq"; const config = getAssessmentConfig();
     if (cloud && !config.allowCloudPatientAssessment) throw new Error("Cloud patient assessment is disabled; select Ollama or deterministic processing.");
     const payloadRequest = cloud && config.redactCloudInput ? safeRequest(request) : request;
