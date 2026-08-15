@@ -343,11 +343,29 @@ export async function extractRuntimeState(input: {
     }
   }
   const allExpectedFieldsProvided = expectedFields.length > 0 && expectedFields.every((expectedField) => explicitlyProvidedFields.has(expectedField));
+  // The patient has already been asked to clarify this exact PromptItem at
+  // least once (clarificationAttemptCount resets to 0 the moment any turn
+  // succeeds -- see runtime-execution-api.ts) and is now answering again.
+  // Semantic assessment (especially the deterministic fallback used when no
+  // cloud provider is configured, see assessment-providers.ts) can reject a
+  // perfectly reasonable elaboration it simply can't cleanly split or
+  // classify -- most visibly for non-English, multi-field prompts like
+  // "distressing situation + automatic thought" answered in one Korean
+  // sentence, where the deterministic model's field-splitting only
+  // recognizes English connector phrasing ("...and I thought that..."). A
+  // second on-topic reply should not loop back to the identical question a
+  // third time just because that classification still can't confidently
+  // parse it -- see the fallback-fill below, applied once we know we won't
+  // hard-reject on relevance/completion alone this turn.
+  const isLenientRetry = (input.currentContext.clarificationAttemptCount ?? 0) >= 1;
   if (!riskSignals.length && !allExpectedFieldsProvided && input.currentPromptItem && requiresSemanticInputAssessment({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
     const assessment = await assessRuntimePatientInput({ patientInput: input.patientInput, promptItem: input.currentPromptItem, locale: input.locale });
     if (assessment.error && /\b(?:disappear|not wake up|better off without me|better off dead|no reason to live|cannot go on|can't go on|hopeless|desperate)\b/i.test(rawText)) {
       return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "low", riskSignals: ["ambiguous_safety_language", "assessment_failure_conservative_clarification"], confidence: 0, missingFields: expectedFields };
     }
+    // Safety-level escalation and explicit-refusal detection stay strict
+    // regardless of retry count -- lenience here is about relevance/
+    // completion classification, never about safety signals.
     if (assessment.safetyLevel === "high" || assessment.safetyLevel === "critical") {
       return { fields: input.currentContext.fields, responseCategory: "text", riskLevel: "high", riskSignals: assessment.safetySignals?.length ? assessment.safetySignals : ["assessment_high_risk"], confidence: assessment.confidence, missingFields: [] };
     }
@@ -362,7 +380,7 @@ export async function extractRuntimeState(input: {
     if (assessment.intent === "refusal") {
       return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals: [...riskSignals, "patient_refusal_semantic"], confidence: assessment.confidence, missingFields: expectedFields.length ? [field] : [] };
     }
-    if (!assessment.accepted) {
+    if (!assessment.accepted && !isLenientRetry) {
       return {
         fields: input.currentContext.fields,
         responseCategory: "text",
@@ -379,7 +397,12 @@ export async function extractRuntimeState(input: {
     // the "AI supplies the answer" failure this system is meant to prevent.
     // Only a genuinely multi-field prompt (e.g. splitting one message into
     // distressingSituation + automaticThought) needs the model's help
-    // separating clinically distinct concepts.
+    // separating clinically distinct concepts. This can run even when
+    // assessment.accepted was false (a lenient retry past the rejection
+    // above) -- extractedFields reflects whatever the model could still
+    // classify per-field regardless of its overall verdict, and using it is
+    // strictly more precise than the raw-text fallback-fill below, which
+    // only covers whatever remains unset after this.
     if (expectedFields.length > 1) {
       for (const [allowedField, value] of Object.entries(assessment.extractedFields ?? {})) {
         if (expectedFields.includes(allowedField)) nextFields[allowedField] = value;
@@ -515,6 +538,23 @@ export async function extractRuntimeState(input: {
       const escaped = expectedField.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const match = rawText.match(new RegExp(`(?:^|[,;\\n])\\s*${escaped}\\s*:\\s*([^,;\\n]+)`, "i"));
       if (match?.[1]?.trim()) nextFields[expectedField] = match[1].trim();
+    }
+  }
+
+  // Lenient-retry fallback: every kind-specific branch above (list-building,
+  // ratings, the named single-concept fields, the explicit "field: value"
+  // matcher) had its chance to place this answer somewhere meaningful. If a
+  // field is STILL unset after all of that on a second-or-later attempt at
+  // this exact prompt, an unparsed but on-topic elaboration is a better
+  // record than an indefinitely repeated clarification -- store the
+  // patient's own words rather than leave the field empty forever. This
+  // never overwrites a field a more specific branch already populated
+  // (e.g. a genuinely split distressingSituation from an earlier partial
+  // answer), and it does not apply to numeric/rating/boolean/enum fields,
+  // which fail earlier and unconditionally when malformed.
+  if (isLenientRetry && !riskSignals.length && !numericLike) {
+    for (const expectedField of expectedFields) {
+      if (nextFields[expectedField] === undefined || nextFields[expectedField] === "") nextFields[expectedField] = rawText;
     }
   }
   const missingExpectedFields = expectedFields.filter((expectedField) => nextFields[expectedField] === undefined || nextFields[expectedField] === "");
