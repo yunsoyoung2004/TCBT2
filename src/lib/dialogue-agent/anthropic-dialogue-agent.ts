@@ -5,6 +5,7 @@ import { recordModelUsage } from "@/lib/assessment/model-observability";
 // Anthropic's latency guide recommends Haiku 4.5 for time-sensitive apps.
 // Keep this overridable, but make the fast model the production-safe default.
 const DEFAULT_MODEL = "claude-haiku-4-5";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
 // Stable across every turn so Anthropic can reuse the prompt prefix. All
 // session-specific values live in the single user payload below instead of
@@ -53,6 +54,78 @@ const RESPONSE_SCHEMA = {
     participantResponseState: { type: "string", enum: ["valid_answer", "partial_answer", "wrong_construct", "question_not_understood", "missing_visual", "missing_context", "participant_question", "duplicate_answer", "revision_request", "declines", "pause_request", "off_topic"] },
   },
 } as const;
+
+const FAST_RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["patientFacingMessage"],
+  properties: { patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 } },
+} as const;
+
+function normalizedDecision(input: unknown) {
+  const partial = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  return dialogueDecisionSchema.parse({
+    ...partial,
+    responseType: typeof partial.responseType === "string" ? partial.responseType : "reflect_and_ask",
+    keepCurrentNode: true,
+    participantResponseState: typeof partial.participantResponseState === "string" ? partial.participantResponseState : "valid_answer",
+  });
+}
+
+function safeUserPayload(contract: DialogueContract) {
+  return {
+    ...contract,
+    responseLanguage: localeInstruction(contract.locale),
+    deliveryInstruction: contract.isFirstPromptOfSession
+      ? "Add one short warm sentence about today's focus, then end with the current task."
+      : contract.isFirstPromptOfNode
+        ? "Add one short transition into this new part, then end with the current task."
+        : "Respond briefly and end with the current task.",
+    lastParticipantMessage: contract.lastParticipantMessage ? redactDirectIdentifiers(contract.lastParticipantMessage) : undefined,
+    recentContext: contract.recentContext.map((message) => ({ ...message, content: redactDirectIdentifiers(message.content) })),
+  };
+}
+
+async function generateGroqDecision(contract: DialogueContract, context: { sessionId: string; turnId: string }): Promise<DialogueAgentResult | null> {
+  const apiKey = process.env.GROQ_API_KEY ?? "";
+  if (!apiKey) return null;
+  const model = process.env.GROQ_DIALOGUE_MODEL ?? DEFAULT_GROQ_MODEL;
+  const controller = new AbortController();
+  const timeoutMs = Math.min(2500, Math.max(500, Number(process.env.GROQ_DIALOGUE_TIMEOUT_MS ?? 1500)));
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const started = performance.now();
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_completion_tokens: 180,
+        reasoning_effort: "low",
+        messages: [
+          { role: "system", content: FAST_SYSTEM_PROMPT },
+          { role: "user", content: JSON.stringify(safeUserPayload(contract)) },
+        ],
+        response_format: { type: "json_schema", json_schema: { name: "dialogue_turn", strict: true, schema: FAST_RESPONSE_SCHEMA } },
+      }),
+    });
+    if (!response.ok) throw new Error(`Groq dialogue agent failed (${response.status})`);
+    const json = await response.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };
+    const content = json.choices?.[0]?.message?.content;
+    if (!content) throw new Error("Groq omitted dialogue JSON");
+    const decision = normalizedDecision(JSON.parse(content));
+    const latencyMs = Math.round(performance.now() - started);
+    recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "groq", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: json.usage?.prompt_tokens ?? null, outputTokens: json.usage?.completion_tokens ?? null, totalTokens: json.usage?.total_tokens ?? null, latencyMs, retryCount: 0, cacheStatus: "none", estimatedCost: null, success: true });
+    return { decision, provider: "groq", model, latencyMs, failed: false };
+  } catch (error) {
+    recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "groq", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: null, outputTokens: null, totalTokens: null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: false, failureReason: error instanceof Error ? error.message : "Groq dialogue failed" });
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function systemPrompt(contract: DialogueContract) {
   const lines = [
@@ -114,6 +187,8 @@ function systemPrompt(contract: DialogueContract) {
 
 export async function generateDialogueDecision(contract: DialogueContract, context: { sessionId: string; turnId: string }): Promise<DialogueAgentResult> {
   const parsedContract = dialogueContractSchema.parse(contract);
+  const fastResult = await generateGroqDecision(parsedContract, context);
+  if (fastResult) return fastResult;
   const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
   if (!apiKey) {
@@ -131,17 +206,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   // straight to the deterministic fallback below -- it does NOT retry with
   // a second call for the same turn.
   try {
-    const userPayload = {
-      ...parsedContract,
-      responseLanguage: localeInstruction(parsedContract.locale),
-      deliveryInstruction: parsedContract.isFirstPromptOfSession
-        ? "Add one short warm sentence about today's focus, then end with the current task."
-        : parsedContract.isFirstPromptOfNode
-          ? "Add one short transition into this new part, then end with the current task."
-          : "Respond briefly and end with the current task.",
-      lastParticipantMessage: parsedContract.lastParticipantMessage ? redactDirectIdentifiers(parsedContract.lastParticipantMessage) : undefined,
-      recentContext: parsedContract.recentContext.map((message) => ({ ...message, content: redactDirectIdentifiers(message.content) })),
-    };
+    const userPayload = safeUserPayload(parsedContract);
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal: controller.signal,
@@ -160,17 +225,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
     const json = (await response.json()) as { content?: Array<{ type?: string; name?: string; input?: unknown }>; usage?: { input_tokens?: number; output_tokens?: number } };
     const toolInput = json.content?.find((item) => item.type === "tool_use" && item.name === "submit_dialogue_decision")?.input;
     if (!toolInput) throw new Error("Anthropic omitted the structured dialogue decision");
-    const partial = toolInput && typeof toolInput === "object" ? toolInput as Record<string, unknown> : {};
-    const responseType = typeof partial.responseType === "string" ? partial.responseType : "reflect_and_ask";
-    const participantResponseState = typeof partial.participantResponseState === "string" ? partial.participantResponseState : "valid_answer";
-    const decision = dialogueDecisionSchema.parse({
-      ...partial,
-      responseType,
-      // Progression is never model-owned; normalize this invariant instead
-      // of rejecting useful text when the model omits or contradicts it.
-      keepCurrentNode: true,
-      participantResponseState,
-    });
+    const decision = normalizedDecision(toolInput);
     recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "anthropic", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: json.usage?.input_tokens ?? null, outputTokens: json.usage?.output_tokens ?? null, totalTokens: json.usage?.input_tokens !== undefined && json.usage.output_tokens !== undefined ? json.usage.input_tokens + json.usage.output_tokens : null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: true });
     return { decision, provider: "anthropic", model, latencyMs: Math.round(performance.now() - started), failed: false };
   } catch (error) {
