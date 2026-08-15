@@ -32,8 +32,8 @@ const SESSION_HANDLERS: Record<number, (promptItem: PromptItem, fields: Record<s
   2: (promptItem, fields) => s02.resolveStaticText(promptItem, fields),
   3: (promptItem) => s03.resolveStaticText(promptItem),
   4: (promptItem) => s04.resolveStaticText(promptItem),
-  5: (promptItem, fields) => s05.resolveStaticText(promptItem, fields),
-  6: (promptItem, fields) => s06.resolveStaticText(promptItem, fields),
+  5: (promptItem, fields, locale) => s05.resolveStaticText(promptItem, fields, locale),
+  6: (promptItem, fields, locale) => s06.resolveStaticText(promptItem, fields, locale),
   7: (promptItem, fields, locale) => s07.resolveStaticText(promptItem, fields, locale),
   8: (promptItem, fields, locale) => s08.resolveStaticText(promptItem, fields, locale),
 };
