@@ -2,7 +2,23 @@ import { dialogueContractSchema, dialogueDecisionSchema, type DialogueAgentResul
 import { redactDirectIdentifiers } from "@/lib/assessment/privacy-redaction";
 import { recordModelUsage } from "@/lib/assessment/model-observability";
 
-const DEFAULT_MODEL = "claude-sonnet-5";
+// Anthropic's latency guide recommends Haiku 4.5 for time-sensitive apps.
+// Keep this overridable, but make the fast model the production-safe default.
+const DEFAULT_MODEL = "claude-haiku-4-5";
+
+// Stable across every turn so Anthropic can reuse the prompt prefix. All
+// session-specific values live in the single user payload below instead of
+// being duplicated into both system + user messages as they were before.
+const FAST_SYSTEM_PROMPT = [
+  "You are the conversational voice of a protocol-bounded TBCT program.",
+  "A deterministic engine owns clinical state, safety, progression, and persistence. You only phrase one patient-facing turn.",
+  "Follow the supplied contract exactly. Write patientFacingMessage in contract.locale, keepCurrentNode=true, and use the submit_dialogue_decision tool.",
+  "Never diagnose, invent participant answers, provide treatment outside the current task, mention internals, or claim to be an AI.",
+  "Be concise: normally one short acknowledgement or transition plus the current task. Do not repeat the previous assistant wording.",
+  "If the answer used the wrong construct, briefly distinguish it and ask only for the required construct. If partial, request only the missing part.",
+  "If the participant asks what or why, explain briefly from the supplied objective/rationale and return to the same task.",
+  "Use expanded explanation only for explicit confusion; otherwise use minimal or standard depth.",
+].join("\n");
 
 function localeInstruction(locale: string) {
   const lower = locale.toLowerCase();
@@ -106,7 +122,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   }
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
-  const maxTokens = Math.min(300, Math.max(80, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
+  const maxTokens = Math.min(220, Math.max(80, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 140)));
   const timeoutMs = Math.min(5000, Math.max(500, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 4000)));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -118,6 +134,12 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   try {
     const userPayload = {
       ...parsedContract,
+      responseLanguage: localeInstruction(parsedContract.locale),
+      deliveryInstruction: parsedContract.isFirstPromptOfSession
+        ? "Add one short warm sentence about today's focus, then end with the current task."
+        : parsedContract.isFirstPromptOfNode
+          ? "Add one short transition into this new part, then end with the current task."
+          : "Respond briefly and end with the current task.",
       lastParticipantMessage: parsedContract.lastParticipantMessage ? redactDirectIdentifiers(parsedContract.lastParticipantMessage) : undefined,
       recentContext: parsedContract.recentContext.map((message) => ({ ...message, content: redactDirectIdentifiers(message.content) })),
     };
@@ -128,8 +150,9 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
-        system: systemPrompt(parsedContract),
+        system: [{ type: "text", text: FAST_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify(userPayload) }] }],
+        temperature: 0.2,
         tools: [{ name: "submit_dialogue_decision", description: "Submit the single structured dialogue decision for this turn.", input_schema: RESPONSE_SCHEMA }],
         tool_choice: { type: "tool", name: "submit_dialogue_decision", disable_parallel_tool_use: true },
       }),

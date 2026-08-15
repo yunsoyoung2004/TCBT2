@@ -227,8 +227,8 @@ export function compileDialogueContract(input: {
     lastParticipantMessage: input.lastParticipantMessage,
     recentContext: input.recentMessages
       .filter((message): message is RuntimeMessage & { role: "patient" | "assistant" } => message.role === "patient" || message.role === "assistant")
-      .slice(-6)
-      .map((message) => ({ role: message.role, content: message.content.slice(0, 400) })),
+      .slice(-4)
+      .map((message) => ({ role: message.role, content: message.content.slice(0, 240) })),
     safetyStatus: session.status,
     locale: session.locale,
     clarificationAttemptCount: input.clarificationAttemptCount,
