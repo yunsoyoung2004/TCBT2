@@ -124,6 +124,17 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       isFirstPromptOfSession,
       sessionToneGuidance: input.release.policies.sessionPolicies?.[input.session.sessionDefinitionId]?.toneGuidance,
     });
+    const normalizedApproved = approvedPatientText.replace(/\s+/g, " ").trim();
+    const repeatedFallback = dialogueResult.usedFallback && input.recentMessages
+      .filter((message) => message.role === "assistant")
+      .slice(-3)
+      .some((message) => message.content.replace(/\s+/g, " ").trim() === normalizedApproved);
+    if (repeatedFallback && input.session.runtimeContext.lastPatientMessage?.trim()) {
+      const excerpt = input.session.runtimeContext.lastPatientMessage.trim().slice(0, 80);
+      dialogueResult.patientMessage = input.session.locale.toLowerCase().startsWith("ko")
+        ? `“${excerpt}”라고 느끼고 계시는군요. 그 마음이 가장 크게 느껴졌던 구체적인 순간 하나를 말씀해 주실 수 있을까요?`
+        : `It sounds like “${excerpt}” is weighing on you. Could you share one specific moment when it felt strongest?`;
+    }
     const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });
     dialogueResponse.patientMessage = dialogueResult.patientMessage;

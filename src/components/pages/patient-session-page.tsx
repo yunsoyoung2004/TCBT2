@@ -55,9 +55,12 @@ export function PatientSessionPage() {
   const [revealedNewMessageIds, setRevealedNewMessageIds] = useState<Set<string>>(new Set());
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] });
-    await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
-    await queryClient.invalidateQueries({ queryKey: ["safety-events"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] }),
+      queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["safety-events"] }),
+      queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] }),
+    ]);
     // WorksheetPane (see worksheet-pane.tsx) polls on its own 4s timer,
     // independent of the chat turn that actually fills its fields -- with
     // nothing here, a long conversation could sit up to 4s (or, before the
@@ -65,9 +68,8 @@ export function PatientSessionPage() {
     // patient just answered. Invalidating its exact query key right after
     // every turn makes it refetch immediately instead of waiting on its own
     // poll.
-    await queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] });
-    const auditView = await getRuntimeSession(sessionId);
-    if (auditView) {
+    void getRuntimeSession(sessionId).then(async (auditView) => {
+      if (!auditView) return;
       setProgressPercent(
         computeSessionProgressPercent({
           sessionDefinitionId: auditView.session.sessionDefinitionId,
@@ -80,7 +82,7 @@ export function PatientSessionPage() {
       );
       try { await saveRemoteSessionAuditSnapshot(auditView); }
       catch { toast.warning("The session continued, but its remote audit copy could not be saved."); }
-    }
+    }).catch(() => {});
   };
 
   const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session started"); await refresh(); } });

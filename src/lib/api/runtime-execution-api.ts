@@ -1,6 +1,6 @@
 import { claimRuntimePatientTurn, commitRuntimeAssistantTurn, saveRuntimeEscalation, saveRuntimeLog, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { cleanupExpiredTriggerSuppressions, findActiveTriggerSuppression, updateTriggerSuppression } from "@/lib/repositories/safety-event-repository";
-import { createRuntimeCheckpoint, getRuntimeSession, setRuntimeSessionStatus } from "@/lib/api/runtime-session-api";
+import { createRuntimeCheckpoint, getRuntimeSession, getRuntimeSessionForTurn, setRuntimeSessionStatus } from "@/lib/api/runtime-session-api";
 import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
 import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/session-summary-api";
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
@@ -1069,7 +1069,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   // on every single turn regardless, though -- fire-and-forget instead of
   // paying for it on the hot path every time.
   void cleanupExpiredTriggerSuppressions().catch(() => {});
-  const initialView = await getRuntimeSession(sessionId);
+  const initialView = await getRuntimeSessionForTurn(sessionId);
   if (!initialView) throw new Error("Runtime session not found");
   const initialSession = initialView.session;
   if (initialSession.status === "completed") throw new Error("Completed session does not accept input");
@@ -1120,7 +1120,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   // would visibly lag behind what the patient just said. Awaiting it here
   // (still a cheap, local write) means "the turn finished" now reliably
   // means "the worksheet projection for it is already there to refetch."
-  await projectRuntimeFieldsToWorksheet({ runtimeSessionId: sessionId, sessionDefinitionId: initialSession.sessionDefinitionId, fields: extracted.fields, sourceTurnId: patientMessage.id }).catch(() => {});
+  void projectRuntimeFieldsToWorksheet({ runtimeSessionId: sessionId, sessionDefinitionId: initialSession.sessionDefinitionId, fields: extracted.fields, sourceTurnId: patientMessage.id }).catch(() => {});
   const safetyContext = {
     ...initialSession.runtimeContext,
     riskLevel: extracted.riskLevel,
@@ -1166,7 +1166,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   if (extracted.riskSignals.includes("ambiguous_safety_language") && !safetyResult.triggered) {
     const clarification = await deliverClarificationTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, release: view.release, runtimeState, patientMessage, reason: "safety_clarification", missingFields: extracted.missingFields, recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content) });
     void saveRuntimeLog(makeLog(sessionId, "safety_check", "completed", "Ambiguous safety language requires neutral clarification", { nodeId: currentNode.id, output: { signals: extracted.riskSignals } })).catch(() => {});
-    await createRuntimeCheckpoint(sessionId);
+    void createRuntimeCheckpoint(sessionId).catch(() => {});
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: clarification.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: clarification.sessionStatus, logIds: [] };
   }
   const isSemanticRefusal = extracted.riskSignals.includes("patient_refusal_semantic");
@@ -1183,7 +1183,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       recentAssistantMessages: view.messages.filter((message) => message.role === "assistant").map((message) => message.content),
     });
     void saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient declined to continue; session paused without protocol progression", { nodeId: currentNode.id })).catch(() => {});
-    await createRuntimeCheckpoint(sessionId);
+    void createRuntimeCheckpoint(sessionId).catch(() => {});
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: refusal.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: refusal.sessionStatus, logIds: [] };
   }
   // Checked before the normal missing-fields/clarification branch below --
@@ -1196,7 +1196,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   if (languageSwitchLocale) {
     const languageSwitch = await deliverLanguageSwitchTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, runtimeState, patientMessage, targetLocale: languageSwitchLocale });
     void saveRuntimeLog(makeLog(sessionId, "input", "completed", `Patient asked to switch response language to ${languageSwitchLocale}`, { nodeId: currentNode.id })).catch(() => {});
-    await createRuntimeCheckpoint(sessionId);
+    void createRuntimeCheckpoint(sessionId).catch(() => {});
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: languageSwitch.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: languageSwitch.sessionStatus, logIds: [] };
   }
   if (extracted.missingFields.length && !safetyResult.triggered) {
@@ -1214,7 +1214,9 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       recentMessages: view.messages,
     });
     void saveRuntimeLog(makeLog(sessionId, "error", "skipped", "Input validation failed", { nodeId: currentNode.id, output: { missingFields: extracted.missingFields } })).catch(() => {});
-    await createRuntimeCheckpoint(sessionId);
+    // No protocol state advanced, so a clarification checkpoint only adds
+    // three foreground store round-trips while the patient waits.
+    void createRuntimeCheckpoint(sessionId).catch(() => {});
     return {
       sessionId,
       previousNodeId: session.previousNodeId,
@@ -1447,8 +1449,8 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       logIds: [],
     };
   }
-  await createRuntimeCheckpoint(sessionId);
   const cycle = await executeCurrentNode(sessionId);
+  void createRuntimeCheckpoint(sessionId).catch(() => {});
   return {
     ...cycle,
     previousNodeId: currentNode.id,
