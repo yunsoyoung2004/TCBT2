@@ -91,7 +91,10 @@ async function generateGroqDecision(contract: DialogueContract, context: { sessi
   if (!apiKey) return null;
   const model = process.env.GROQ_DIALOGUE_MODEL ?? DEFAULT_GROQ_MODEL;
   const controller = new AbortController();
-  const timeoutMs = Math.min(2500, Math.max(500, Number(process.env.GROQ_DIALOGUE_TIMEOUT_MS ?? 1500)));
+  // A slow generation should remain a slow generation, not become a generic
+  // clinical fallback. The patient UI shows a friendly long-wait message
+  // while this larger budget is in flight.
+  const timeoutMs = Math.min(30000, Math.max(20000, Number(process.env.GROQ_DIALOGUE_TIMEOUT_MS ?? 20000)));
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();
   try {
@@ -197,7 +200,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
   const maxTokens = Math.min(220, Math.max(100, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
-  const timeoutMs = Math.min(5000, Math.max(500, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 4000)));
+  const timeoutMs = Math.min(30000, Math.max(20000, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 20000)));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();

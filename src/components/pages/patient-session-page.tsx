@@ -36,12 +36,21 @@ export function PatientSessionPage() {
   const sessionQuery = useQuery({ queryKey: ["patient-runtime-session", sessionId], queryFn: () => getPatientRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   const submittingTurnRef = useRef(false);
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  const [isLongWait, setIsLongWait] = useState(false);
   // Populated from the same getRuntimeSession call refresh() already makes
   // for the audit snapshot below -- no extra fetch needed, just no longer
   // discarding the result. See session-progress-estimate.ts for why this
   // is an estimate, capped short of 100% until the session actually
   // completes.
   const [progressPercent, setProgressPercent] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!isSubmittingTurn) {
+      setIsLongWait(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setIsLongWait(true), 2200);
+    return () => window.clearTimeout(timer);
+  }, [isSubmittingTurn]);
   const lastAutoReadMessageIdRef = useRef<string | null>(null);
   // Messages already present the first time the session loads are shown in full;
   // only messages that arrive afterwards stream in, so history never replays.
@@ -334,7 +343,13 @@ export function PatientSessionPage() {
               />
             ) : activeSession.status === "processing" || isSubmittingTurn ? (
               <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} className="text-sm text-text-secondary">
-                {isKoreanSession ? "응답을 확인하고 다음 단계를 준비하고 있습니다." : "We are reviewing your response and preparing the next step."}
+                {isLongWait
+                  ? isKoreanSession
+                    ? "조금 더 친절한 답변을 준비하고 있으니 잠시만 기다려 주세요."
+                    : "We’re preparing a more thoughtful response. Please wait just a little longer."
+                  : isKoreanSession
+                    ? "응답을 확인하고 다음 단계를 준비하고 있습니다."
+                    : "We are reviewing your response and preparing the next step."}
               </motion.div>
             ) : activeSession.status === "paused" ? (
               <div className="text-sm text-text-secondary">This session is paused. Use Resume when you are ready to continue.</div>
