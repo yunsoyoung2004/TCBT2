@@ -73,16 +73,39 @@ function normalizedDecision(input: unknown) {
 }
 
 function safeUserPayload(contract: DialogueContract) {
+  const compactState = Object.fromEntries(
+    Object.entries(contract.confirmedState)
+      .slice(-6)
+      .map(([key, value]) => [key, typeof value === "string" ? redactDirectIdentifiers(value).slice(0, 180) : value]),
+  );
   return {
-    ...contract,
+    locale: contract.locale,
     responseLanguage: localeInstruction(contract.locale),
+    therapeuticObjective: contract.therapeuticObjective,
+    currentTaskText: contract.currentTaskText,
+    participantRationale: contract.participantRationale,
+    targetField: contract.targetField,
+    expectedConstruct: contract.expectedConstruct,
+    expectedInputType: contract.expectedInputType,
+    choiceOptions: contract.choiceOptions,
+    participantOwned: contract.participantOwned,
+    assistantMustNotSupply: contract.assistantMustNotSupply,
+    worksheetEditAvailable: contract.worksheetEditAvailable,
+    confirmedState: compactState,
+    scaleExplanation: contract.scaleExplanation,
+    clarificationAttemptCount: contract.clarificationAttemptCount,
+    isFirstPromptOfSession: contract.isFirstPromptOfSession,
+    isFirstPromptOfNode: contract.isFirstPromptOfNode,
+    isRoleTransitionPrompt: contract.isRoleTransitionPrompt,
+    clinicianGuidance: contract.clinicianGuidance,
+    sessionToneGuidance: contract.sessionToneGuidance,
     deliveryInstruction: contract.isFirstPromptOfSession
       ? "Add one short warm sentence about today's focus, then end with the current task."
       : contract.isFirstPromptOfNode
         ? "Add one short transition into this new part, then end with the current task."
         : "Respond briefly and end with the current task.",
     lastParticipantMessage: contract.lastParticipantMessage ? redactDirectIdentifiers(contract.lastParticipantMessage) : undefined,
-    recentContext: contract.recentContext.map((message) => ({ ...message, content: redactDirectIdentifiers(message.content) })),
+    recentContext: contract.recentContext.slice(-2).map((message) => ({ ...message, content: redactDirectIdentifiers(message.content).slice(0, 180) })),
   };
 }
 
@@ -105,7 +128,7 @@ async function generateGroqDecision(contract: DialogueContract, context: { sessi
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_completion_tokens: 180,
+        max_completion_tokens: 160,
         reasoning_effort: "low",
         messages: [
           { role: "system", content: FAST_SYSTEM_PROMPT },
