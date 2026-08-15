@@ -1040,7 +1040,19 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
         logIds: [],
       };
     }
-    await createRuntimeCheckpoint(sessionId);
+    // No checkpoint here, deliberately -- this is an intermediate step of a
+    // passive-node auto-chain (an explanation/transition node that needed no
+    // patient input), not a real resting point. createRuntimeCheckpoint is 3
+    // sequential DB round trips (src/lib/api/runtime-session-api.ts:308-329),
+    // and it used to run once per chained node -- a chain of N passive nodes
+    // paid for N checkpoints nobody could usefully restore to (a clinician's
+    // restoreRuntimeSession always resumes the LATEST checkpoint, so a
+    // mid-chain snapshot of a no-patient-input node was never a meaningfully
+    // different rollback target than the one right after this turn's actual
+    // patient answer, already captured before this recursion began -- see
+    // the createRuntimeCheckpoint call in submitPatientInput). The real
+    // resting points -- requiresPatientInput above, pause_session above, and
+    // completeRuntimeSession (which checkpoints itself) -- are unaffected.
     return executeCurrentNode(sessionId);
   }
 
