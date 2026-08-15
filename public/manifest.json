@@ -1,0 +1,13 @@
+{
+  "name": "TBCT Studio",
+  "short_name": "TBCT",
+  "description": "TBCT Studio -- CBT-based therapy sessions and clinician monitoring.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#3566AE",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

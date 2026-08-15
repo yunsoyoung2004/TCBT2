@@ -395,20 +395,18 @@ export function ProtocolPage() {
         description={t("protocolEditor.pageDescription")}
         meta={<Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>}
         actions={
-          <>
-            <div className="flex flex-col gap-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t("protocolEditor.session")}</div>
-              <select
-                className={inputClass}
-                value={selectedSessionMeta?.id ?? selectedSessionId}
-                onChange={(event) => router.push(`/projects/demo/protocols/tbct-br-001/canvas?sessionId=${event.target.value}${candidateId ? `&candidate=${candidateId}` : ""}${manualId ? `&asset=${manualId}` : ""}`)}
-              >
-                {sessionCatalog.map((session) => (
-                  <option key={session.id} value={session.id}>{session.number.toString().padStart(2, "0")} · {session.title}</option>
-                ))}
-              </select>
-            </div>
-          </>
+          <div className="flex flex-col gap-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t("protocolEditor.session")}</div>
+            <select
+              className={inputClass}
+              value={selectedSessionMeta?.id ?? selectedSessionId}
+              onChange={(event) => router.push(`/projects/demo/protocols/tbct-br-001/canvas?sessionId=${event.target.value}${candidateId ? `&candidate=${candidateId}` : ""}${manualId ? `&asset=${manualId}` : ""}`)}
+            >
+              {sessionCatalog.map((session) => (
+                <option key={session.id} value={session.id}>{session.number.toString().padStart(2, "0")} · {session.title}</option>
+              ))}
+            </select>
+          </div>
         }
       />
 

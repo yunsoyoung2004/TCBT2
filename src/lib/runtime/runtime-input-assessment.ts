@@ -2,6 +2,7 @@ import { getAssessmentModel } from "@/lib/assessment/assessment-providers";
 import { assessmentResultSchema, type AssessmentRequest } from "@/lib/assessment/assessment-contract";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
+import { runtimeFetch } from "@/lib/runtime/resolve-store-url";
 
 type InputAssessmentResult = { accepted: boolean; confidence: number; reason: "meaningful_response" | "needs_clarification"; extractedFields?: Record<string, unknown>; safetyLevel?: "none" | "low" | "moderate" | "high" | "critical"; safetySignals?: string[]; intent?: "answer" | "clarification_request" | "refusal" | "topic_shift" | "distress_disclosure" | "other"; error?: string };
 
@@ -47,7 +48,7 @@ export async function assessRuntimePatientInput(input: { patientInput: PatientIn
     const request: AssessmentRequest = { locale: input.locale ?? "en-US", inputType: input.promptItem.type, patientInput: String(input.patientInput.value), nodeGoal: input.promptItem.editableText || input.promptItem.verbatimText || "Assess relevance to the active question", expectedAnswerDescription: input.promptItem.modelGuidance || input.promptItem.aiInstruction || undefined, allowedFields, allowedTransitions: [], safetyCategories: input.promptItem.safetyRuleIds };
     const result = typeof window === "undefined" || process.env.NODE_ENV === "test"
       ? await getAssessmentModel().assessInput(request)
-      : await (async () => { const response = await fetch("/api/assessment/input", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) }); const payload = await response.json().catch(() => null); if (!response.ok || !payload?.ok) throw new Error(payload?.error ?? "Assessment failed"); return assessmentResultSchema.parse(payload.data); })();
+      : await (async () => { const response = await runtimeFetch("/api/assessment/input", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) }); const payload = await response.json().catch(() => null); if (!response.ok || !payload?.ok) throw new Error(payload?.error ?? "Assessment failed"); return assessmentResultSchema.parse(payload.data); })();
     // A partially complete answer can still contain valid clinical fields. Keep
     // those fields and let runtime-context identify exactly what remains missing.
     // Previously, needs_clarification discarded every extracted field and caused

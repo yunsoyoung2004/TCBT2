@@ -29,6 +29,9 @@ import { getRuntimeSession, listCanonicalTestSessions, listRuntimeSessions } fro
 import { pauseRuntimeSession, resumeRuntimeSession, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import { addClinicianNote, deleteClinicianNote, getClinicianNotes } from "@/lib/api/longitudinal-memory-api";
 import { getSafetyEvents } from "@/lib/api/safety-operations-api";
+import { listStandardizedAssessments } from "@/lib/api/standardized-assessment-api";
+import { ClinicianMessageThread } from "@/components/pages/clinician-message-thread";
+import { AppointmentPanel } from "@/components/pages/patient-monitoring/appointment-panel";
 import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import {
   deriveMonitoringStatus,
@@ -43,6 +46,7 @@ import { SessionProgressPanel, sessionSupportsProgressTab } from "@/components/p
 import { WorksheetPane } from "@/components/runtime/worksheet-pane";
 import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
 import type { RuntimeMessageRole, RuntimeSession } from "@/types/runtime-session";
+import type { SeverityBand } from "@/types/standardized-assessment";
 
 type AuditFilter = "all" | "program" | "patient" | "notes";
 
@@ -52,6 +56,14 @@ const STATUS_TONE: Record<MonitoringStatus, "primary" | "warning" | "critical" |
   needsReview: "critical",
   completed: "success",
   notStarted: "neutral",
+};
+
+const ASSESSMENT_SEVERITY_TONE: Record<SeverityBand, "success" | "neutral" | "warning" | "critical"> = {
+  minimal: "success",
+  mild: "neutral",
+  moderate: "warning",
+  moderately_severe: "critical",
+  severe: "critical",
 };
 
 function formatTimestamp(value?: string) {
@@ -88,7 +100,7 @@ export function PatientMonitoringDetailPage() {
   const reducedMotion = useReducedMotionPreference();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [auditFilter, setAuditFilter] = useState<AuditFilter>("all");
-  const [activeTab, setActiveTab] = useState<"audit" | "worksheet" | "profile" | "progress">("audit");
+  const [activeTab, setActiveTab] = useState<"audit" | "worksheet" | "profile" | "progress" | "messages" | "appointments">("audit");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
@@ -103,6 +115,12 @@ export function PatientMonitoringDetailPage() {
     queryKey: ["clinician-email", assignedClinicianId],
     queryFn: () => resolveClinicianEmail(assignedClinicianId!),
     enabled: Boolean(assignedClinicianId),
+  });
+
+  const assessmentsQuery = useQuery({
+    queryKey: ["standardized-assessments", participantId],
+    queryFn: () => listStandardizedAssessments(participantId),
+    enabled: Boolean(participantId),
   });
 
   const participant = participantQuery.data;
@@ -366,20 +384,24 @@ export function PatientMonitoringDetailPage() {
   // -- see session-progress-panel.tsx. Hidden entirely for every other
   // session rather than shown with a permanent "not available" tab.
   const progressSupported = Boolean(session && sessionSupportsProgressTab(session.sessionDefinitionId));
-  const tabLabel = (tab: "audit" | "worksheet" | "profile" | "progress") =>
+  const tabLabel = (tab: "audit" | "worksheet" | "profile" | "progress" | "messages" | "appointments") =>
     tab === "audit"
       ? t("patientDetail.tabs.auditLog")
       : tab === "worksheet"
         ? t("patientDetail.tabs.worksheet")
         : tab === "progress"
           ? t("patientDetail.tabs.progress")
-          : t("patientDetail.tabs.profile");
-  const mobileTabOrder: Array<"profile" | "audit" | "worksheet" | "progress"> = progressSupported
-    ? ["profile", "audit", "worksheet", "progress"]
-    : ["profile", "audit", "worksheet"];
-  const desktopTabOrder: Array<"audit" | "worksheet" | "progress" | "profile"> = progressSupported
-    ? ["audit", "worksheet", "progress", "profile"]
-    : ["audit", "worksheet", "profile"];
+          : tab === "messages"
+            ? t("patientDetail.tabs.messages")
+            : tab === "appointments"
+              ? t("patientDetail.tabs.appointments")
+              : t("patientDetail.tabs.profile");
+  const mobileTabOrder: Array<"profile" | "audit" | "worksheet" | "progress" | "messages" | "appointments"> = progressSupported
+    ? ["profile", "audit", "worksheet", "progress", "messages", "appointments"]
+    : ["profile", "audit", "worksheet", "messages", "appointments"];
+  const desktopTabOrder: Array<"audit" | "worksheet" | "progress" | "profile" | "messages" | "appointments"> = progressSupported
+    ? ["audit", "worksheet", "progress", "profile", "messages", "appointments"]
+    : ["audit", "worksheet", "profile", "messages", "appointments"];
 
   // Compact "which session, whose, when" line WorksheetPane shows above the
   // figure (clinician variant only) -- built from data this page already
@@ -593,6 +615,15 @@ export function PatientMonitoringDetailPage() {
               </Card>
             )}
           </div>
+        ) : activeTab === "messages" ? (
+          <Card>
+            <SectionHeader title={t("patientDetail.tabs.messages")} />
+            <div className="p-4">
+              <ClinicianMessageThread participantId={participantId} />
+            </div>
+          </Card>
+        ) : activeTab === "appointments" ? (
+          <AppointmentPanel participantId={participantId} />
         ) : (
           <div className="grid gap-4 xl:grid-cols-[1fr_.85fr]">
             <Card>
@@ -672,6 +703,26 @@ export function PatientMonitoringDetailPage() {
 
             <div className="space-y-4">
               <HomeworkPanel participantId={participantId} />
+
+              <Card>
+                <SectionHeader title={t("patientDetail.assessments.title")} />
+                <div className="space-y-2 p-4">
+                  {assessmentsQuery.data && assessmentsQuery.data.length > 0 ? (
+                    assessmentsQuery.data.slice(0, 6).map((response) => (
+                      <div key={response.id} className="flex items-center justify-between gap-2 rounded-panel border border-border px-3 py-2 text-sm">
+                        <span className="text-text-secondary">{formatTimestamp(response.submittedAt)} · {response.instrument === "phq9" ? "PHQ-9" : "GAD-7"}</span>
+                        <span className="flex items-center gap-2">
+                          {response.selfHarmFlag && <Badge tone="critical">{t("patientDetail.assessments.selfHarmFlag")}</Badge>}
+                          <span className="font-semibold text-text-primary">{response.totalScore}</span>
+                          <Badge tone={ASSESSMENT_SEVERITY_TONE[response.severity]}>{t(`patientCheckin.severity.${response.severity}`)}</Badge>
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState title={t("patientDetail.assessments.noneYet")} />
+                  )}
+                </div>
+              </Card>
 
               <Card>
                 <SectionHeader

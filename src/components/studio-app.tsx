@@ -11,22 +11,31 @@ const AssetsPage = dynamic(() => import("@/components/pages/assets-page").then((
 const ClinicalAssetRegistrationPage = dynamic(() => import("@/components/pages/clinical-asset-registration-page").then((mod) => mod.ClinicalAssetRegistrationPage), { ssr: false });
 const ExtractionPage = dynamic(() => import("@/components/pages/extraction-page").then((mod) => mod.ExtractionPage), { ssr: false });
 const ProtocolPage = dynamic(() => import("@/components/pages/protocol-page").then((mod) => mod.ProtocolPage), { ssr: false });
+const ProtocolManualReflectionPage = dynamic(() => import("@/components/pages/protocol-manual-reflection-page").then((mod) => mod.ProtocolManualReflectionPage), { ssr: false });
 const SafetyPage = dynamic(() => import("@/components/pages/safety-page").then((mod) => mod.SafetyPage), { ssr: false });
 const ValidationPage = dynamic(() => import("@/components/pages/validation-page").then((mod) => mod.ValidationPage), { ssr: false });
 const AuditPage = dynamic(() => import("@/components/pages/audit-page").then((mod) => mod.AuditPage), { ssr: false });
 const SettingsPage = dynamic(() => import("@/components/pages/settings-page").then((mod) => mod.SettingsPage), { ssr: false });
 const PatientListPage = dynamic(() => import("@/components/pages/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
 const PatientMonitoringListPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-list-page").then((mod) => mod.PatientListPage), { ssr: false });
+const DataDashboardPage = dynamic(() => import("@/components/pages/data-dashboard-page").then((mod) => mod.DataDashboardPage), { ssr: false });
 const PatientMonitoringDetailPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-detail-page").then((mod) => mod.PatientMonitoringDetailPage), { ssr: false });
+const AdminUsersPage = dynamic(() => import("@/components/pages/admin-users-page").then((mod) => mod.AdminUsersPage), { ssr: false });
+const AdminDeletionRequestsPage = dynamic(() => import("@/components/pages/admin-deletion-requests-page").then((mod) => mod.AdminDeletionRequestsPage), { ssr: false });
 const PatientSessionReportPage = dynamic(() => import("@/components/pages/patient-monitoring/patient-session-report-page").then((mod) => mod.PatientSessionReportPage), { ssr: false });
+const ClinicianAccountPage = dynamic(() => import("@/components/pages/clinician-account-page").then((mod) => mod.ClinicianAccountPage), { ssr: false });
 const PatientNewSessionPage = dynamic(() => import("@/components/pages/patient-new-session-page").then((mod) => mod.PatientNewSessionPage), { ssr: false });
 const PatientSessionPage = dynamic(() => import("@/components/pages/patient-session-page").then((mod) => mod.PatientSessionPage), { ssr: false });
 const PatientSessionCompletePage = dynamic(() => import("@/components/pages/patient-session-complete-page").then((mod) => mod.PatientSessionCompletePage), { ssr: false });
 const HomeworkPage = dynamic(() => import("@/components/pages/homework-page").then((mod) => mod.HomeworkPage), { ssr: false });
 const PatientProfilePage = dynamic(() => import("@/components/pages/patient-profile-page").then((mod) => mod.PatientProfilePage), { ssr: false });
+const PatientCheckinPage = dynamic(() => import("@/components/pages/patient-checkin-page").then((mod) => mod.PatientCheckinPage), { ssr: false });
+const PatientMessagesPage = dynamic(() => import("@/components/pages/patient-messages-page").then((mod) => mod.PatientMessagesPage), { ssr: false });
 const PatientMemoryPage = dynamic(() => import("@/components/pages/patient-memory-page").then((mod) => mod.PatientMemoryPage), { ssr: false });
 const ClinicianAuthPage = dynamic(() => import("@/components/pages/auth/clinician-auth-page").then((mod) => mod.ClinicianAuthPage), { ssr: false });
 const PatientAuthPage = dynamic(() => import("@/components/pages/auth/patient-auth-page").then((mod) => mod.PatientAuthPage), { ssr: false });
+const SetPasswordPage = dynamic(() => import("@/components/pages/auth/set-password-page").then((mod) => mod.SetPasswordPage), { ssr: false });
+const CrisisResourcesPage = dynamic(() => import("@/components/pages/crisis-resources-page").then((mod) => mod.CrisisResourcesPage), { ssr: false });
 const RuntimeInspectorPage = dynamic(() => import("@/components/pages/runtime-inspector-page").then((mod) => mod.RuntimeInspectorPage), { ssr: false });
 const RuntimeEscalationsPage = dynamic(() => import("@/components/pages/runtime-escalations-page").then((mod) => mod.RuntimeEscalationsPage), { ssr: false });
 const RuntimeParticipantPage = dynamic(() => import("@/components/pages/runtime-participant-page").then((mod) => mod.RuntimeParticipantPage), { ssr: false });
@@ -56,7 +65,7 @@ const RuntimePilotExportsPage = dynamic(() => import("@/components/pages/runtime
 const RuntimePilotReportsPage = dynamic(() => import("@/components/pages/runtime-pilot-reports-page").then((mod) => mod.RuntimePilotReportsPage), { ssr: false });
 const RuntimePilotReportDetailPage = dynamic(() => import("@/components/pages/runtime-pilot-report-detail-page").then((mod) => mod.RuntimePilotReportDetailPage), { ssr: false });
 
-type Audience = "clinician" | "patient" | "public";
+type Audience = "clinician" | "patient" | "admin" | "public";
 
 type StudioRoute = {
   matches: (pathname: string) => boolean;
@@ -75,13 +84,28 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname === "/signup" || pathname === "/signup/", Page: ClinicianAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/login"), Page: PatientAuthPage, audience: "public" },
   { matches: (pathname) => pathname.includes("/patient/signup"), Page: PatientAuthPage, audience: "public" },
+  // Lands here from an invite/password-reset/signup-confirmation email's
+  // final redirect (see set-password-page.tsx) -- must stay public since
+  // the visitor isn't authenticated yet when they arrive, only once the
+  // page exchanges the email link's code for a session.
+  { matches: (pathname) => pathname === "/set-password" || pathname === "/set-password/", Page: SetPasswordPage, audience: "public" },
+  // Crisis resources must never sit behind a login wall -- reachable
+  // without an account, from every patient-facing page and both auth
+  // screens (see patient-shell.tsx / auth-form.tsx).
+  { matches: (pathname) => pathname === "/crisis" || pathname === "/crisis/", Page: CrisisResourcesPage, audience: "public" },
+  { matches: (pathname) => pathname.includes("/admin/users"), Page: AdminUsersPage, audience: "admin" },
+  { matches: (pathname) => pathname.includes("/admin/deletion-requests"), Page: AdminDeletionRequestsPage, audience: "admin" },
   // Clinician-facing Patient Monitoring (caseload list + detail) — must be checked
   // before the generic "/patient" (singular, patient-portal) matchers below.
   // The report route is checked first since it's the more specific path.
   { matches: (pathname) => /^\/patients\/[^/]+\/report\/[^/]+\/?$/.test(pathname), Page: PatientSessionReportPage },
+  { matches: (pathname) => pathname === "/account" || pathname === "/account/", Page: ClinicianAccountPage },
   { matches: (pathname) => /^\/patients\/[^/]+\/?$/.test(pathname), Page: PatientMonitoringDetailPage },
+  { matches: (pathname) => pathname === "/data-dashboard" || pathname === "/data-dashboard/", Page: DataDashboardPage },
   { matches: (pathname) => pathname === "/patients" || pathname === "/patients/", Page: PatientMonitoringListPage },
   { matches: (pathname) => pathname.includes("/patient/profile"), Page: PatientProfilePage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/checkin"), Page: PatientCheckinPage, audience: "patient" },
+  { matches: (pathname) => pathname.includes("/patient/messages"), Page: PatientMessagesPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/memory"), Page: PatientMemoryPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/sessions/new"), Page: PatientNewSessionPage, audience: "patient" },
   { matches: (pathname) => pathname.includes("/patient/homework/"), Page: HomeworkPage, audience: "patient" },
@@ -119,6 +143,7 @@ const studioRoutes: StudioRoute[] = [
   { matches: (pathname) => pathname.includes("/clinical-assets/new"), Page: ClinicalAssetRegistrationPage },
   { matches: (pathname) => pathname.includes("/assets"), Page: AssetsPage },
   { matches: (pathname) => pathname.includes("/extraction"), Page: ExtractionPage },
+  { matches: (pathname) => pathname.includes("/manual-reflection"), Page: ProtocolManualReflectionPage },
   { matches: (pathname) => pathname.includes("/canvas"), Page: ProtocolPage },
   { matches: (pathname) => pathname.includes("/safety"), Page: SafetyPage },
   { matches: (pathname) => pathname.includes("/validation"), Page: ValidationPage },
@@ -146,7 +171,14 @@ export function StudioApp() {
   // longer exists.
   const Page = route?.Page ?? ProtocolPage;
   const audience = route?.audience ?? "clinician";
-  const authorized = audience === "public" || (audience === "patient" ? role === "patient" : role === "clinician");
+  // Admin is a superset of clinician access (can reach every clinician
+  // page, plus admin-only ones) -- there is no separate admin login, so an
+  // admin route unauthorized redirect still goes to the clinician "/login".
+  const authorized =
+    audience === "public" ||
+    (audience === "patient" && role === "patient") ||
+    (audience === "clinician" && (role === "clinician" || role === "admin")) ||
+    (audience === "admin" && role === "admin");
 
   useEffect(() => {
     if (loading || audience === "public" || authorized) return;

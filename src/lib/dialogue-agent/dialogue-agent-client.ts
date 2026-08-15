@@ -9,7 +9,7 @@ export async function callDialogueAgent(contract: DialogueContract, context: { s
     const { generateDialogueDecision } = await import("@/lib/dialogue-agent/anthropic-dialogue-agent");
     return generateDialogueDecision(contract, context);
   }
-  const response = await fetch("/api/dialogue-agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ contract, context }) });
+  const response = await runtimeFetch("/api/dialogue-agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ contract, context }) });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.ok) {
     return {
@@ -21,3 +21,4 @@ export async function callDialogueAgent(contract: DialogueContract, context: { s
   }
   return payload.data as DialogueAgentResult;
 }
+import { runtimeFetch } from "@/lib/runtime/resolve-store-url";

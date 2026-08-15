@@ -7,7 +7,11 @@ import { DEFAULT_LOCALE, isUiLocale, type UiLocale } from "@/lib/i18n/locales";
 import { readBrowserStorageItem, writeBrowserStorageItem } from "@/lib/browser-storage";
 
 const DICTIONARIES: Record<UiLocale, Record<string, unknown>> = { en, ko };
-const STORAGE_KEY = "tbct-ui-locale";
+// Exported so callers can check "has anyone ever explicitly picked a UI
+// language on this browser" without duplicating the key -- see
+// patient-list-page.tsx's one-time auto-adopt-from-participant-locale.
+export const UI_LOCALE_STORAGE_KEY = "tbct-ui-locale";
+const STORAGE_KEY = UI_LOCALE_STORAGE_KEY;
 
 function readLocaleCookie(): string | null {
   if (typeof document === "undefined") return null;

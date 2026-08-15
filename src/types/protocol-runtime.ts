@@ -99,7 +99,11 @@ export interface RuntimeNode {
 export interface PolicyBundle {
   globalSafetyRules: string[];
   protocolRules: string[];
-  sessionPolicies?: Record<string, { safetyRules: string[]; protocolRules: string[] }>;
+  // toneGuidance: clinician-authored, per-session tone/role framing (source:
+  // SessionCommonRules.roleAndStance) -- additive phrasing guidance layered
+  // on top of the dialogue agent's fixed safety/behavior rules, never able
+  // to override them. See anthropic-dialogue-agent.ts's systemPrompt.
+  sessionPolicies?: Record<string, { safetyRules: string[]; protocolRules: string[]; toneGuidance?: string }>;
   forbiddenPatientContent: string[];
   maxPromptCharacters: number;
 }

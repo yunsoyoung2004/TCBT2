@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export type AppRole = "clinician" | "patient";
+export type AppRole = "clinician" | "patient" | "admin";
 
 type AuthState = {
   user: User | null;
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthState | null>(null);
 
 function roleFromUser(user: User | null): AppRole | null {
   const role = user?.user_metadata?.role;
-  return role === "clinician" || role === "patient" ? role : null;
+  return role === "clinician" || role === "patient" || role === "admin" ? role : null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

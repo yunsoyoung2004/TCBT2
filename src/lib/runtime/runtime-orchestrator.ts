@@ -13,7 +13,7 @@ import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialo
 
 async function callPatientRenderer(request: PatientRendererRequest, context: { sessionId: string; turnId: string }) {
   if (typeof window === "undefined") { const { renderPatientReflection } = await import("@/lib/patient-renderer/anthropic-patient-renderer"); return renderPatientReflection(request, context); }
-  const response = await fetch("/api/patient-reflection", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request, context }) });
+  const response = await runtimeFetch("/api/patient-reflection", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request, context }) });
   const payload = await response.json().catch(() => null); if (!response.ok || !payload?.ok) return { reflection: "Thank you for sharing that.", provider: "none", failed: true };
   return payload.data as { reflection: string; patientMessage?: string; provider: string; failed: boolean; failureReason?: string };
 }
@@ -122,7 +122,19 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       deterministicFallbackText: approvedPatientText,
       isFirstPromptOfNode,
       isFirstPromptOfSession,
+      sessionToneGuidance: input.release.policies.sessionPolicies?.[input.session.sessionDefinitionId]?.toneGuidance,
     });
+    const normalizedApproved = approvedPatientText.replace(/\s+/g, " ").trim();
+    const repeatedFallback = dialogueResult.usedFallback && input.recentMessages
+      .filter((message) => message.role === "assistant")
+      .slice(-3)
+      .some((message) => message.content.replace(/\s+/g, " ").trim() === normalizedApproved);
+    if (repeatedFallback && input.session.runtimeContext.lastPatientMessage?.trim()) {
+      const excerpt = input.session.runtimeContext.lastPatientMessage.trim().slice(0, 80);
+      dialogueResult.patientMessage = input.session.locale.toLowerCase().startsWith("ko")
+        ? `“${excerpt}”라고 느끼고 계시는군요. 그 마음이 가장 크게 느껴졌던 구체적인 순간 하나를 말씀해 주실 수 있을까요?`
+        : `It sounds like “${excerpt}” is weighing on you. Could you share one specific moment when it felt strongest?`;
+    }
     const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });
     dialogueResponse.patientMessage = dialogueResult.patientMessage;
@@ -161,3 +173,4 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
   return { contract, response: dynamicResponse, providerResult: { provider: rendered.provider === "anthropic" ? "anthropic" : "deterministic", model: dynamicResponse.providerMetadata.model, text: dynamicText }, validator: dynamicValidator, fallbackUsed: Boolean(rendered.failed), repairUsed: false, stateReduction: dynamicReduction, generatedMessage: { id: makeId("RMSG"), runtimeSessionId: input.session.id, role: "assistant", content: dynamicText, status: rendered.failed ? "replaced_by_fallback" : "validated", nodeId: input.activeStep.node.id, promptItemId: input.activeStep.promptItem.id, sourceEvidenceIds: [], createdAt: new Date().toISOString(), deliveredAt: new Date().toISOString(), metadata: { llmCalled: rendered.provider === "anthropic", messageSource: personalized ? "personalized_reflection" : "deterministic_neutral", contractHash: contract.contractHash, sourcePromptItemId: input.sourcePromptItem.id } } };
 
 }
+import { runtimeFetch } from "@/lib/runtime/resolve-store-url";

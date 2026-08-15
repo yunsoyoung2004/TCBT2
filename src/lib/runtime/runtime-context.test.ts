@@ -210,6 +210,112 @@ describe("runtime context extraction", () => {
     expect(result.fields.automaticThoughtIsFactual).toBeUndefined();
   });
 
+  // Regression coverage for the "same clarification repeats even after a
+  // clearly sufficient elaboration" bug: DeterministicAssessmentModel's
+  // multi-field situation/thought split only recognizes English connector
+  // phrasing ("...and I thought that..."), so a Korean answer to a
+  // distressingSituation + automaticThought prompt never gets split no
+  // matter how clear it is, and every field stayed permanently unset,
+  // reproducing the identical clarification turn after turn. The fix is
+  // the lenient-retry fallback in runtime-context.ts: once the patient has
+  // already been asked to clarify this exact prompt once
+  // (clarificationAttemptCount >= 1), a further on-topic reply is accepted
+  // and fills whatever fields are still unset instead of looping again.
+  describe("lenient retry for a non-English multi-field prompt (repeated-clarification regression)", () => {
+    function distressingSituationPromptAndNode() {
+      const promptItem = {
+        ...makePrompt("distressingSituation"),
+        id: "tbct-s01-n01-p01-distressing-situation",
+        outputFields: ["distressingSituation", "automaticThought"],
+        editableText: "Ask for a distressing situation and the automatic thought it triggered.",
+      } satisfies PromptItem;
+      const node = { ...makeNode("distressingSituation"), requiredFields: ["distressingSituation", "automaticThought"] };
+      return { promptItem, node };
+    }
+
+    it("accepts the elaboration on the second reply instead of asking the identical question a third time (사례 2: 발표 상황)", async () => {
+      const { promptItem, node } = distressingSituationPromptAndNode();
+      const firstTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "선생님과 발표를 했었던 상황이었어" },
+        currentNode: node,
+        currentPromptItem: promptItem,
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      // First attempt: the deterministic fallback can't split non-English
+      // text, so this still asks for the missing concept once -- the
+      // regression is specifically about what happens next, not this turn.
+      expect(firstTurn.missingFields.length).toBeGreaterThan(0);
+
+      const secondTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "발표에서 말을 절었지" },
+        currentNode: node,
+        currentPromptItem: promptItem,
+        currentContext: { fields: firstTurn.fields, riskSignals: [], iterationCounts: {}, riskLevel: "low", clarificationAttemptCount: 1 },
+        locale: "ko-KR",
+      });
+
+      expect(secondTurn.missingFields).toHaveLength(0);
+      expect(secondTurn.fields.distressingSituation).toBeTruthy();
+      expect(secondTurn.fields.automaticThought).toBeTruthy();
+    });
+
+    it("accepts the elaboration on the second reply for the study/concentration example (사례 1: 공부 집중)", async () => {
+      const { promptItem, node } = distressingSituationPromptAndNode();
+      const firstTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "요즘 너무 공부가 안돼" },
+        currentNode: node,
+        currentPromptItem: promptItem,
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      expect(firstTurn.missingFields.length).toBeGreaterThan(0);
+
+      const secondTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "공부를 해야 하는데 집중이 잘 안돼" },
+        currentNode: node,
+        currentPromptItem: promptItem,
+        currentContext: { fields: firstTurn.fields, riskSignals: [], iterationCounts: {}, riskLevel: "low", clarificationAttemptCount: 1 },
+        locale: "ko-KR",
+      });
+
+      expect(secondTurn.missingFields).toHaveLength(0);
+      expect(secondTurn.fields.distressingSituation).toBeTruthy();
+      expect(secondTurn.fields.automaticThought).toBeTruthy();
+    });
+
+    it("still rejects a non-answer on a lenient retry -- leniency does not disable the meaningful-text gate", async () => {
+      const promptItem = makePrompt("situationThoughtDistinction", { kind: "participant_articulated_distinction" });
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: "ok" },
+        currentNode: makeNode("situationThoughtDistinction"),
+        currentPromptItem: promptItem,
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low", clarificationAttemptCount: 1 },
+      });
+      expect(result.missingFields).toContain("situationThoughtDistinction");
+    });
+
+    it("still escalates a safety signal on a lenient retry instead of silently accepting it as the answer", async () => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: "I wanna die" },
+        currentNode: makeNode("candidateOneThought"),
+        currentPromptItem: makePrompt("candidateOneThought"),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low", clarificationAttemptCount: 1 },
+      });
+      expect(result.riskLevel).toBe("high");
+      expect(result.riskSignals).toContain("suicide");
+    });
+
+    it("still rejects an out-of-range rating on a lenient retry -- numeric validation stays strict", async () => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "rating", value: "200" },
+        currentNode: makeNode("initialATBeliefPercent", "rating"),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low", clarificationAttemptCount: 1 },
+      });
+      expect(result.missingFields).toContain("initialATBeliefPercent");
+    });
+  });
+
   it("uses an explicit source-backed confirmation field for factual-thought routing", async () => {
     const promptItem = {
       id: "source-confirmation",

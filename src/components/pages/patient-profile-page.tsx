@@ -6,15 +6,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { SessionProgressChart } from "@/components/runtime/session-progress-chart";
+import { MfaSettings } from "@/components/pages/auth/mfa-settings";
+import { DataPrivacySection } from "@/components/pages/data-privacy-section";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
 import { getPatientProgressSeries } from "@/lib/worksheet/worksheet-projection";
+import { propagateLocaleToOpenSessions } from "@/lib/api/patient-locale-sync";
 import { useT } from "@/lib/i18n/context";
+import { mapToUiLocale } from "@/lib/i18n/locales";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientProfilePage() {
-  const { t } = useT();
+  // Aliased: this page already has its own local `locale`/`setLocale` state
+  // for the pending profile-form edit below -- setUiLocale is the website's
+  // own chrome-language setter from useT(), a separate thing this now also
+  // updates once the locale field is actually saved (see profileMutation).
+  const { t, setLocale: setUiLocale } = useT();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const userId = user?.id ?? "";
@@ -42,6 +50,7 @@ export function PatientProfilePage() {
   const [sensitiveMemoryAllowed, setSensitiveMemoryAllowed] = useState(false);
   const [sessionRemindersEnabled, setSessionRemindersEnabled] = useState(true);
   const [homeworkRemindersEnabled, setHomeworkRemindersEnabled] = useState(true);
+  const [newMessagesEnabled, setNewMessagesEnabled] = useState(true);
 
   useEffect(() => {
     if (!participantQuery.data) return;
@@ -54,12 +63,28 @@ export function PatientProfilePage() {
     // Absent means enabled -- see RuntimeParticipant.notificationPreferences's doc comment.
     setSessionRemindersEnabled(participantQuery.data.notificationPreferences?.sessionReminders !== false);
     setHomeworkRemindersEnabled(participantQuery.data.notificationPreferences?.homeworkReminders !== false);
+    setNewMessagesEnabled(participantQuery.data.notificationPreferences?.newMessages !== false);
   }, [participantQuery.data]);
 
   const profileMutation = useMutation({
     mutationFn: async () => {
       if (!participantQuery.data) throw new Error("Participant not found");
+      const localeChanged = participantQuery.data.locale !== locale;
       await updateParticipantProfile(participantQuery.data.id, { alias, locale, country, status: participantQuery.data.status });
+      if (localeChanged) {
+        // Previously this only ever affected sessions created AFTER this
+        // save -- an already-open session's own locale field was never
+        // touched, so a patient switching their language mid-program would
+        // keep getting replies in the old one until they started a brand
+        // new session. Also flip the website's own UI chrome to match in
+        // the same step (mapToUiLocale is a no-op if this ever gets a
+        // locale outside ko/en) -- this is the merge the profile "언어"
+        // field and the header language toggle now both go through, see
+        // patient-locale-sync.ts.
+        await propagateLocaleToOpenSessions(participantQuery.data, locale);
+        const mappedUiLocale = mapToUiLocale(locale);
+        if (mappedUiLocale) setUiLocale(mappedUiLocale);
+      }
       await updateParticipantConsent(participantQuery.data.id, {
         memoryStorageAllowed,
         crossSessionUseAllowed,
@@ -69,6 +94,7 @@ export function PatientProfilePage() {
       await updateNotificationPreferences(participantQuery.data.id, {
         sessionReminders: sessionRemindersEnabled,
         homeworkReminders: homeworkRemindersEnabled,
+        newMessages: newMessagesEnabled,
       });
     },
     onSuccess: async () => {
@@ -76,6 +102,7 @@ export function PatientProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-profile-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-record"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : t("patientProfile.saveFailed"));
@@ -86,7 +113,17 @@ export function PatientProfilePage() {
   const dashboard = dashboardQuery.data;
   if (!participant || !dashboard) return <PatientShell title={t("patientProfile.title")}><Card><EmptyState title={t("patientProfile.notFound")} /></Card></PatientShell>;
   return (
-    <PatientShell title={t("patientProfile.title")} sessionLabel={participant.alias} progressLabel={participant.status} actions={<Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientProfile.openMemory")}</Button></Link>}>
+    <PatientShell
+      title={t("patientProfile.title")}
+      sessionLabel={participant.alias}
+      progressLabel={participant.status}
+      actions={
+        <>
+          <Link href="/patient/checkin"><Button variant="secondary">{t("patientProfile.openCheckin")}</Button></Link>
+          <Link href="/projects/demo/patient/memory"><Button variant="secondary">{t("patientProfile.openMemory")}</Button></Link>
+        </>
+      }
+    >
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4">
           <div className="text-sm font-semibold text-text-primary">{t("patientProfile.consent.title")}</div>
@@ -123,7 +160,7 @@ export function PatientProfilePage() {
           <div className="mt-4 grid gap-4">
             <Field label={t("patientProfile.edit.displayName")}><input className={inputClass} value={alias} onChange={(event) => setAlias(event.target.value)} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("patientProfile.edit.locale")}>
+              <Field label={t("patientProfile.edit.locale")} hint={t("patientProfile.edit.localeHint")}>
                 <select className={inputClass} value={locale} onChange={(event) => setLocale(event.target.value)}>
                   <option value="ko-KR">ko-KR</option>
                   <option value="en-US">en-US</option>
@@ -151,6 +188,7 @@ export function PatientProfilePage() {
               <div className="grid gap-3 rounded-panel border border-border bg-surface-subtle p-3 text-sm text-text-secondary">
                 <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.sessionReminders")}</span><input type="checkbox" checked={sessionRemindersEnabled} onChange={(event) => setSessionRemindersEnabled(event.target.checked)} /></label>
                 <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.homeworkReminders")}</span><input type="checkbox" checked={homeworkRemindersEnabled} onChange={(event) => setHomeworkRemindersEnabled(event.target.checked)} /></label>
+                <label className="flex items-center justify-between gap-3"><span>{t("patientProfile.edit.notifications.newMessages")}</span><input type="checkbox" checked={newMessagesEnabled} onChange={(event) => setNewMessagesEnabled(event.target.checked)} /></label>
               </div>
             </div>
             <Button loading={profileMutation.isPending} onClick={() => profileMutation.mutate()}>{t("patientProfile.edit.save")}</Button>
@@ -164,6 +202,8 @@ export function PatientProfilePage() {
             <div>{t("patientProfile.snapshot.latestSummary")}: {recordQuery.data?.latestSummaryId ?? t("patientProfile.snapshot.none")}</div>
           </div>
         </Card>
+        <MfaSettings />
+        <DataPrivacySection participantId={participant.id} />
       </div>
     </PatientShell>
   );

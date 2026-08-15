@@ -1,5 +1,5 @@
 import { SAFETY_STORE_ENDPOINT } from "@/lib/runtime/safety-store-ops";
-import { resolveStoreUrl } from "@/lib/runtime/resolve-store-url";
+import { resolveStoreUrl, runtimeFetch } from "@/lib/runtime/resolve-store-url";
 import type { SafetyStoreOp } from "@/lib/runtime/safety-store-ops";
 import type {
   ClinicianHandoffRecord,
@@ -24,7 +24,7 @@ import type {
 // for clinician screens, src/lib/api/runtime-execution-api.ts for the
 // patient-facing runtime) are unaffected.
 async function callStore<T>(op: SafetyStoreOp): Promise<T> {
-  const response = await fetch(resolveStoreUrl(SAFETY_STORE_ENDPOINT), {
+  const response = await runtimeFetch(resolveStoreUrl(SAFETY_STORE_ENDPOINT), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(op),

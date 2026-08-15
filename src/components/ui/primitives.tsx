@@ -25,7 +25,12 @@ export function Button({
   size = "md",
   loading,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration"> & {
+  // Omitted event names above are the standard motion.button/native-button
+  // type conflict (framer-motion's onDrag et al. use a different event
+  // signature than the plain DOM one) -- none of this app's Button call
+  // sites pass any of them, so this only narrows an unused corner of the
+  // type, not real behavior.
   variant?: "primary" | "secondary" | "ghost" | "danger" | "violet";
   size?: "sm" | "md" | "icon";
   loading?: boolean;
@@ -38,8 +43,16 @@ export function Button({
     violet: "border-ai-violet bg-ai-violet text-white hover:bg-[#674cbc]",
   };
   const sizes = { sm: "h-8 px-3 text-xs", md: "h-9 px-3.5 text-sm", icon: "h-9 w-9" };
+  const reducedMotion = useReducedMotionPreference();
   return (
-    <button
+    <motion.button
+      // A satisfying little "press" on every button in the app, from one
+      // shared component -- whileTap only ever plays while the button is
+      // actually held down (auto-reverses on release, no separate cleanup
+      // needed), so it can't get stuck mid-animation like a manual
+      // active-class toggle could.
+      whileTap={reducedMotion || loading || props.disabled ? undefined : { scale: 0.96 }}
+      transition={{ duration: 0.1 }}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-panel border font-medium transition disabled:pointer-events-none disabled:opacity-50",
         styles[variant],
@@ -51,7 +64,7 @@ export function Button({
     >
       {loading && <LoaderCircle className="h-4 w-4 animate-spin" />}
       {children}
-    </button>
+    </motion.button>
   );
 }
 

@@ -76,6 +76,7 @@ export async function claimRuntimePatientTurn(input: {
   clientTurnId: string;
   expectedSessionVersion: number;
   patientMessage: RuntimeMessage;
+  turnPatch?: Pick<RuntimeSession, "locale" | "currentPromptItemId" | "skippedPromptItemIds">;
 }): Promise<RuntimePatientTurnClaim> {
   return withTransaction(async (client) => {
     const { rows } = await client.query<{ data: RuntimeSession }>(
@@ -94,6 +95,7 @@ export async function claimRuntimePatientTurn(input: {
 
     const next: RuntimeSession = {
       ...current,
+      ...input.turnPatch,
       status: "processing",
       pendingTurnId: input.clientTurnId,
       version: currentVersion + 1,
