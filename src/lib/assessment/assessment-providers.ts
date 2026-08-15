@@ -47,7 +47,11 @@ abstract class BaseAssessmentModel implements AssessmentModel {
   protected abstract invoke(request: AssessmentRequest): Promise<{ data: unknown; usage?: Usage; latencyMs: number }>;
   async assessInput(request: AssessmentRequest): Promise<AssessmentResult> {
     const meta = this.getProviderMetadata(); let lastError = "assessment failed";
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    // A patient is waiting on this request. Retrying a slow provider here used
+    // to turn one provider timeout into two consecutive waits (up to roughly a
+    // minute with the old deployment settings). The deterministic runtime
+    // fallback is safer and much faster than retrying in the foreground.
+    for (let attempt = 0; attempt < 1; attempt += 1) {
       const started = performance.now();
       try {
         const result = await this.invoke(request); const sanitized = sanitizeAssessmentResult(result.data, request); const usage = result.usage;
@@ -77,9 +81,9 @@ class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
   private healthConfirmed = false;
   constructor(private readonly provider: "groq" | "ollama", private readonly baseUrl: string, private readonly apiKey: string, private model: string) { super(); }
   getProviderMetadata(): AssessmentProviderMetadata { return { provider: this.provider, model: this.model || undefined, privacyBoundary: this.provider === "ollama" ? "local" : "cloud" }; }
-  async healthCheck() {
+  async healthCheck(signal?: AbortSignal) {
     try {
-      const response = await fetch(`${this.baseUrl}/models`, { headers: this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : undefined });
+      const response = await fetch(`${this.baseUrl}/models`, { signal, headers: this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : undefined });
       if (!response.ok) return { ok: false, provider: this.provider, model: this.model || undefined, message: `Model-list request failed (${response.status})` } as AssessmentProviderHealth;
       const payload = await response.json() as { data?: Array<{ id?: string }>; models?: Array<{ name?: string }> };
       const ids = [...(payload.data ?? []).map((item) => item.id), ...(payload.models ?? []).map((item) => item.name)].filter((id): id is string => Boolean(id));
@@ -89,8 +93,10 @@ class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
     } catch { return { ok: false, provider: this.provider, model: this.model || undefined, message: `${this.provider} is unavailable` }; }
   }
   protected async invoke(request: AssessmentRequest) {
+    const timeoutMs = Math.min(5000, Math.max(500, Number(process.env.ASSESSMENT_TIMEOUT_MS ?? 3000)));
+    const signal = AbortSignal.timeout(timeoutMs);
     if (!this.healthConfirmed) {
-      const health = await this.healthCheck();
+      const health = await this.healthCheck(signal);
       if (!health.ok) throw new Error(health.message);
       this.healthConfirmed = true;
     }
@@ -100,7 +106,7 @@ class OpenAICompatibleAssessmentModel extends BaseAssessmentModel {
     const responseFormat = this.provider === "groq"
       ? { type: "json_object" }
       : { type: "json_schema", json_schema: { name: "assessment", schema } };
-    const response = await fetch(`${this.baseUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}) }, body: JSON.stringify({ model: this.model, temperature: 0, messages: [{ role: "system", content: `${systemInstruction()} Required JSON schema: ${JSON.stringify(schema)}` }, { role: "user", content: JSON.stringify(payloadRequest) }], response_format: responseFormat }) });
+    const response = await fetch(`${this.baseUrl}/chat/completions`, { method: "POST", signal, headers: { "content-type": "application/json", ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}) }, body: JSON.stringify({ model: this.model, temperature: 0, messages: [{ role: "system", content: `${systemInstruction()} Required JSON schema: ${JSON.stringify(schema)}` }, { role: "user", content: JSON.stringify(payloadRequest) }], response_format: responseFormat }) });
     if (!response.ok) throw new Error(`${this.provider} assessment failed (${response.status})`);
     const json = await response.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: Usage };
     const content = json.choices?.[0]?.message?.content; if (!content) throw new Error("Assessment provider returned no JSON content");

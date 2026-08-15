@@ -104,8 +104,10 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   if (!apiKey) {
     return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
   }
-  const maxTokens = Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 500);
-  const timeoutMs = Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 15000);
+  // Keep foreground conversation latency bounded. The approved deterministic
+  // task text below is always available when the model misses this budget.
+  const maxTokens = Math.min(300, Math.max(80, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
+  const timeoutMs = Math.min(5000, Math.max(500, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 4000)));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();
