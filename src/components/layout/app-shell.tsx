@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ClipboardCheck,
   FileStack,
-  FlaskConical,
   Globe,
   HelpCircle,
   Menu,
@@ -25,6 +24,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
+import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
@@ -169,9 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex w-full flex-col">
           <div className="flex h-[68px] items-center justify-between gap-2 border-b border-white/10 px-4">
             <Link href="/projects/demo/protocols/tbct-br-001/canvas" className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-panel bg-white text-navy-900">
-                <FlaskConical className="h-5 w-5" />
-              </span>
+              <Logo className="h-10 w-10 shrink-0" />
               {!collapsed && (
                 <span className="min-w-0 overflow-hidden whitespace-nowrap">
                   <span className="block truncate whitespace-nowrap text-sm font-semibold">TBCT Studio</span>

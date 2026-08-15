@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, inputClass } from "@/components/ui/primitives";
+import { Logo } from "@/components/ui/logo";
 import { useT } from "@/lib/i18n/context";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { AppRole } from "@/lib/auth/auth-context";
@@ -222,6 +223,7 @@ export function AuthForm({ role, titleKey, redirectTo }: { role: AppRole; titleK
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
       <Card className="w-full max-w-sm p-6">
+        <Logo className="mb-4 h-12 w-12" />
         <h1 className="text-base font-semibold text-text-primary">{t(titleKey)}</h1>
         <form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
           <Field label={t("auth.email")}>
