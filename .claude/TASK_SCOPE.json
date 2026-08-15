@@ -1,0 +1,31 @@
+{
+  "task": "TBCT Sessions 1-3 session-local enhancement work (content/flow/wording), following prompts/.claude/rules/tbct-session-manual.md",
+  "createdAt": "2026-08-13",
+  "updatedAt": "2026-08-15",
+  "allowedPaths": [
+    "src/lib/protocol/sessions/s01.ts",
+    "src/lib/runtime/static-messages/s01.ts",
+    "src/lib/protocol/sessions/s02.ts",
+    "src/lib/runtime/static-messages/s02.ts",
+    "src/lib/protocol/sessions/s03.ts",
+    "src/lib/runtime/static-messages/s03.ts",
+    "src/lib/runtime/runtime-static-message.ts",
+    "src/lib/dialogue-agent/dialogue-agent-stale-value.test.ts",
+    "src/lib/runtime/runtime-context.ts",
+    "docs/ai/CODEMAP.md",
+    "docs/ai/TBCT_SESSIONS_1_3.md",
+    "docs/ai/HANDOVER_2026-08-15.md",
+    ".claude/TASK_SCOPE.json"
+  ],
+  "notes": "Session-local edit scope per prompts/.claude/rules/tbct-session-manual.md §1/7. Worksheet/homework files for S01-S03 (worksheet-renderers/s0N-worksheet.tsx, worksheet-bindings/tbct-s0N.ts, homework/s0N-*.tsx) are NOT yet in scope -- add them here first if a task requires changing worksheet/homework UI, not just conversation content/flow/wording. Protected field names must not be renamed within these files: S02 problems/problemRatings/goals/goalRatings; S03 automaticThought/evidenceFor/evidenceAgainst (see docs/ai/TBCT_SESSIONS_1_3.md for the runtime-context.ts mechanisms behind these). runtime-static-message.ts added 2026-08-14 with explicit user approval (TBCT S01-S03 fidelity v3 task, Phase 0 STOP S-1): SESSION_HANDLERS[1|2|3] must forward `locale` to s0N.resolveStaticText the same way SESSION_HANDLERS[8] already does for s08, so s01-s03 static messages can branch English/Korean for dynamically-computed text (totals, emotion lists, readback sentences) that the shared bracket-substitution helper can't cover. Edit is limited to forwarding an already-available argument at 3 existing call sites -- no new logic, no change to s04-s07 behavior. dialogue-agent-stale-value.test.ts added 2026-08-14 with explicit user approval: s03.ts's new redirection-contract prompt (§6.3, boolean validation) is now one of the pre-situation turns this test's fixture loop walks through; its single canned filler answer (\"No, nothing urgent. Please continue.\") doesn't parse as a valid boolean and got stuck re-asking that prompt. Fix is limited to the loop sending \"Yes, that's okay.\" when the currently active prompt's validation.kind is \"boolean\", otherwise the original filler text -- no change to what the test actually verifies (worksheet-edited value reaching the next dialogue contract). runtime-context.ts edited 2026-08-14 with explicit user approval (AskUserQuestion, \"지금 고침 (권장)\"): isMeaningfulTextResponse's NON_ANSWER_TEXT blacklist ran before the boolean/enum-kind acceptance check, so every boolean-kind prompt codebase-wide (s01.ts confirm-list, s03.ts redirection-contract, etc.) rejected its own only two valid answers (\"yes\"/\"no\"/네/예 are in both the blacklist and the boolean accept-list) and looped forever. Fix adds an early return for validation.kind==='boolean'|'enum' immediately after the existing evidenceFor/evidenceAgainst guard, before the blacklist check -- no other behavior in the function changed.",
+  "outOfScope": [
+    "src/lib/dialogue-agent/**",
+    "src/lib/runtime/** (outside static-messages/s01|02|03.ts and runtime-static-message.ts's locale-forwarding lines)",
+    "src/lib/protocol/source-fidelity-*.ts",
+    "src/mocks/data.ts",
+    "src/lib/protocol/sessions/s04.ts..s08.ts",
+    "src/lib/runtime/static-messages/s04.ts..s08.ts",
+    "sql/**",
+    "scripts/** (except scripts/run-local-session.ts, already added for local verification)"
+  ]
+}
