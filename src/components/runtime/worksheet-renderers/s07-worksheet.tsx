@@ -62,11 +62,14 @@ export function S07Worksheet({
 
       <TugOfWar leftLabel="Emotion" rightLabel="Reason" leftField={get("emotionDisadvantageWeight")} rightField={get("reasonAdvantageWeight")} active={isActive(get("emotionDisadvantageWeight")) || isActive(get("reasonAdvantageWeight"))} />
 
-      <EmptyChairDialogue field={get("emotionReasonDialogue")} active={isActive(get("emotionReasonDialogue"))} onConfirm={onConfirm} />
+      <EmptyChairDialogue field={get("emotionReasonDialogue")} speakersField={get("emotionReasonSpeakers")} active={isActive(get("emotionReasonDialogue"))} onConfirm={onConfirm} />
 
       <div className="rounded-panel border border-clinical-blue/30 bg-surface p-3 sm:p-4">
         <div className="mb-2 inline-flex items-center rounded-full bg-clinical-blue px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-white">Consensus chair</div>
-        <WorksheetCell field={get("consensusLearning")} q="4" label="What the Consensus chair learned" borderless active={isActive(get("consensusLearning"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        <WorksheetCell field={get("consensusLearning")} q="4" label="What the Consensus chair learned" list borderless active={isActive(get("consensusLearning"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        <WorksheetCell field={get("consensusSurprise")} q="4" label="What surprised you" borderless active={isActive(get("consensusSurprise"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        <WorksheetCell field={get("consensusEmotionIntent")} q="4" label="What Emotion was trying to do" borderless active={isActive(get("consensusEmotionIntent"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        <WorksheetCell field={get("consensusPartsNeeds")} q="4" label="What each part needed" borderless active={isActive(get("consensusPartsNeeds"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
         <div className="mt-3">
           <TugOfWar leftLabel="Advantages" rightLabel="Disadvantages" leftField={get("consensusAdvantageWeight")} rightField={get("consensusDisadvantageWeight")} active={isActive(get("consensusAdvantageWeight")) || isActive(get("consensusDisadvantageWeight"))} compact />
         </div>
@@ -114,9 +117,12 @@ function TugOfWar({ leftLabel, rightLabel, leftField, rightField, active, compac
   );
 }
 
-function EmptyChairDialogue({ field, active, onConfirm }: { field?: WorksheetFieldView; active: boolean; onConfirm: (worksheetFieldKey: string) => void }) {
+function EmptyChairDialogue({ field, speakersField, active, onConfirm }: { field?: WorksheetFieldView; speakersField?: WorksheetFieldView; active: boolean; onConfirm: (worksheetFieldKey: string) => void }) {
   if (!field) return null;
   const lines = Array.isArray(field.value?.value) ? (field.value?.value as unknown[]) : [];
+  // Recorded at capture time (runtime-context.ts). Index parity is only the
+  // fallback for dialogues captured before speakers were tracked.
+  const speakers = Array.isArray(speakersField?.value?.value) ? (speakersField?.value?.value as unknown[]).map(String) : [];
   const filled = lines.length > 0;
   const draftPending = field.value?.status === "draft_extracted";
 
@@ -126,7 +132,7 @@ function EmptyChairDialogue({ field, active, onConfirm }: { field?: WorksheetFie
       {filled ? (
         <div className="space-y-2">
           {lines.map((line, index) => {
-            const fromEmotion = index % 2 === 0;
+            const fromEmotion = speakers[index] ? speakers[index] === "emotion" : index % 2 === 0;
             return (
               <div key={index} className={`flex ${fromEmotion ? "justify-start" : "justify-end"}`}>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-sm ${fromEmotion ? "rounded-tl-sm bg-warning-light text-text-primary" : "rounded-tr-sm bg-clinical-blue-light text-text-primary"}`}>

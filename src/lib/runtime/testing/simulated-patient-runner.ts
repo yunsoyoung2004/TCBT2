@@ -26,6 +26,62 @@ export type SessionFidelityAudit = {
   reasons: string[];
 };
 
+/**
+ * A field counts as missing when an UNCONDITIONAL prompt promised it and the
+ * run finished without it -- including when that prompt was never reached.
+ *
+ * This used to also require `executed.has(prompt.id)`, which made the audit
+ * blind to exactly the failure it exists to catch: if the runtime never
+ * reached a prompt (a whole node skipped, or a passive prompt that declares
+ * an output field nothing writes), the field was silently dropped from the
+ * check, and the report said "Missing fields: none / PASS" while parts of the
+ * protocol had produced no data at all.
+ *
+ * Prompts that are conditional by design are excluded -- both those the
+ * runtime explicitly recorded as skipped and those carrying an
+ * activationCondition that simply never became true (a "not ready" follow-up
+ * in a run where the patient said "ready"). Those are branches not taken, not
+ * data loss.
+ */
+/** Nodes reachable from the session's start node using only unconditional
+ * edges -- i.e. the path every run takes. A node whose every incoming edge
+ * carries a condition (S03's factual-thought branch, S04's social-anxiety
+ * pathway, S05's residual-shame branch, S06's yellow/red homework block) is a
+ * branch, and not entering it is a decision, not data loss. */
+export function computeDefaultPathNodeIds(input: {
+  startNodeId: string;
+  edges: Array<{ source: string; target: string; condition?: unknown; isFallback?: boolean }>;
+}) {
+  const reachable = new Set<string>([input.startNodeId]);
+  const unconditionalEdges = input.edges.filter((edge) => !edge.condition && !edge.isFallback);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const edge of unconditionalEdges) {
+      if (reachable.has(edge.source) && !reachable.has(edge.target)) {
+        reachable.add(edge.target);
+        grew = true;
+      }
+    }
+  }
+  return reachable;
+}
+
+export function computeMissingFields(input: {
+  expectedFields: string[];
+  capturedFields: string[];
+  normalPrompts: Array<{ id: string; nodeId: string; outputFields: string[]; activationCondition?: unknown }>;
+  skippedPromptItemIds: string[];
+  defaultPathNodeIds: Set<string>;
+}) {
+  const skipped = new Set(input.skippedPromptItemIds);
+  const captured = new Set(input.capturedFields);
+  const unconditional = input.normalPrompts.filter((prompt) =>
+    !skipped.has(prompt.id) && !prompt.activationCondition && input.defaultPathNodeIds.has(prompt.nodeId));
+  return input.expectedFields.filter((field) =>
+    !captured.has(field) && unconditional.some((prompt) => prompt.outputFields.includes(field)));
+}
+
 export async function runSimulatedPatientSession(sessionDefinitionId: string, maxTurns = 400): Promise<SessionFidelityAudit> {
   const previousProvider = process.env.AI_PROVIDER;
   process.env.AI_PROVIDER = "mock";
@@ -64,7 +120,12 @@ export async function runSimulatedPatientSession(sessionDefinitionId: string, ma
     const normalPrompts = finalView.promptItems.filter((prompt) => prompt.sessionId === finalView.session.sessionDefinitionId && !prompt.nodeId.endsWith("safety-pause"));
     const expectedFields = [...new Set(normalPrompts.flatMap((prompt) => prompt.outputFields))];
     const capturedFields = Object.keys(finalView.session.runtimeContext.fields);
-    const missingFields = expectedFields.filter((field) => !capturedFields.includes(field) && normalPrompts.some((prompt) => executed.has(prompt.id) && prompt.outputFields.includes(field)));
+    const sessionDefinition = finalView.release.immutableSnapshot.sourceFidelity?.sessionDefinitions?.find((definition) => definition.id === finalView.session.sessionDefinitionId);
+    const defaultPathNodeIds = computeDefaultPathNodeIds({
+      startNodeId: sessionDefinition?.startNodeId ?? "",
+      edges: finalView.edges.filter((edge) => edge.sessionId === finalView.session.sessionDefinitionId),
+    });
+    const missingFields = computeMissingFields({ expectedFields, capturedFields, normalPrompts, skippedPromptItemIds: finalView.session.skippedPromptItemIds ?? [], defaultPathNodeIds });
     const fallbackCount = traces.filter((trace) => trace.fallbackUsed).length;
     const providerErrorCount = providerEvents.filter((event) => Boolean(event.error)).length;
     const clarificationCount = assistantMessages.filter((message) => message.metadata?.turnOutcome === "clarification").length;

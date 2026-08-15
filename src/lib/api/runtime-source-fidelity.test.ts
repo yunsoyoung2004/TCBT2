@@ -446,6 +446,12 @@ describe("canonical source-fidelity runtime", () => {
     try {
       const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s08", locale: "en-US" });
       await startRuntimeSession(session.id);
+      // S08 now opens with the participant guide's "quick word first": the
+      // materials check and the belief-as-charge orientation, whose reaction
+      // is invited before the investigation begins. Clear those first so this
+      // test still lands on the combined situation+thought prompt.
+      await submitPatientInput(session.id, { kind: "boolean", value: true });
+      await submitPatientInput(session.id, { kind: "text", value: "That makes sense to me -- I have never really questioned that belief." });
 
       // A plain descriptive sentence like this doesn't get parsed apart
       // into "the situation part" vs. "the thought part" -- this combined

@@ -13,15 +13,6 @@ export type PromptResolution = {
   skippedPromptItemIds: string[];
 };
 
-const PASSIVE_PROMPT_TYPES = new Set<PromptItem["type"]>([
-  "instruction",
-  "explanation",
-  "transition",
-  "role_transition",
-  "worksheet_instruction",
-  "closing",
-]);
-
 function sourceFidelitySnapshot(release: ProtocolReleaseVersion): SourceFidelityReleaseSnapshot {
   const snapshot = release.immutableSnapshot.sourceFidelity;
   if (!snapshot) throw new Error("Runtime release is missing the canonical source-fidelity snapshot");
@@ -111,8 +102,12 @@ export function resolveCurrentReleasePrompt(input: {
   return { promptItem: null, skippedPromptItemIds: inactivePromptItemIds };
 }
 
-export function promptRequiresPatientInput(promptItem: PromptItem) {
-  if (promptItem.type === "rating" || promptItem.type === "question" || promptItem.type === "clarification" || promptItem.type === "follow_up" || promptItem.type === "confirmation" || promptItem.type === "reflection") return true;
-  if (PASSIVE_PROMPT_TYPES.has(promptItem.type)) return false;
-  return promptItem.outputFields.length > 0;
-}
+// promptRequiresPatientInput used to be duplicated here with its own,
+// divergent PASSIVE_PROMPT_TYPES that still listed "role_transition" as
+// passive -- the exact defect that made S07/S08 role transitions complete
+// before the participant confirmed readiness or gave the intermediate
+// ratings. The live runtime path was fixed in runtime-release-normalizer.ts,
+// but this copy stayed behind encoding the broken semantics and the tests
+// pinned it. Re-exported from the single owner so there is nothing left to
+// diverge.
+export { promptRequiresPatientInput } from "@/lib/runtime/runtime-release-normalizer";

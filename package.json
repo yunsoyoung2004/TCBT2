@@ -11,7 +11,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:sessions": "vite-node -c vitest.config.ts scripts/audit-sessions-01-08.ts",
+    "audit:sessions:constrained": "vite-node -c vitest.config.ts scripts/audit-sessions-01-08-constrained.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

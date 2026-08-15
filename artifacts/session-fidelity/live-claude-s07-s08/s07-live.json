@@ -1,0 +1,667 @@
+{
+  "sessionId": "tbct-s07",
+  "locale": "ko-KR",
+  "model": "claude-sonnet-5",
+  "patientTurns": 25,
+  "programTurns": 29,
+  "finalStatus": "completed",
+  "stopReason": "completed",
+  "promptItemsExecuted": [
+    "tbct-s07-n01-p01-crp-offer",
+    "tbct-s07-n01-p02-crp-consent",
+    "tbct-s07-n04-p01-action-in-own-words",
+    "tbct-s07-n04-p02-disadvantages-first",
+    "tbct-s07-n04-p03-advantages-second",
+    "tbct-s07-n05-p01-emotion-weight",
+    "tbct-s07-n05-p02-reason-weight",
+    "tbct-s07-n06-p01-chair-arrangement",
+    "tbct-s07-n06-p02-emotion-to-reason",
+    "tbct-s07-n06-p03-continue-dialogue",
+    "tbct-s07-n07-p01-consensus-transition",
+    "tbct-s07-n07-p02-consensus-learning",
+    "tbct-s07-n07-p03-consensus-surprise",
+    "tbct-s07-n08-p01-consensus-weights",
+    "tbct-s07-n09-p01-readiness-decision",
+    "tbct-s07-n09-p02-prepare-later",
+    "tbct-s07-n10-p01-proposed-actions",
+    "tbct-s07-n10-p02-possible-obstacles",
+    "tbct-s07-n10-p03-obstacle-solutions",
+    "tbct-s07-n10-p04-implementation-plan",
+    "tbct-s07-n10-p05-support-people",
+    "tbct-s07-n10-p06-follow-up"
+  ],
+  "skippedPromptItemIds": [],
+  "fallbackCount": 1,
+  "providerErrorCount": 0,
+  "providerErrors": [],
+  "clarificationCount": 0,
+  "nonKoreanProgramTurns": [],
+  "duplicateProgramMessages": [],
+  "missingFields": [],
+  "fields": {
+    "sessionLanguage": "ko-KR",
+    "languageLocked": true,
+    "crpOfferResponse": "네, 해볼게요",
+    "prosecutionEvidenceSufficient": false,
+    "defenseEvidenceSufficient": false,
+    "appealEvidenceSufficient": false,
+    "emotionReasonDialogueSufficient": false,
+    "crpConsent": true,
+    "crpPrinciplesAcknowledged": true,
+    "ambivalenceAcknowledged": true,
+    "desiredOrFearedAction": "팀장님한테 제 상황을 솔직하게 말해보는 거예요.",
+    "disadvantages": [
+      "거절당하면 더 위축될 것 같아요."
+    ],
+    "disadvantagesNoMore": false,
+    "disadvantagesDuplicate": false,
+    "disadvantagesCount": 1,
+    "advantages": [
+      "말하고 나면 오해가 풀릴 수도 있어요."
+    ],
+    "advantagesNoMore": false,
+    "advantagesDuplicate": false,
+    "advantagesCount": 1,
+    "emotionDisadvantageWeight": 55,
+    "reasonAdvantageWeight": 55,
+    "chairArrangementConfirmed": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "emotionReasonDialogue": [
+      "불안하고 좀 부끄러웠어요."
+    ],
+    "emotionReasonDialogueNoMore": false,
+    "emotionReasonDialogueDuplicate": true,
+    "emotionReasonSpeakers": [
+      "emotion"
+    ],
+    "emotionReasonDialogueCount": 1,
+    "emotionReasonSpeakersCount": 1,
+    "consensusChairReady": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요.",
+    "consensusLearning": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요.",
+    "consensusSurprise": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요.",
+    "consensusAdvantageWeight": 60,
+    "consensusDisadvantageWeight": 40,
+    "implementationReadiness": "not_ready",
+    "laterReadinessPreparation": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요.",
+    "proposedActions": "팀장님한테 제 상황을 솔직하게 말해보는 거예요.",
+    "possibleObstacles": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요.",
+    "obstacleSolutions": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요.",
+    "implementationPlan": "토요일 오전에 집에서 해보려고요.",
+    "supportPeople": "남편이 옆에서 도와줄 수 있어요.",
+    "followUpPlan": "다음 상담 때 어떻게 됐는지 같이 봐요.",
+    "crpPlanSummary": "지금까지 세우신 계획을 정리하면 이렇습니다 — 행동: 팀장님한테 제 상황을 솔직하게 말해보는 거예요. / 예상되는 장애물: 막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요. / 그에 대한 대응: 막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요. / 언제·어디서: 토요일 오전에 집에서 해보려고요. / 지지해 줄 사람: 남편이 옆에서 도와줄 수 있어요. / 다시 돌아볼 방법: 다음 상담 때 어떻게 됐는지 같이 봐요.. 결정은 여전히 본인의 것이에요."
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "nodeId": "tbct-s07-n01-opening-consent",
+      "promptItemId": "tbct-s07-n01-p01-crp-offer",
+      "programMessage": "오늘은 중요하지만 어려운 결정을 합의적 역할극(Consensual Role-Play)을 통해 함께 다뤄보고 싶어요. 두려운 행동을 강요받지 않을 거예요; 중요한 건 무엇을 배우는가예요. 한번 해보시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 해볼게요"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 2,
+      "nodeId": "tbct-s07-n01-opening-consent",
+      "promptItemId": "tbct-s07-n01-p02-crp-consent",
+      "programMessage": "'아직 준비가 안 됐다'는 것도 충분히 괜찮은 결과라는 걸 알고, 합의적 역할극을 계속 진행해 보시겠어요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "네"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 3,
+      "nodeId": "tbct-s07-n04-decisional-balance",
+      "promptItemId": "tbct-s07-n04-p01-action-in-own-words",
+      "programMessage": "좋아요, 이제 본격적으로 그 결정을 살펴보는 단계로 들어가볼게요. 먼저 지금 마음에 두고 계신 그 행동을 살펴본 뒤, 그걸 실행했을 때의 단점과 장점을 하나씩 짚어볼 거예요. 시작으로, 지금 고민하고 계신 그 행동을 본인의 말로 한 문장으로 표현해 주시겠어요? (예: \"에스컬레이터를 탄다\")",
+      "patientInput": {
+        "kind": "text",
+        "value": "팀장님한테 제 상황을 솔직하게 말해보는 거예요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 4,
+      "nodeId": "tbct-s07-n04-decisional-balance",
+      "promptItemId": "tbct-s07-n04-p02-disadvantages-first",
+      "programMessage": "팀장님께 솔직하게 상황을 말씀드리는 것, 그 결정을 잘 짚어주셨어요. 그럼 그 행동을 했을 때의 단점부터 살펴볼게요. 그렇게 말했을 때 걱정되는 점이 있다면 어떤 게 있을까요? 떠오르는 대로 하나씩 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "거절당하면 더 위축될 것 같아요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 5,
+      "nodeId": "tbct-s07-n04-decisional-balance",
+      "promptItemId": "tbct-s07-n04-p03-advantages-second",
+      "programMessage": "거절당하면 더 위축될 것 같다는 마음, 이해가 돼요. 그런 걱정이 있으면서도 말해보고 싶은 이유가 분명 있으실 텐데요. 혹시 다른 단점도 더 떠오르시나요? 없다면 이제 장점 쪽으로 넘어가볼게요 — 팀장님께 솔직하게 말씀드렸을 때, 좋은 점이라면 어떤 게 있을까요? 하나씩 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "말하고 나면 오해가 풀릴 수도 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 6,
+      "nodeId": "tbct-s07-n05-weigh-ambivalence",
+      "promptItemId": "tbct-s07-n05-p01-emotion-weight",
+      "programMessage": "말하고 나면 오해가 풀릴 수도 있다는 장점, 잘 짚어주셨어요. 이제 다음 단계로 넘어가볼게요 — 지금까지 나온 단점과 장점 사이에서 마음이 어느 쪽으로 얼마나 기우는지 숫자로 살펴본 뒤, 그 두 마음이 서로 이야기를 나누는 시간을 가져볼 거예요.\n\n먼저 감정(Emotion) 의자에 있다고 생각하시고, 단점 쪽에 몇 퍼센트의 무게를 두고 싶으신가요? 0은 전혀 그렇지 않다는 뜻이고, 100은 완전히 그렇다는 뜻이에요. 나머지 퍼센트는 자동으로 장점 쪽에 배정될게요.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 7,
+      "nodeId": "tbct-s07-n05-weigh-ambivalence",
+      "promptItemId": "tbct-s07-n05-p02-reason-weight",
+      "programMessage": "감정 의자에서 단점 쪽에 55%로 답해주셨어요. 이번엔 이유(Reason) 의자로 옮겨가볼게요. 이유 의자에서, 장점 쪽에 몇 퍼센트의 무게를 두시겠어요? 남은 퍼센트는 자동으로 단점 쪽에 배정됩니다.",
+      "patientInput": {
+        "kind": "rating",
+        "value": "55"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 8,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p01-chair-arrangement",
+      "programMessage": "이유 의자에서 장점 쪽에 55%로 답해주셨어요. 이제 두 부분을 각각 다른 의자에 놓고, 감정과 이유가 저를 거치지 않고 서로 직접 이야기를 나누는 시간을 가져볼게요.\n\n의자 두 개를 마주 보게 놓을게요. 하나는 감정(Emotion) 의자, 다른 하나는 이유(Reason) 의자예요. 의자 배치가 되셨고, 시작할 준비가 되셨을까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 9,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p02-emotion-to-reason",
+      "programMessage": "좋아요. 이제 감정(Emotion) 의자에 앉아 계세요. 맞은편 이유(Reason) 의자를 바라보며, 감정으로서 이유에게 직접 이야기해 주세요. 이유가 꼭 들었으면 하는 말은 무엇인가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 10,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "programMessage": "더 하실 말씀이 있을까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 11,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "programMessage": "네, 그 마음 잘 들었어요. 감정으로서 이유에게 더 하고 싶은 말이 있다면 이어가셔도 좋아요. 없으시다면, 이제 이유(Reason) 의자로 옮겨가 볼게요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 12,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "programMessage": "네, 불안하고 부끄러운 마음, 잘 들었어요. 감정으로서 더 하고 싶은 말이 없으시다면, 이제 이유(Reason) 의자로 옮겨가 볼게요. 이유의 자리에 앉아서, 그 말을 들은 이유는 뭐라고 답하고 싶은가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 13,
+      "nodeId": "tbct-s07-n06-empty-chair-dialogue",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "programMessage": "네, 불안하고 부끄러운 마음 잘 들었어요. 감정으로서 이제 더 하실 말씀이 없으시다면, 이유(Reason)의 자리로 옮겨가 볼게요. 이유의 의자에 앉아서, 방금 감정이 한 말을 듣고 어떤 답을 하고 싶으신가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "불안하고 좀 부끄러웠어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 14,
+      "nodeId": "tbct-s07-n07-consensus-chair",
+      "promptItemId": "tbct-s07-n07-p01-consensus-transition",
+      "programMessage": "\"불안하고 부끄러웠다\"는 마음, 이미 잘 들었어요. 지금은 같은 감정 자리에 계속 머무르시는 것 같아서요 — 이제 그 자리에서 나와, 이유(Reason)의 의자로 옮겨가 볼게요. 이유의 자리에 앉으셨다면, 방금 감정이 한 말을 듣고 이유로서는 어떻게 답하고 싶으신가요? (예: \"네 마음은 알겠지만, 이렇게 계속 피하면 오해가 안 풀려\" 같은 식으로요)",
+      "patientInput": {
+        "kind": "text",
+        "value": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 15,
+      "nodeId": "tbct-s07-n07-consensus-chair",
+      "promptItemId": "tbct-s07-n07-p02-consensus-learning",
+      "programMessage": "네, 준비되셨다니 좋아요. 이제 합의(Consensus)의 의자에 앉아 계신 겁니다 — 감정의 자리와 이유의 자리, 양쪽 이야기를 다 들으신 지금, 그 두 목소리를 종합해서 무엇을 알게 되셨나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 16,
+      "nodeId": "tbct-s07-n07-consensus-chair",
+      "promptItemId": "tbct-s07-n07-p03-consensus-surprise",
+      "programMessage": "양쪽 이야기를 함께 들으니 느낌이 달라졌다는 말씀, 잘 들었어요. 그럼 조금 더 구체적으로 여쭤볼게요 — 감정과 이유, 두 부분의 이야기를 들으면서 뜻밖이었던 점, 예상하지 못했던 점이 있었다면 무엇이었나요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 17,
+      "nodeId": "tbct-s07-n08-consensus-reweight",
+      "promptItemId": "tbct-s07-n08-p01-consensus-weights",
+      "programMessage": "양쪽 이야기를 들으며 느낌이 달라지셨다는 점, 잘 들었어요. 이제 마지막 단계로 넘어가 볼게요 — 합의의 의자에서, 감정과 이유 양쪽 이야기를 다 들으신 지금, 장점과 단점에 최종적으로 몇 퍼센트씩 부여하고 싶으신가요? (예: 장점 60%, 단점 40%)",
+      "patientInput": {
+        "kind": "rating",
+        "value": "60, 40"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 18,
+      "nodeId": "tbct-s07-n09-decision",
+      "promptItemId": "tbct-s07-n09-p01-readiness-decision",
+      "programMessage": "장점 60%, 단점 40%로 정리해 주셨네요. 이제 마지막 단계로 넘어가 볼게요 — 감정과 이유 양쪽 이야기를 모두 들으신 지금, 이 순간의 결정은 무엇인가요: '준비됨'인가요, 아니면 '아직 준비 안 됨'인가요? 어느 쪽이든 괜찮고, 아직 확실하지 않다면 지금은 '아직 준비 안 됨'으로 두셔도 됩니다.",
+      "patientInput": {
+        "kind": "text",
+        "value": "아직 준비 안 됐어요"
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 19,
+      "nodeId": "tbct-s07-n09-decision",
+      "promptItemId": "tbct-s07-n09-p02-prepare-later",
+      "programMessage": "아직 준비 안 되셨다는 말씀, 잘 들었어요. 괜찮습니다. 그럼 이런 질문을 드려볼게요 — 지금 당장은 아니더라도, 나중에 준비가 되도록 미리 해 보고 싶은 것이 있으신가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 20,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p01-proposed-actions",
+      "programMessage": "이번 주 있었던 일을 떠올리셨군요, 좋아요. 이제 실행 계획을 세우는 단계로 들어가 볼게요 — 준비되지 않았더라도 그 방향으로 한 걸음 다가가는 작은 행동들을 구체적으로 정리해보는 시간이에요. 그 결정에 맞는 작은 행동이 있다면 무엇일까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "팀장님한테 제 상황을 솔직하게 말해보는 거예요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 21,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p02-possible-obstacles",
+      "programMessage": "팀장님께 솔직하게 상황을 말씀드려보는 걸로 정하셨네요. 그럼 이 행동을 실제로 해보려고 할 때, 그걸 어렵게 만들 수 있는 장애물은 무엇일까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 22,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p03-obstacle-solutions",
+      "programMessage": "저녁이 되면 스스로를 설득해서 그냥 넘어가려 할 것 같다는 장애물, 잘 알겠어요. 그럼 그 순간이 왔을 때, 그 장애물에 대응하는 데 도움이 될 만한 것은 무엇일까요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 23,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p04-implementation-plan",
+      "programMessage": "방금 답변은 앞서 말씀하신 장애물(\"저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같다\")과 같은 내용이네요. 여기서는 그 장애물이 생겼을 때 대응하는 데 도움이 될 방법이나 해결책을 여쭤보고 싶어요. 예를 들면 미리 다짐을 적어두거나, 특정 시간을 정해두는 것처럼요. 어떤 방법이 도움이 될 것 같으세요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "토요일 오전에 집에서 해보려고요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 24,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p05-support-people",
+      "programMessage": "토요일 오전에 집에서 해보시기로 하셨네요. 이제 이 계획을 실행할 때, 압박하지 않고 곁에서 지지해 줄 수 있는 사람이 있을지 생각해볼까요? 있다면 누구인지 말씀해 주세요.",
+      "patientInput": {
+        "kind": "text",
+        "value": "남편이 옆에서 도와줄 수 있어요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "waiting_for_input"
+    },
+    {
+      "turn": 25,
+      "nodeId": "tbct-s07-n10-action-plan",
+      "promptItemId": "tbct-s07-n10-p06-follow-up",
+      "programMessage": "남편분이 곁에서 도와주실 수 있다니 든든하네요. 마지막으로, 이번에 배우고 실행한 것을 나중에 다시 점검해보고 싶으신데요 — 언제, 어떤 방식으로 다시 돌아보고 싶으신가요?",
+      "patientInput": {
+        "kind": "text",
+        "value": "다음 상담 때 어떻게 됐는지 같이 봐요."
+      },
+      "turnOutcome": "normal",
+      "sessionStatus": "completed"
+    }
+  ],
+  "messages": [
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n01-p01-crp-offer",
+      "content": "오늘은 중요하지만 어려운 결정을 합의적 역할극(Consensual Role-Play)을 통해 함께 다뤄보고 싶어요. 두려운 행동을 강요받지 않을 거예요; 중요한 건 무엇을 배우는가예요. 한번 해보시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n01-p01-crp-offer",
+      "content": "네, 해볼게요"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n01-p02-crp-consent",
+      "content": "'아직 준비가 안 됐다'는 것도 충분히 괜찮은 결과라는 걸 알고, 합의적 역할극을 계속 진행해 보시겠어요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n01-p02-crp-consent",
+      "content": "네"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n02-p01-language-lock",
+      "content": "지금까지 사용하신 언어로 계속 진행할게요. 그리고 기법과 의자 역할의 이름은 계속 일관되게 사용할게요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n02-p02-both-parts-healthy",
+      "content": "좋아요. 이제 곧 만나게 될 '이성'과 '감정' 두 의자에 대해 짧게 말씀드릴게요: 둘 다 같은 자아의 건강한 기능이에요. 감정은 보호하는 역할을, 이성은 판단하는 역할을 해요. 어느 한쪽이 더 우월하거나 옳은 게 아니고, 이성이 감정을 이기는 게 목표도 아니에요. 이 설명이 이해되셨나요?"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n03-p01-ambivalence-normalization",
+      "content": "좋아요, 잘 이해하셨네요. 이제 다음 단계로 넘어가볼게요. 사실 어떤 결정 앞에서 망설여지는 건 약하거나 비합리적이어서가 아니라, 마음 한쪽은 그 행동을 원하고 다른 한쪽은 두려워서 피하고 싶어하기 때문이에요 — 두 마음 다 나름의 이유로 나를 지키려는 거예요. 오늘 할 작업은 그 양쪽 목소리가 서로의 이야기를 들어볼 수 있게 돕는 거고요, 어느 쪽이 옳은지 결정을 강요하지 않아요. 이렇게 들으니 어떠세요?"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n04-p01-action-in-own-words",
+      "content": "좋아요, 이제 본격적으로 그 결정을 살펴보는 단계로 들어가볼게요. 먼저 지금 마음에 두고 계신 그 행동을 살펴본 뒤, 그걸 실행했을 때의 단점과 장점을 하나씩 짚어볼 거예요. 시작으로, 지금 고민하고 계신 그 행동을 본인의 말로 한 문장으로 표현해 주시겠어요? (예: \"에스컬레이터를 탄다\")"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n04-p01-action-in-own-words",
+      "content": "팀장님한테 제 상황을 솔직하게 말해보는 거예요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n04-p02-disadvantages-first",
+      "content": "팀장님께 솔직하게 상황을 말씀드리는 것, 그 결정을 잘 짚어주셨어요. 그럼 그 행동을 했을 때의 단점부터 살펴볼게요. 그렇게 말했을 때 걱정되는 점이 있다면 어떤 게 있을까요? 떠오르는 대로 하나씩 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n04-p02-disadvantages-first",
+      "content": "거절당하면 더 위축될 것 같아요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n04-p03-advantages-second",
+      "content": "거절당하면 더 위축될 것 같다는 마음, 이해가 돼요. 그런 걱정이 있으면서도 말해보고 싶은 이유가 분명 있으실 텐데요. 혹시 다른 단점도 더 떠오르시나요? 없다면 이제 장점 쪽으로 넘어가볼게요 — 팀장님께 솔직하게 말씀드렸을 때, 좋은 점이라면 어떤 게 있을까요? 하나씩 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n04-p03-advantages-second",
+      "content": "말하고 나면 오해가 풀릴 수도 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n05-p01-emotion-weight",
+      "content": "말하고 나면 오해가 풀릴 수도 있다는 장점, 잘 짚어주셨어요. 이제 다음 단계로 넘어가볼게요 — 지금까지 나온 단점과 장점 사이에서 마음이 어느 쪽으로 얼마나 기우는지 숫자로 살펴본 뒤, 그 두 마음이 서로 이야기를 나누는 시간을 가져볼 거예요.\n\n먼저 감정(Emotion) 의자에 있다고 생각하시고, 단점 쪽에 몇 퍼센트의 무게를 두고 싶으신가요? 0은 전혀 그렇지 않다는 뜻이고, 100은 완전히 그렇다는 뜻이에요. 나머지 퍼센트는 자동으로 장점 쪽에 배정될게요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n05-p01-emotion-weight",
+      "content": "55"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n05-p02-reason-weight",
+      "content": "감정 의자에서 단점 쪽에 55%로 답해주셨어요. 이번엔 이유(Reason) 의자로 옮겨가볼게요. 이유 의자에서, 장점 쪽에 몇 퍼센트의 무게를 두시겠어요? 남은 퍼센트는 자동으로 단점 쪽에 배정됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n05-p02-reason-weight",
+      "content": "55"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p01-chair-arrangement",
+      "content": "이유 의자에서 장점 쪽에 55%로 답해주셨어요. 이제 두 부분을 각각 다른 의자에 놓고, 감정과 이유가 저를 거치지 않고 서로 직접 이야기를 나누는 시간을 가져볼게요.\n\n의자 두 개를 마주 보게 놓을게요. 하나는 감정(Emotion) 의자, 다른 하나는 이유(Reason) 의자예요. 의자 배치가 되셨고, 시작할 준비가 되셨을까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p01-chair-arrangement",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p02-emotion-to-reason",
+      "content": "좋아요. 이제 감정(Emotion) 의자에 앉아 계세요. 맞은편 이유(Reason) 의자를 바라보며, 감정으로서 이유에게 직접 이야기해 주세요. 이유가 꼭 들었으면 하는 말은 무엇인가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p02-emotion-to-reason",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "더 하실 말씀이 있을까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "네, 그 마음 잘 들었어요. 감정으로서 이유에게 더 하고 싶은 말이 있다면 이어가셔도 좋아요. 없으시다면, 이제 이유(Reason) 의자로 옮겨가 볼게요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "네, 불안하고 부끄러운 마음, 잘 들었어요. 감정으로서 더 하고 싶은 말이 없으시다면, 이제 이유(Reason) 의자로 옮겨가 볼게요. 이유의 자리에 앉아서, 그 말을 들은 이유는 뭐라고 답하고 싶은가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "네, 불안하고 부끄러운 마음 잘 들었어요. 감정으로서 이제 더 하실 말씀이 없으시다면, 이유(Reason)의 자리로 옮겨가 볼게요. 이유의 의자에 앉아서, 방금 감정이 한 말을 듣고 어떤 답을 하고 싶으신가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n06-p03-continue-dialogue",
+      "content": "불안하고 좀 부끄러웠어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n07-p01-consensus-transition",
+      "content": "\"불안하고 부끄러웠다\"는 마음, 이미 잘 들었어요. 지금은 같은 감정 자리에 계속 머무르시는 것 같아서요 — 이제 그 자리에서 나와, 이유(Reason)의 의자로 옮겨가 볼게요. 이유의 자리에 앉으셨다면, 방금 감정이 한 말을 듣고 이유로서는 어떻게 답하고 싶으신가요? (예: \"네 마음은 알겠지만, 이렇게 계속 피하면 오해가 안 풀려\" 같은 식으로요)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n07-p01-consensus-transition",
+      "content": "네, 준비됐어요. 그 사람은 지금 자리에 앉아 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n07-p02-consensus-learning",
+      "content": "네, 준비되셨다니 좋아요. 이제 합의(Consensus)의 의자에 앉아 계신 겁니다 — 감정의 자리와 이유의 자리, 양쪽 이야기를 다 들으신 지금, 그 두 목소리를 종합해서 무엇을 알게 되셨나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n07-p02-consensus-learning",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n07-p03-consensus-surprise",
+      "content": "양쪽 이야기를 함께 들으니 느낌이 달라졌다는 말씀, 잘 들었어요. 그럼 조금 더 구체적으로 여쭤볼게요 — 감정과 이유, 두 부분의 이야기를 들으면서 뜻밖이었던 점, 예상하지 못했던 점이 있었다면 무엇이었나요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n07-p03-consensus-surprise",
+      "content": "양쪽 이야기를 다 들으니 한쪽 말만 들었을 때와 느낌이 달랐어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n08-p01-consensus-weights",
+      "content": "양쪽 이야기를 들으며 느낌이 달라지셨다는 점, 잘 들었어요. 이제 마지막 단계로 넘어가 볼게요 — 합의의 의자에서, 감정과 이유 양쪽 이야기를 다 들으신 지금, 장점과 단점에 최종적으로 몇 퍼센트씩 부여하고 싶으신가요? (예: 장점 60%, 단점 40%)"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n08-p01-consensus-weights",
+      "content": "60, 40"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n09-p01-readiness-decision",
+      "content": "장점 60%, 단점 40%로 정리해 주셨네요. 이제 마지막 단계로 넘어가 볼게요 — 감정과 이유 양쪽 이야기를 모두 들으신 지금, 이 순간의 결정은 무엇인가요: '준비됨'인가요, 아니면 '아직 준비 안 됨'인가요? 어느 쪽이든 괜찮고, 아직 확실하지 않다면 지금은 '아직 준비 안 됨'으로 두셔도 됩니다."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n09-p01-readiness-decision",
+      "content": "아직 준비 안 됐어요"
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n09-p02-prepare-later",
+      "content": "아직 준비 안 되셨다는 말씀, 잘 들었어요. 괜찮습니다. 그럼 이런 질문을 드려볼게요 — 지금 당장은 아니더라도, 나중에 준비가 되도록 미리 해 보고 싶은 것이 있으신가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n09-p02-prepare-later",
+      "content": "이번 주에 실제로 있었던 일로 하나 떠올려 봤어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p01-proposed-actions",
+      "content": "이번 주 있었던 일을 떠올리셨군요, 좋아요. 이제 실행 계획을 세우는 단계로 들어가 볼게요 — 준비되지 않았더라도 그 방향으로 한 걸음 다가가는 작은 행동들을 구체적으로 정리해보는 시간이에요. 그 결정에 맞는 작은 행동이 있다면 무엇일까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p01-proposed-actions",
+      "content": "팀장님한테 제 상황을 솔직하게 말해보는 거예요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p02-possible-obstacles",
+      "content": "팀장님께 솔직하게 상황을 말씀드려보는 걸로 정하셨네요. 그럼 이 행동을 실제로 해보려고 할 때, 그걸 어렵게 만들 수 있는 장애물은 무엇일까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p02-possible-obstacles",
+      "content": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p03-obstacle-solutions",
+      "content": "저녁이 되면 스스로를 설득해서 그냥 넘어가려 할 것 같다는 장애물, 잘 알겠어요. 그럼 그 순간이 왔을 때, 그 장애물에 대응하는 데 도움이 될 만한 것은 무엇일까요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p03-obstacle-solutions",
+      "content": "막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p04-implementation-plan",
+      "content": "방금 답변은 앞서 말씀하신 장애물(\"저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같다\")과 같은 내용이네요. 여기서는 그 장애물이 생겼을 때 대응하는 데 도움이 될 방법이나 해결책을 여쭤보고 싶어요. 예를 들면 미리 다짐을 적어두거나, 특정 시간을 정해두는 것처럼요. 어떤 방법이 도움이 될 것 같으세요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p04-implementation-plan",
+      "content": "토요일 오전에 집에서 해보려고요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p05-support-people",
+      "content": "토요일 오전에 집에서 해보시기로 하셨네요. 이제 이 계획을 실행할 때, 압박하지 않고 곁에서 지지해 줄 수 있는 사람이 있을지 생각해볼까요? 있다면 누구인지 말씀해 주세요."
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p05-support-people",
+      "content": "남편이 옆에서 도와줄 수 있어요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n10-p06-follow-up",
+      "content": "남편분이 곁에서 도와주실 수 있다니 든든하네요. 마지막으로, 이번에 배우고 실행한 것을 나중에 다시 점검해보고 싶으신데요 — 언제, 어떤 방식으로 다시 돌아보고 싶으신가요?"
+    },
+    {
+      "role": "patient",
+      "promptItemId": "tbct-s07-n10-p06-follow-up",
+      "content": "다음 상담 때 어떻게 됐는지 같이 봐요."
+    },
+    {
+      "role": "assistant",
+      "promptItemId": "tbct-s07-n11-p01-plan-summary",
+      "content": "지금까지 세우신 계획을 정리하면 이렇습니다 — 행동: 팀장님한테 제 상황을 솔직하게 말해보는 거예요. / 예상되는 장애물: 막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요. / 그에 대한 대응: 막상 저녁이 되면 그냥 넘기자고 스스로를 설득할 것 같아요. / 언제·어디서: 토요일 오전에 집에서 해보려고요. / 지지해 줄 사람: 남편이 옆에서 도와줄 수 있어요. / 다시 돌아볼 방법: 다음 상담 때 어떻게 됐는지 같이 봐요.. 결정은 여전히 본인의 것이에요."
+    }
+  ]
+}

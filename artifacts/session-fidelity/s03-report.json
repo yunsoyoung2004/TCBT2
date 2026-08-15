@@ -1,9 +1,9 @@
 {
   "sessionId": "tbct-s03",
-  "runtimeSessionId": "RTS-b7210c28",
+  "runtimeSessionId": "RTS-85d14494",
   "releaseId": "demo-release",
-  "patientTurns": 27,
-  "programTurns": 31,
+  "patientTurns": 29,
+  "programTurns": 33,
   "promptItemsExecuted": [
     "tbct-s03-n01-p01-safety-check",
     "tbct-s03-n02-p01-fourteen-question-introduction",
@@ -20,7 +20,9 @@
     "tbct-s03-n09-p03-behavior-cons",
     "tbct-s03-n09-p04-cognitive-distortion",
     "tbct-s03-n10-p01-evidence-for",
+    "tbct-s03-n10-p02-evidence-for-more",
     "tbct-s03-n10-p03-evidence-against",
+    "tbct-s03-n10-p04-evidence-against-direction",
     "tbct-s03-n11-p01-balanced-conclusion",
     "tbct-s03-n11-p02-therefore-extension",
     "tbct-s03-n11-p03-full-conclusion-readback",
@@ -35,8 +37,7 @@
   ],
   "promptItemsSkipped": [
     "tbct-s03-n07-p02-strongest-emotion",
-    "tbct-s03-n09-p02-behavior-pros-follow-up",
-    "tbct-s03-n10-p02-evidence-for-more"
+    "tbct-s03-n09-p02-behavior-pros-follow-up"
   ],
   "fallbackCount": 0,
   "repairCount": 0,
@@ -78,8 +79,19 @@
   ],
   "capturedFields": [
     "safetyCheck",
+    "prosecutionEvidenceSufficient",
+    "defenseEvidenceSufficient",
+    "appealEvidenceSufficient",
+    "emotionReasonDialogueSufficient",
+    "disadvantagesSufficient",
+    "advantagesSufficient",
+    "consensusLearningSufficient",
+    "prosecutionRebuttalsComplete",
+    "defenseSurrebuttalsComplete",
+    "thereforeConclusionsComplete",
     "intraTrIntroductionComplete",
     "situation",
+    "automaticThoughtReportedAsFeeling",
     "automaticThought",
     "automaticThoughtBeliefPercent",
     "primaryEmotion",
@@ -93,8 +105,12 @@
     "cognitiveDistortion",
     "evidenceFor",
     "evidenceForNoMore",
+    "evidenceForDuplicate",
+    "evidenceForCount",
     "evidenceAgainst",
     "evidenceAgainstNoMore",
+    "evidenceAgainstDuplicate",
+    "evidenceAgainstCount",
     "balancedConclusion",
     "conclusionTherefore",
     "conclusionReadBackComplete",
@@ -105,7 +121,9 @@
     "intendedActions",
     "newBodySensations",
     "revisedAutomaticThoughtBeliefPercent",
-    "globalEvaluation"
+    "globalEvaluation",
+    "closingReview",
+    "actionPlanOffer"
   ],
   "missingFields": [],
   "finalState": "completed",
@@ -426,15 +444,37 @@
       "activePromptFidelity": "pass",
       "sequenceFidelity": "pass",
       "roleFidelity": "pass",
-      "responseContingency": "partial",
+      "responseContingency": "pass",
       "languageFidelity": "pass",
       "safetyFidelity": "pass",
       "transitionFidelity": "pass",
       "exposureSafety": "pass",
       "responsiveness": "pass",
-      "reasons": [
-        "No patient input was associated with this assistant turn."
-      ]
+      "reasons": []
+    },
+    {
+      "activePromptFidelity": "pass",
+      "sequenceFidelity": "pass",
+      "roleFidelity": "pass",
+      "responseContingency": "pass",
+      "languageFidelity": "pass",
+      "safetyFidelity": "pass",
+      "transitionFidelity": "pass",
+      "exposureSafety": "pass",
+      "responsiveness": "pass",
+      "reasons": []
+    },
+    {
+      "activePromptFidelity": "pass",
+      "sequenceFidelity": "pass",
+      "roleFidelity": "pass",
+      "responseContingency": "pass",
+      "languageFidelity": "pass",
+      "safetyFidelity": "pass",
+      "transitionFidelity": "pass",
+      "exposureSafety": "pass",
+      "responsiveness": "pass",
+      "reasons": []
     },
     {
       "activePromptFidelity": "pass",

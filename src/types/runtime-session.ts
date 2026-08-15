@@ -69,6 +69,12 @@ export interface RuntimeSessionState {
   fields: Record<string, unknown>;
   turnCount: number;
   nodeIterationCount: number;
+  /** Accepted-input count per repeat_until PromptItem id. nodeIterationCount
+   * is shared by every prompt in the node, so a node with TWO repeat_until
+   * prompts (S08 Step 12's surrebuttal + per-pair "Therefore") would have the
+   * second loop start with the first loop's spent budget and force-complete
+   * after one answer. Optional so persisted pre-existing states still load. */
+  promptIterationCounts?: Record<string, number>;
 }
 
 export interface PatientProfile {

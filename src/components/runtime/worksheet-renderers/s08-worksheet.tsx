@@ -78,7 +78,12 @@ export function S08Worksheet({
         <WorksheetCell field={get("prosecutionEvidence")} q="6" label="Prosecutor's plea" list active={isActive(get("prosecutionEvidence"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
         <WorksheetCell field={get("defenseEvidence")} q="8" label="Defense attorney's plea" list active={isActive(get("defenseEvidence"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
         <WorksheetCell field={get("prosecutionRebuttals")} q="10" label={'Prosecutor’s rebuttal ("but...")'} list active={isActive(get("prosecutionRebuttals"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} emphasized />
-        <WorksheetCell field={get("thereforeConclusions")} q="12" label={'Defense’s reply ("...therefore")'} list active={isActive(get("thereforeConclusions"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        {/* The defense's Step 12 work is two distinct records in the source --
+            an answer to each rebuttal, and the participant's own "Therefore..."
+            conclusion drawn from it -- so the surrebuttals no longer share the
+            conclusions' cell. */}
+        <WorksheetCell field={get("defenseSurrebuttals")} q="12" label={'Defense’s answer ("but...")'} list active={isActive(get("defenseSurrebuttals"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+        <WorksheetCell field={get("thereforeConclusions")} q="12" label={'Defense’s conclusion ("...therefore")'} list active={isActive(get("thereforeConclusions"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
       </div>
 
       {/* Verdict */}

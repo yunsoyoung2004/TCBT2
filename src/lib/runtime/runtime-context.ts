@@ -1,7 +1,7 @@
 import type { PatientInput, RuntimeContext, StateExtractionResult } from "@/types/runtime-session";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { assessRuntimePatientInput, requiresSemanticInputAssessment } from "@/lib/runtime/runtime-input-assessment";
-import { parseDeterministicPromptInput } from "@/lib/runtime/runtime-deterministic-input";
+import { matchEnumChoice, parseDeterministicPromptInput } from "@/lib/runtime/runtime-deterministic-input";
 
 function normalizeText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -11,6 +11,7 @@ function isNoMoreEvidence(text: string) {
   const normalized = normalizeText(text);
   return [
     "없어요",
+    "없습니다",
     "더 생각나는 건 없습니다",
     "i cannot think of another one",
     "nao consigo pensar em mais nenhum",
@@ -19,6 +20,14 @@ function isNoMoreEvidence(text: string) {
     "none",
     "nothing else",
     "no more",
+    // A prosecutor/defense who cannot answer a specific point is ending that
+    // loop the same way "no more evidence" ends collection -- the unanswered
+    // item is then captured by S08's unrebutted-defense-note reflection.
+    "cannot rebut",
+    "can't rebut",
+    "반박할 수 없어요",
+    "반박 못 하겠어요",
+    "반박 못하겠어요",
   ].some((phrase) => normalized === phrase || normalized.includes(phrase));
 }
 
@@ -77,14 +86,28 @@ function refreshListRatingPointers(nextFields: Record<string, unknown>) {
   }
 }
 
-/** validation.kind values whose growing list only needs at least two entries
- * (or an explicit "no more" from the patient) before the prompt stops
- * repeating — evidence collection, appeal evidence, chair-dialogue exchanges. */
-const MIN_TWO_SUFFICIENCY_FIELDS: Record<string, string> = {
-  prosecutionEvidence: "prosecutionEvidenceSufficient",
-  defenseEvidence: "defenseEvidenceSufficient",
-  appealEvidence: "appealEvidenceSufficient",
-  emotionReasonDialogue: "emotionReasonDialogueSufficient",
+/** Per-field completion rule for a growing list a repeat_until prompt keeps
+ * collecting. The list is "sufficient" (its `<field>Sufficient` flag goes
+ * true, releasing the loop's completionCondition) when it reaches `target`
+ * entries, or when the patient says there is nothing more AND at least
+ * `minBeforeNoMore` entries exist.
+ *
+ * The old rule was a flat "count >= 2 || noMore", which ended every
+ * collection the instant the 2nd item landed -- the source explicitly allows
+ * 3 (exceptionally 4) pieces of trial evidence and treats S07 Step 3's
+ * "several exchanges" as a floor, so stopping at 2 cut both short. `target`
+ * is the source's own upper bound (the loop stops INVITING there; it never
+ * demands that many), and `minBeforeNoMore` is the floor below which a
+ * premature "nothing more" earns one more gentle invitation instead of
+ * closing the step. */
+const LIST_SUFFICIENCY_RULES: Record<string, { sufficiencyField: string; target: number; minBeforeNoMore: number }> = {
+  prosecutionEvidence: { sufficiencyField: "prosecutionEvidenceSufficient", target: 4, minBeforeNoMore: 2 },
+  defenseEvidence: { sufficiencyField: "defenseEvidenceSufficient", target: 4, minBeforeNoMore: 2 },
+  appealEvidence: { sufficiencyField: "appealEvidenceSufficient", target: 3, minBeforeNoMore: 2 },
+  emotionReasonDialogue: { sufficiencyField: "emotionReasonDialogueSufficient", target: 6, minBeforeNoMore: 3 },
+  disadvantages: { sufficiencyField: "disadvantagesSufficient", target: 7, minBeforeNoMore: 1 },
+  advantages: { sufficiencyField: "advantagesSufficient", target: 7, minBeforeNoMore: 1 },
+  consensusLearning: { sufficiencyField: "consensusLearningSufficient", target: 2, minBeforeNoMore: 1 },
 };
 
 /** Detects a language from the patient's own first substantive message
@@ -104,6 +127,18 @@ const NON_ANSWER_TEXT = new Set([
   "hi", "hello", "hey", "yo", "test", "testing", "ok", "okay", "sure", "yes", "no", "true", "false", "idk", "i don't know", "i dont know", "i do not know",
   "\uC548\uB155", "\uC548\uB155\uD558\uC138\uC694", "\uD558\uC774", "\uD14C\uC2A4\uD2B8", "\uD14C\uC2A4\uD2B8\uC785\uB2C8\uB2E4", "\uB124", "\uC608", "\uC751", "\uADF8\uB798", "\uC88B\uC544\uC694", "\uBAB0\uB77C", "\uBAA8\uB974\uACA0\uC5B4\uC694", "\uC798 \uBAA8\uB974\uACA0\uC5B4\uC694", "\uC74C",
   "oi", "ol\u00E1", "ola", "teste", "sim", "n\u00E3o", "nao", "n\u00E3o sei", "nao sei",
+]);
+
+/** The complete set of answers a yes/no prompt accepts -- also the set the
+ * Yes/No buttons submit once typed rather than clicked. */
+const BOOLEAN_ANSWER_TEXT = new Set(["yes", "no", "true", "false", "네", "예", "응", "아니", "아니요", "sim", "não", "nao"]);
+
+/** Short answers that are filler for an ordinary clinical question but are the
+ * literal, complete answer to a consent question. */
+const CONSENT_ANSWER_TEXT = new Set([
+  "yes", "no", "ok", "okay", "sure", "yes please", "i'd like to", "id like to", "i would like to", "not now", "no thanks", "no thank you",
+  "네", "예", "응", "그래", "좋아요", "좋습니다", "해볼게요", "해보겠어요", "아니", "아니요", "아니요 괜찮아요", "지금은 아니요",
+  "sim", "não", "nao", "claro", "oui", "non", "はい", "いいえ",
 ]);
 
 const RISK_SIGNAL_PATTERNS: Array<{ signal: string; pattern: RegExp }> = [
@@ -195,11 +230,17 @@ function compactText(value: string) {
  * pronouns present, no third-person referent to the defendant), not a full
  * grammatical parse, so it only fires when the text reads unambiguously as
  * "I did X" with nothing else.
+ *
+ * Exported for runtime-execution-api.ts, which uses the same check to phrase
+ * the source-mandated gentle correction ("I noticed you said 'I' -- right
+ * now you are the prosecutor...") instead of a generic clarification.
  */
-function violatesThirdPersonRequirement(text: string) {
+export function violatesThirdPersonRequirement(text: string) {
   const normalized = ` ${normalizeText(text)} `;
-  const firstPerson = /\s(?:i|i'm|i am|i've|i have|i'd|i would|me|my|mine|myself)\s/.test(normalized);
-  const thirdPerson = /\s(?:he|she|they|him|her|his|hers|their|them|the defendant)\s/.test(normalized);
+  const firstPerson = /\s(?:i|i'm|i am|i've|i have|i'd|i would|me|my|mine|myself)\s/.test(normalized)
+    || /(?:^|\s)(?:저는|제가|저를|저의|나는|내가|나를|난)\s/.test(normalized);
+  const thirdPerson = /\s(?:he|she|they|him|her|his|hers|their|them|the defendant)\s/.test(normalized)
+    || /(?:피고인|그\s*사람|그녀|그가|그는|그를|그의|이\s*사람)/.test(normalized);
   return firstPerson && !thirdPerson;
 }
 
@@ -212,42 +253,38 @@ function isMeaningfulTextResponse(input: {
   const rawText = input.patientInput.value;
   if ((input.field === "evidenceFor" || input.field === "evidenceAgainst") && isNoMoreEvidence(rawText)) return true;
 
-  const validation = input.promptItem?.validation as { kind?: string; values?: unknown } | null | undefined;
-  // Checked here, before the NON_ANSWER_TEXT blacklist further down: that
-  // blacklist contains the exact words a valid boolean answer looks like
-  // ("yes"/"no"/네/예/응/sim/não), so a boolean-kind prompt's only two
-  // acceptable answers were always rejected as "non-answers" before this
-  // early return existed. Confirmed live: a plain "네" typed to s03.ts's
-  // redirection-contract (validation:{kind:"boolean"}) looped forever on
-  // "insufficient_input" and never advanced -- every existing boolean-kind
-  // prompt (e.g. s01.ts's confirm-list) had the same latent defect, it just
-  // hadn't been exercised through this exact typed-text path before.
-  if (validation?.kind === "boolean") {
-    return ["yes", "no", "true", "false", "네", "예", "응", "아니", "아니요", "sim", "não", "nao"].includes(normalizeText(rawText));
-  }
-  if (validation?.kind === "enum" && Array.isArray(validation.values)) {
-    return validation.values.some((value) => normalizeText(String(value)) === normalizeText(rawText));
-  }
+  const validation = input.promptItem?.validation as { kind?: string; values?: unknown; aliases?: Record<string, unknown> } | null | undefined;
   const normalized = normalizeText(rawText);
   const normalizedLexical = normalized.replace(/[.,!?…'"`~·\-_/\\()[\]{}]+/g, "").replace(/\s+/g, " ").trim();
   const activeQuestion = normalizeText(input.promptItem?.fallbackPatientText || input.promptItem?.verbatimText || "");
   const normalizedWithoutUiNoise = normalized.replace(/\b(?:read|read aloud)\b\s*$/i, "").trim();
   if (activeQuestion && activeQuestion.length >= 12 && (normalizedWithoutUiNoise === activeQuestion || normalizedWithoutUiNoise.includes(activeQuestion))) return false;
   const compact = compactText(rawText);
+
+  // Closed-answer prompts are decided FIRST, before the generic filler-word
+  // rejection below. A yes/no question, a consent question and a two-option
+  // decision are all answered with exactly the words NON_ANSWER_TEXT treats
+  // as filler ("yes", "네", "sure"), so running that check first rejected a
+  // participant who answered precisely what was asked -- three times over,
+  // and then paused the session. For these prompts the validation IS the
+  // completeness test, so deciding here loses nothing.
+  if (validation?.kind === "boolean") {
+    return BOOLEAN_ANSWER_TEXT.has(normalized) || BOOLEAN_ANSWER_TEXT.has(normalizedLexical);
+  }
+  // Same matcher the deterministic parser uses, so "is this a real answer?"
+  // and "what value does it mean?" can never disagree -- a text answer this
+  // accepts is guaranteed to resolve to a canonical value below.
+  if (validation?.kind === "enum" && Array.isArray(validation.values)) {
+    return matchEnumChoice(rawText, validation.values, validation.aliases) !== null;
+  }
+  if (validation?.kind === "informed_consent" && (CONSENT_ANSWER_TEXT.has(normalizedLexical) || CONSENT_ANSWER_TEXT.has(normalized))) return true;
+
   if (!compact || NON_ANSWER_TEXT.has(normalized) || NON_ANSWER_TEXT.has(normalizedLexical) || NON_ANSWER_TEXT.has(compact) || /^(?:hm+|uh+|um+)$/i.test(normalizedLexical)) return false;
   if (/^(?:could|can|would) you (?:say|ask|explain|repeat|rephrase|put)\b.*(?:simply|again|differently|mean)?\??$/i.test(normalized)) return false;
   // A long, unbroken keyboard-like token is not a usable clinical answer. Keep
   // ordinary one-word emotions ("anxious", "sad") valid while rejecting the
   // common paste/test gibberish shape before any model call.
   if (!/\s/.test(normalized) && compact.length >= 14 && !/[\uAC00-\uD7A3\u3040-\u30FF\u4E00-\u9FFF]/.test(compact)) return false;
-
-  if (validation?.kind === "boolean") {
-    return ["yes", "no", "true", "false", "\uB124", "\uC608", "\uC751", "\uC544\uB2C8", "\uC544\uB2C8\uC694", "sim", "n\u00E3o", "nao"].includes(normalized);
-  }
-  if (validation?.kind === "enum" && Array.isArray(validation.values)) {
-    return validation.values.some((value) => normalizeText(String(value)) === normalized);
-  }
-  if ((validation as { requiresThirdPerson?: boolean } | null)?.requiresThirdPerson && violatesThirdPersonRequirement(rawText)) return false;
 
   return compact.length >= 2 && /[A-Za-z0-9\uAC00-\uD7A3\u00C0-\u00FF]/.test(compact);
 }
@@ -274,10 +311,19 @@ export async function extractRuntimeState(input: {
   // S07's language-lock node (n02) is meant to lock onto the language of the
   // patient's first substantive message in THIS session, per the protocol's
   // "detect, don't ask" instruction -- but by the time that node runs, the
-  // first substantive message was already this session's crp-consent reply
-  // (n01). Capture it here rather than asking a fresh meta-question later.
-  if (input.currentPromptItem?.id === "tbct-s07-n01-p02-crp-consent" && !nextFields.sessionLanguage) {
-    nextFields.sessionLanguage = detectScriptLocale(rawText);
+  // first substantive message was already this session's opening reply (n01).
+  // Capture it here rather than asking a fresh meta-question later.
+  //
+  // crp-consent is a boolean, which the UI renders as Yes/No buttons, so its
+  // rawText is literally "true"/"false" -- script detection on that always
+  // returned en-US and locked every session, including Korean ones, to
+  // English. Detect from real text when there is real text (crp-offer, the
+  // free-text opening, now runs first), and otherwise fall back to the
+  // locale the session was actually created with.
+  const localeCaptureIds = new Set(["tbct-s07-n01-p01-crp-offer", "tbct-s07-n01-p02-crp-consent"]);
+  if (input.currentPromptItem && localeCaptureIds.has(input.currentPromptItem.id) && !nextFields.sessionLanguage) {
+    const hasFreeText = input.patientInput.kind === "text" && typeof input.patientInput.value === "string" && input.patientInput.value.trim().length > 0;
+    nextFields.sessionLanguage = hasFreeText ? detectScriptLocale(rawText) : (input.locale ?? "en-US");
     nextFields.languageLocked = true;
   }
   const validation = input.currentPromptItem?.validation as { kind?: string } | null | undefined;
@@ -335,6 +381,34 @@ export async function extractRuntimeState(input: {
   // pair. See SUM_TO_100_PAIR_KINDS for which validation kinds this applies to.
   if (kind && SUM_TO_100_PAIR_KINDS.has(kind) && directlyEnteredFields.length === 2 && numericValues.length >= 2 && !riskSignals.length && Math.abs(numericValues[0] + numericValues[1] - 100) > 1) {
     return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 0.3, missingFields: directlyEnteredFields };
+  }
+  // The source's third-person rule for courtroom roles (S08 KP3): when the
+  // participant argues a role in the first person, the therapist gently
+  // corrects ONCE ("I noticed you said 'I' -- right now you are the
+  // prosecutor...") and then proceeds. Rejecting here routes the turn into
+  // the clarification path, where runtime-execution-api.ts phrases that exact
+  // correction; the clarificationAttemptCount gate makes it one-time -- a
+  // participant who keeps their phrasing after the reminder is accepted
+  // rather than looped toward a max-attempts pause. "No more"-style answers
+  // are exempt: they end a collection loop, they don't argue the role.
+  const requiresThirdPerson = Boolean((input.currentPromptItem?.validation as { requiresThirdPerson?: boolean } | null)?.requiresThirdPerson);
+  if (
+    !riskSignals.length
+    && requiresThirdPerson
+    && input.patientInput.kind === "text"
+    && typeof input.patientInput.value === "string"
+    && !isNoMoreEvidence(rawText)
+    && (input.currentContext.clarificationAttemptCount ?? 0) === 0
+    && violatesThirdPersonRequirement(rawText)
+  ) {
+    return {
+      fields: input.currentContext.fields,
+      responseCategory: "text",
+      riskLevel,
+      riskSignals,
+      confidence: 0.3,
+      missingFields: expectedFields.length ? [field] : [],
+    };
   }
   if (!riskSignals.length && !isMeaningfulTextResponse({ patientInput: input.patientInput, promptItem: input.currentPromptItem, field })) {
     return {
@@ -487,6 +561,16 @@ export async function extractRuntimeState(input: {
       nextFields[field] = [...current, rawText].filter(Boolean);
       nextFields[`${field}NoMore`] = false;
       nextFields[`${field}Duplicate`] = false;
+      // S07's empty chair stores both sides' turns in one flat list, so the
+      // worksheet had to guess who was speaking from array-index parity --
+      // labels that silently shift if an entry is added, edited or removed.
+      // Record the speaker at capture time instead. Emotion always speaks
+      // first (the Step 3 prompt is "Emotion, speak directly to Reason"),
+      // and the chairs alternate from there.
+      if (field === "emotionReasonDialogue") {
+        const speakers = Array.isArray(nextFields.emotionReasonSpeakers) ? (nextFields.emotionReasonSpeakers as string[]) : [];
+        nextFields.emotionReasonSpeakers = [...speakers, speakers[speakers.length - 1] === "emotion" ? "reason" : "emotion"];
+      }
       // The S06 modifier-decomposition follow-up ("Is [core situation]
       // harder when...") refers back to the first item the participant
       // named, before the list branches into specific variants.
@@ -541,9 +625,26 @@ export async function extractRuntimeState(input: {
     if (Array.isArray(value)) nextFields[`${key}Count`] = value.length;
   }
   refreshListRatingPointers(nextFields);
-  for (const [listField, sufficiencyField] of Object.entries(MIN_TWO_SUFFICIENCY_FIELDS)) {
+  for (const [listField, rule] of Object.entries(LIST_SUFFICIENCY_RULES)) {
     const count = Number(nextFields[`${listField}Count`] ?? 0);
-    nextFields[sufficiencyField] = count >= 2 || nextFields[`${listField}NoMore`] === true;
+    nextFields[rule.sufficiencyField] = count >= rule.target
+      || (nextFields[`${listField}NoMore`] === true && count >= rule.minBeforeNoMore);
+  }
+  // S08 Steps 10/12 pair each loop's entries 1:1 with the previous loop's
+  // (one rebuttal per defense item, one surrebuttal per rebuttal, one
+  // "Therefore..." per surrebutted pair). Their repeat_until prompts complete
+  // on these derived flags, so the loop keeps inviting the NEXT item until
+  // every pair is covered -- or the participant says they cannot answer one,
+  // which S08's unrebutted-defense-note then records explicitly.
+  const pairCompletion: Array<{ listField: string; pairedField: string; completeField: string }> = [
+    { listField: "prosecutionRebuttals", pairedField: "defenseEvidence", completeField: "prosecutionRebuttalsComplete" },
+    { listField: "defenseSurrebuttals", pairedField: "prosecutionRebuttals", completeField: "defenseSurrebuttalsComplete" },
+    { listField: "thereforeConclusions", pairedField: "defenseSurrebuttals", completeField: "thereforeConclusionsComplete" },
+  ];
+  for (const { listField, pairedField, completeField } of pairCompletion) {
+    const count = Number(nextFields[`${listField}Count`] ?? 0);
+    const pairedCount = Number(nextFields[`${pairedField}Count`] ?? 0);
+    nextFields[completeField] = pairedCount > 0 && (count >= pairedCount || nextFields[`${listField}NoMore`] === true);
   }
 
   return {

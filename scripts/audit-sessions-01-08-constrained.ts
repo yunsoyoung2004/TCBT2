@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { createCanonicalTestRuntimeSession, getRuntimeSession } from "../src/lib/api/runtime-session-api";
 import { startRuntimeSession, submitPatientInput } from "../src/lib/api/runtime-execution-api";
 import { getLocalDb } from "../src/lib/db/tbct-local-db";
+import { listRuntimeExecutionTraces } from "../src/lib/repositories/runtime-session-repository";
 import { syntheticPatientInput } from "../src/lib/runtime/testing/session-fidelity-fixtures";
+import { installFakeStoreFetch, resetAllFakeStores } from "../src/test/fakes/install-fake-store-fetch";
 import type { PatientInput, RuntimeMessage } from "../src/types/runtime-session";
 
 type ConstraintCase = {
@@ -152,8 +154,13 @@ async function runSession(sessionNumber: number) {
 
   const view = await getRuntimeSession(session.id);
   if (!view) throw new Error(`${definitionId}: final view missing`);
-  const db = getLocalDb();
-  const traces = await db.runtimeExecutionTraces.where("runtimeSessionId").equals(session.id).toArray();
+  // Was reading db.runtimeExecutionTraces, a Dexie table the runtime stopped
+  // writing to when the conversation store moved to Postgres (see the NOTE in
+  // tbct-local-db.ts). It returned [] on every run, which made fallbackCount
+  // and repairCount structurally zero AND made the pass condition below --
+  // `traces.every((trace) => !trace.fallbackUsed)` -- vacuously true. The
+  // script has been reporting a clean pass it never actually checked.
+  const traces = await listRuntimeExecutionTraces(session.id);
   const providerEvents = view.providerEvents;
   const validations = view.validationEvents;
   const duplicateMessages = view.messages.filter((message, index, all) => message.role === "assistant" && index > 0 && all[index - 1]?.role === "assistant" && all[index - 1]?.content.trim() === message.content.trim());
@@ -202,6 +209,22 @@ async function main() {
   // fixed protocol text remains verbatim; it never fabricates a live Claude result.
   process.env.AI_PROVIDER = process.env.ANTHROPIC_API_KEY ? "anthropic" : "mock";
 
+  // The six Postgres-backed store endpoints are served from the in-memory
+  // fakes the test suite uses, so this runs fully offline. Without it every
+  // repository call fetches http://localhost:3000 and the script dies on
+  // ECONNREFUSED -- which is why it silently rotted after the store moved.
+  //
+  // The dialogue agent is deliberately NOT faked. Under vite-node `window` is
+  // undefined, so dialogue-agent-client takes the server-direct path (no
+  // fetch to intercept): with ANTHROPIC_API_KEY it reaches the real Claude,
+  // and without one it returns its own deterministic decision marked
+  // notConfigured -- which the orchestrator does not count as a fallback, so
+  // a provider-free run is not failed for a reason unrelated to fidelity.
+  const dialogueProviderConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
+  installFakeStoreFetch();
+  resetAllFakeStores();
+  console.log(`dialogue provider: ${dialogueProviderConfigured ? "anthropic (live)" : "deterministic (no ANTHROPIC_API_KEY)"}`);
+
   const db = getLocalDb();
   await db.transaction("rw", db.tables, async () => Promise.all(db.tables.map((table) => table.clear())));
   const outputDir = resolve(process.cwd(), "artifacts", "session-fidelity", "short-constrained-full-run");
@@ -217,9 +240,9 @@ async function main() {
   }
 
   const table = reports.map((report) => `| ${report.sessionId.toUpperCase()} | ${report.constraint} | ${report.constraintRecovered ? "yes" : "no"} | ${report.totalSubmissions} | ${report.finalStatus} | ${report.fallbackCount} | ${report.repairCount} | ${report.providerErrorCount} | ${report.duplicateAssistantMessages.length} | ${report.result} |`).join("\n");
-  const summary = `# S01-S08 short constrained full-run audit\n\n- Assessment provider: ${process.env.ASSESSMENT_PROVIDER}\n- Patient answers: short synthetic, de-identified\n- Critical-risk interruption: excluded from this completion run and should be audited separately\n\n| Session | Constraint injection | Recovered | Inputs | Final status | Fallbacks | Repairs | Provider errors | Duplicates | Result |\n|---|---|---:|---:|---|---:|---:|---:|---:|---|\n${table}\n`;
+  const summary = `# S01-S08 short constrained full-run audit\n\n- Assessment provider: ${process.env.ASSESSMENT_PROVIDER}\n- Dialogue provider: ${dialogueProviderConfigured ? "anthropic (live)" : "deterministic (no ANTHROPIC_API_KEY)"}\n- Patient answers: short synthetic, de-identified\n- Critical-risk interruption: excluded from this completion run and should be audited separately\n\n| Session | Constraint injection | Recovered | Inputs | Final status | Fallbacks | Repairs | Provider errors | Duplicates | Result |\n|---|---|---:|---:|---|---:|---:|---:|---:|---|\n${table}\n`;
   await writeFile(resolve(outputDir, "summary.md"), summary, "utf8");
-  await writeFile(resolve(outputDir, "summary.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), assessmentProvider: process.env.ASSESSMENT_PROVIDER, reports }, null, 2)}\n`, "utf8");
+  await writeFile(resolve(outputDir, "summary.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), assessmentProvider: process.env.ASSESSMENT_PROVIDER, dialogueProviderConfigured, reports }, null, 2)}\n`, "utf8");
 
   if (reports.some((report) => report.result !== "pass")) process.exitCode = 1;
 }
