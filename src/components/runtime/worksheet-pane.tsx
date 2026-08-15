@@ -62,6 +62,7 @@ export function WorksheetPane({
   locale = "en-US",
   messages,
   sessionMeta,
+  isConversationUpdating = false,
 }: {
   runtimeSessionId: string;
   sessionDefinitionId: string;
@@ -82,12 +83,16 @@ export function WorksheetPane({
    * has (session number/technique, run status, date, patient identifier);
    * WorksheetPane doesn't fetch or derive any of it itself. */
   sessionMeta?: { sessionLabel: string; statusLabel: string; dateLabel: string; patientLabel: string; incomplete: boolean };
+  /** Patient chat only. While a turn is resolving, keep the progress read
+   * model close behind the conversation even when a realtime event is late. */
+  isConversationUpdating?: boolean;
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["worksheet-view", runtimeSessionId];
   const worksheetQuery = useQuery({
     queryKey,
     queryFn: () => getWorksheetView(runtimeSessionId, sessionDefinitionId),
+    refetchInterval: isConversationUpdating ? 750 : false,
   });
   // Was refetchInterval: 4000 -- this pane is mounted on every active
   // session screen (both patient chat and clinician Worksheet tab) app-wide,
@@ -125,7 +130,7 @@ export function WorksheetPane({
           description={isKorean ? "대화하면서 채워져요 — 평가하는 게 아니고, 이미 채팅에서 말씀하신 내용이에요." : "Fills in as we talk — nothing here is graded, and you already said all of it in the chat."}
         />
         <div className="max-h-[calc(100vh-260px)] overflow-auto p-4">
-          <PatientProgressFeed fields={view.fields} isKorean={isKorean} />
+          <PatientProgressFeed fields={view.fields} isKorean={isKorean} activeCanonicalFieldKey={activeCanonicalFieldKey} />
         </div>
       </Card>
     );
@@ -198,7 +203,7 @@ export function WorksheetPane({
  * next to this panel. Unfilled items show an outline circle; a filled item
  * gets a checkmark immediately to the right of its own label, in place,
  * rather than a growing feed of only-completed items appended elsewhere. */
-function PatientProgressFeed({ fields, isKorean }: { fields: WorksheetFieldView[]; isKorean: boolean }) {
+function PatientProgressFeed({ fields, isKorean, activeCanonicalFieldKey }: { fields: WorksheetFieldView[]; isKorean: boolean; activeCanonicalFieldKey?: string }) {
   const reducedMotion = Boolean(useReducedMotionPreference());
   const orderedFields = [...fields].sort((left, right) => left.binding.displayOrder - right.binding.displayOrder);
 
@@ -213,13 +218,13 @@ function PatientProgressFeed({ fields, isKorean }: { fields: WorksheetFieldView[
   return (
     <div className="space-y-1.5">
       {orderedFields.map((field) => (
-        <ProgressChecklistRow key={field.definition.id} field={field} isKorean={isKorean} reducedMotion={reducedMotion} />
+        <ProgressChecklistRow key={field.definition.id} field={field} isKorean={isKorean} reducedMotion={reducedMotion} isActive={field.binding.canonicalFieldKey === activeCanonicalFieldKey} />
       ))}
     </div>
   );
 }
 
-function ProgressChecklistRow({ field, isKorean, reducedMotion }: { field: WorksheetFieldView; isKorean: boolean; reducedMotion: boolean }) {
+function ProgressChecklistRow({ field, isKorean, reducedMotion, isActive }: { field: WorksheetFieldView; isKorean: boolean; reducedMotion: boolean; isActive: boolean }) {
   const filled = field.value !== null && field.value.value !== undefined && field.value.value !== "";
   const justFilled = useJustFilled(filled, reducedMotion);
   const confirmed = field.value?.status === "participant_confirmed";
@@ -240,7 +245,7 @@ function ProgressChecklistRow({ field, isKorean, reducedMotion }: { field: Works
   return (
     <motion.div
       ref={rowRef}
-      className={`relative flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : "border-dashed border-border bg-surface-subtle/50"}`}
+      className={`relative flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : isActive ? "border-clinical-blue bg-clinical-blue-light/40 ring-1 ring-clinical-blue" : "border-dashed border-border bg-surface-subtle/50"}`}
       variants={reducedMotion ? undefined : fadeUp}
       initial={reducedMotion ? false : "initial"}
       animate={reducedMotion ? undefined : "animate"}
@@ -256,6 +261,8 @@ function ProgressChecklistRow({ field, isKorean, reducedMotion }: { field: Works
             </span>
             <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
           </>
+        ) : isActive ? (
+          <><span className="whitespace-nowrap text-clinical-blue">{isKorean ? "진행 중" : "In progress"}</span><Circle className="h-4 w-4 text-clinical-blue" aria-hidden /></>
         ) : (
           <Circle className="h-4 w-4 text-border-strong" aria-hidden />
         )}

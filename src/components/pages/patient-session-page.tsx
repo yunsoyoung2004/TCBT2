@@ -413,6 +413,7 @@ export function PatientSessionPage() {
             activeCanonicalFieldKey={currentPromptItem?.outputFields?.[0]}
             variant="patient"
             locale={displayLocale}
+            isConversationUpdating={isSubmittingTurn}
           />
         )}
       </div>
