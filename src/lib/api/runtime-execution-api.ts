@@ -1129,11 +1129,13 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     lastPatientMessage: patientMessage.content,
   };
   const safetyResult = await runSafetyOrchestrator({ currentNode, extractedState: extracted, runtimeContext: safetyContext });
+  const skippedPromptItemIds = mergePromptItemIds(initialSession.skippedPromptItemIds, activeStep.skippedPromptItemIds);
   const claim = await claimRuntimePatientTurn({
     sessionId,
     clientTurnId,
     expectedSessionVersion: options.expectedSessionVersion ?? initialSession.version ?? 0,
     patientMessage,
+    turnPatch: { locale: turnLocale, currentPromptItemId: currentPromptItem.id, skippedPromptItemIds },
   });
   if (!claim.claimed) {
     return {
@@ -1151,8 +1153,6 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   const view = initialView;
   const session = { ...claim.session, locale: turnLocale };
   if (claim.session.pendingTurnId !== clientTurnId) throw new Error("Patient turn claim was not retained");
-  const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
-  await updateRuntimeSessionRecord(sessionId, { status: "processing", locale: turnLocale, currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
   const executionSequence = session.executionLogIds.length + 1;
   // These three fire on every single patient turn and none of them feed
   // this function's return value (logIds is always [] -- nothing ever
@@ -1376,7 +1376,6 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     };
   }
   const nextContext = { ...mergeExtractedRuntimeContext(session.runtimeContext, extracted), lastPatientMessage: patientMessage.content, clarificationAttemptCount: 0, lastClarificationReason: undefined };
-  await updateRuntimeSessionRecord(sessionId, { runtimeContext: nextContext });
   const reduction = reduceRuntimeState({
     release: runtimeRelease,
     currentState: runtimeState,

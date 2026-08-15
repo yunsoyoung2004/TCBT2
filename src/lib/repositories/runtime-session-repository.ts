@@ -48,6 +48,7 @@ export async function claimRuntimePatientTurn(input: {
   clientTurnId: string;
   expectedSessionVersion: number;
   patientMessage: RuntimeMessage;
+  turnPatch?: Pick<RuntimeSession, "locale" | "currentPromptItemId" | "skippedPromptItemIds">;
 }): Promise<RuntimePatientTurnClaim> {
   return callStore<RuntimePatientTurnClaim>({ op: "claimPatientTurn", ...input });
 }

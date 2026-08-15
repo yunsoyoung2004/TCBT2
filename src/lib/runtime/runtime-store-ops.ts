@@ -35,7 +35,7 @@ export type CommitRuntimeAssistantTurnResult = {
 export type RuntimeStoreOp =
   | { op: "createSession"; session: RuntimeSession }
   | { op: "updateSession"; sessionId: string; patch: Partial<RuntimeSession> }
-  | { op: "claimPatientTurn"; sessionId: string; clientTurnId: string; expectedSessionVersion: number; patientMessage: RuntimeMessage }
+  | { op: "claimPatientTurn"; sessionId: string; clientTurnId: string; expectedSessionVersion: number; patientMessage: RuntimeMessage; turnPatch?: Pick<RuntimeSession, "locale" | "currentPromptItemId" | "skippedPromptItemIds"> }
   | { op: "getSession"; sessionId: string }
   | { op: "listSessions" }
   | { op: "listSessionsByParticipant"; participantId: string }
