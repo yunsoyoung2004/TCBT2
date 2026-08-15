@@ -23,6 +23,7 @@ export function PatientInputControls({
   locale?: string;
   onBeforeMic?: () => void;
 }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   const validation = promptItem?.validation ?? {};
   const promptValidationKind = typeof validation.kind === "string" ? validation.kind : "";
   const choices = Array.isArray(payload?.choices)
@@ -75,8 +76,8 @@ export function PatientInputControls({
   if (kind === "boolean") {
     return (
       <div className="flex gap-2">
-        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: true })}>Yes</Button>
-        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: false })}>No</Button>
+        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: true })}>{isKorean ? "예" : "Yes"}</Button>
+        <Button variant="secondary" disabled={disabled} onClick={() => onSubmit({ kind: "boolean", value: false })}>{isKorean ? "아니요" : "No"}</Button>
       </div>
     );
   }
@@ -84,7 +85,7 @@ export function PatientInputControls({
     <div className="grid gap-3">
       <TextInput
         disabled={disabled}
-        placeholder={String(payload?.placeholder ?? "Write or speak your response...")}
+        placeholder={String(payload?.placeholder ?? (isKorean ? "응답을 입력하거나 말해 주세요..." : "Write or speak your response..."))}
         locale={locale}
         onBeforeMic={onBeforeMic}
         onSubmit={(value) => onSubmit({ kind: "text", value })}

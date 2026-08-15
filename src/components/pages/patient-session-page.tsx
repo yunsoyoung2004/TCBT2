@@ -184,7 +184,8 @@ export function PatientSessionPage() {
       startMutation.mutate();
     }
   }, [activeSession?.status, startMutation]);
-  const tts = useBrowserTts(activeSession?.locale ?? "en-US");
+  const displayLocale = uiLocale === "ko" ? "ko-KR" : "en-US";
+  const tts = useBrowserTts(displayLocale);
   const { supported: ttsSupported, speak, stop } = tts;
   const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
   const latestAssistantMessage = [...patientVisibleMessages].reverse().find((message) => message.role === "assistant");
@@ -328,7 +329,7 @@ export function PatientSessionPage() {
                 promptItem={currentPromptItem}
                 disabled={inputMutation.isPending || isSubmittingTurn}
                 onSubmit={submitInput}
-                locale={activeSession.locale}
+                locale={displayLocale}
                 onBeforeMic={stop}
               />
             ) : activeSession.status === "processing" || isSubmittingTurn ? (
@@ -371,7 +372,7 @@ export function PatientSessionPage() {
             sessionDefinitionId={activeSession.sessionDefinitionId}
             activeCanonicalFieldKey={currentPromptItem?.outputFields?.[0]}
             variant="patient"
-            locale={activeSession.locale}
+            locale={displayLocale}
           />
         )}
       </div>

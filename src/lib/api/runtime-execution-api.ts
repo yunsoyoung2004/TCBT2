@@ -1087,7 +1087,10 @@ export async function executeCurrentNode(sessionId: string, prefetchedView?: Run
 }
 
 export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string } = {}): Promise<RuntimeCycleResult> {
-  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") return submitPatientInputOverStream(sessionId, patientInput, options);
+  // The server/SSE executor remains available behind /api/runtime/turn, but
+  // patient submissions stay on the proven browser executor until the live
+  // authenticated failure path is fully diagnosed. A fast path must never
+  // make a valid patient response impossible to submit.
   // Pure housekeeping (deletes rows past their expiry), unrelated to this
   // turn's own correctness -- getActiveSafetyTriggerSuppressions below
   // (only reached when safetyResult.triggered, i.e. rarely) already does

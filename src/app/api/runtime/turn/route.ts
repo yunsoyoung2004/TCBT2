@@ -28,6 +28,7 @@ export async function POST(request: Request) {
           const result = await submitPatientInput(body.sessionId!, body.patientInput!, body.options);
           controller.enqueue(encode({ type: "result", result }));
         } catch (error) {
+          console.error("[runtime-turn] patient turn failed", error);
           controller.enqueue(encode({ type: "error", error: error instanceof Error ? error.message : "Patient turn failed" }));
         } finally {
           controller.close();

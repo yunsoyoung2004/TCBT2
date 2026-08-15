@@ -68,6 +68,7 @@ export function PatientShell({
       const updatedSessionCount = await applyPatientLocaleChange(participant, next);
       await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
       await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session"] });
       toast.success(
         updatedSessionCount > 0
           ? t("patientShell.localeSynced.withSessions", { count: updatedSessionCount })
