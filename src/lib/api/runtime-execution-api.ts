@@ -22,7 +22,7 @@ import { reduceRuntimeState } from "@/lib/runtime/runtime-state-reducer";
 import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
 import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
 import type { ProtocolReleaseVersion } from "@/types/protocol-runtime";
-import type { PatientInput, RuntimeCycleResult, RuntimeMessage, RuntimeSession, RuntimeSessionStatus, SessionExecutionLog } from "@/types/runtime-session";
+import type { PatientInput, RuntimeCycleResult, RuntimeMessage, RuntimeSession, RuntimeSessionStatus, RuntimeSessionView, SessionExecutionLog } from "@/types/runtime-session";
 import type { SafetyTriggerSuppression } from "@/types/safety-operations";
 
 function makeId(prefix: string) {
@@ -861,8 +861,8 @@ export async function completeRuntimeSession(sessionId: string) {
   return checkpoint;
 }
 
-export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycleResult> {
-  const view = await getRuntimeSessionForTurn(sessionId);
+export async function executeCurrentNode(sessionId: string, prefetchedView?: RuntimeSessionView): Promise<RuntimeCycleResult> {
+  const view = prefetchedView ?? await getRuntimeSessionForTurn(sessionId);
   if (!view) throw new Error("Runtime session not found");
   const session = view.session;
   const runtimeRelease = loadRuntimeRelease(view.release);
@@ -1059,7 +1059,7 @@ export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycl
   throw new Error("Runtime session resolved no active source PromptItem.");
 }
 
-export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number } = {}): Promise<RuntimeCycleResult> {
+export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string } = {}): Promise<RuntimeCycleResult> {
   // Pure housekeeping (deletes rows past their expiry), unrelated to this
   // turn's own correctness -- getActiveSafetyTriggerSuppressions below
   // (only reached when safetyResult.triggered, i.e. rarely) already does
@@ -1072,6 +1072,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
   const initialView = await getRuntimeSessionForTurn(sessionId);
   if (!initialView) throw new Error("Runtime session not found");
   const initialSession = initialView.session;
+  const turnLocale = options.locale ?? initialSession.locale;
   if (initialSession.status === "completed") throw new Error("Completed session does not accept input");
   if (initialSession.status === "processing") {
     return {
@@ -1109,7 +1110,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     deliveredAt: new Date().toISOString(),
     metadata: { inputKind: patientInput.kind, promptItemId: currentPromptItem.id, clientTurnId },
   };
-  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: initialSession.runtimeContext, locale: initialSession.locale });
+  const extracted = await extractRuntimeState({ patientInput, currentNode, currentPromptItem, currentContext: initialSession.runtimeContext, locale: turnLocale });
   // Worksheet projection is a best-effort read-side mirror of the canonical
   // extracted fields (src/lib/worksheet/worksheet-projection.ts) -- never
   // allowed to FAIL a real turn (errors are swallowed below), but it IS
@@ -1148,10 +1149,10 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     };
   }
   const view = initialView;
-  const session = claim.session;
+  const session = { ...claim.session, locale: turnLocale };
   if (claim.session.pendingTurnId !== clientTurnId) throw new Error("Patient turn claim was not retained");
   const skippedPromptItemIds = mergePromptItemIds(session.skippedPromptItemIds, activeStep.skippedPromptItemIds);
-  await updateRuntimeSessionRecord(sessionId, { status: "processing", currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
+  await updateRuntimeSessionRecord(sessionId, { status: "processing", locale: turnLocale, currentPromptItemId: currentPromptItem.id, skippedPromptItemIds });
   const executionSequence = session.executionLogIds.length + 1;
   // These three fire on every single patient turn and none of them feed
   // this function's return value (logIds is always [] -- nothing ever
@@ -1411,7 +1412,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       logIds: [],
     };
   }
-  await updateRuntimeSessionRecord(sessionId, {
+  const progressedSession = await updateRuntimeSessionRecord(sessionId, {
     runtimeContext: contextAfterCompletion,
     currentNodeId: reduction.state.activeNodeId,
     currentPromptItemId: reduction.state.activePromptItemId,
@@ -1449,7 +1450,13 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
       logIds: [],
     };
   }
-  const cycle = await executeCurrentNode(sessionId);
+  // Everything executeCurrentNode needs is already in memory. Reusing it
+  // removes another session + release + messages fetch wave from every turn.
+  const cycle = await executeCurrentNode(sessionId, {
+    ...view,
+    session: progressedSession,
+    messages: view.messages.some((message) => message.id === patientMessage.id) ? view.messages : [...view.messages, patientMessage],
+  });
   void createRuntimeCheckpoint(sessionId).catch(() => {});
   return {
     ...cycle,

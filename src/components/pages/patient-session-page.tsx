@@ -19,6 +19,7 @@ import { computeSessionProgressPercent } from "@/lib/runtime/session-progress-es
 import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
+import { useT } from "@/lib/i18n/context";
 
 function makeClientTurnId() {
   if (typeof globalThis.crypto?.randomUUID === "function") return `TURN-${globalThis.crypto.randomUUID()}`;
@@ -26,6 +27,7 @@ function makeClientTurnId() {
 }
 
 export function PatientSessionPage() {
+  const { locale: uiLocale } = useT();
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -102,7 +104,7 @@ export function PatientSessionPage() {
     },
   });
   const inputMutation = useMutation({
-    mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion }),
+    mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion, locale: uiLocale === "ko" ? "ko-KR" : "en-US" }),
     onSuccess: async (result) => {
       if (result.stateExtraction?.missingFields.length) {
         toast.info("Please share a little more so we can stay with this question.");
@@ -161,7 +163,7 @@ export function PatientSessionPage() {
 
   const messages = sessionData?.messages ?? [];
   const activeSession = sessionData?.session;
-  const isKoreanSession = activeSession?.locale?.toLowerCase().startsWith("ko") ?? false;
+  const isKoreanSession = uiLocale === "ko";
   // A freshly-created session sits in "created" status until something
   // calls startRuntimeSession -- patient-new-session-page.tsx used to
   // await that itself (the first AI turn's full generation, sometimes
@@ -281,7 +283,8 @@ export function PatientSessionPage() {
                     <StreamingText
                       streamKey={message.id}
                       text={message.content}
-                      active={!reducedMotion && isNewAssistantTurn}
+                      active={isNewAssistantTurn}
+                      speedMs={8}
                       onDone={() => { if (isNewAssistantTurn) setRevealedNewMessageIds((prev) => (prev.has(message.id) ? prev : new Set(prev).add(message.id))); }}
                       className="whitespace-pre-wrap break-words text-text-primary"
                     />
