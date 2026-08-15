@@ -1,6 +1,7 @@
 const ko = {
   nav: {
     protocolEditor: "프로토콜 편집기",
+    manualReflection: "매뉴얼 반영",
     patientMonitoring: "환자 모니터링",
     adminUsers: "관리자 · 계정 관리",
     auditLog: "관리자 · 감사 로그",
@@ -164,7 +165,6 @@ const ko = {
     backToSessionFlow: "세션 흐름으로 돌아가기",
     session: "세션",
     manual: "매뉴얼",
-    viewManualReflection: "매뉴얼이 어떻게 반영됐는지 보기",
     mobile: {
       stepsTab: "단계",
       flowTab: "흐름도",

@@ -1,6 +1,7 @@
 const en = {
   nav: {
     protocolEditor: "Protocol Editor",
+    manualReflection: "Manual Reflection",
     patientMonitoring: "Patient Monitoring",
     adminUsers: "Admin · Users",
     auditLog: "Admin · Audit Log",
@@ -164,7 +165,6 @@ const en = {
     backToSessionFlow: "Back to Session Flow",
     session: "Session",
     manual: "Manual",
-    viewManualReflection: "How the manual became this",
     mobile: {
       stepsTab: "Steps",
       flowTab: "Flow",

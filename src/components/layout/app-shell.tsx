@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   Boxes,
   CheckCircle2,
   ChevronLeft,
@@ -47,8 +48,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // Clinician-facing primary navigation — keep to exactly these two.
+  // Clinician-facing primary navigation.
   { labelKey: "nav.protocolEditor", href: "/projects/demo/protocols/tbct-br-001/canvas", icon: Boxes, audience: "clinician" },
+  { labelKey: "nav.manualReflection", href: "/projects/demo/protocols/tbct-br-001/manual-reflection", icon: BookOpen, audience: "clinician" },
   { labelKey: "nav.patientMonitoring", href: "/patients", icon: Users, audience: "clinician" },
   // Admin-only -- filtered by the real logged-in user's auth role
   // (see visibleNavItems below), independent of the legacy
