@@ -862,7 +862,7 @@ export async function completeRuntimeSession(sessionId: string) {
 }
 
 export async function executeCurrentNode(sessionId: string): Promise<RuntimeCycleResult> {
-  const view = await getRuntimeSession(sessionId);
+  const view = await getRuntimeSessionForTurn(sessionId);
   if (!view) throw new Error("Runtime session not found");
   const session = view.session;
   const runtimeRelease = loadRuntimeRelease(view.release);

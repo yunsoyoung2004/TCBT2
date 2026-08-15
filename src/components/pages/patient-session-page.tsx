@@ -161,6 +161,7 @@ export function PatientSessionPage() {
 
   const messages = sessionData?.messages ?? [];
   const activeSession = sessionData?.session;
+  const isKoreanSession = activeSession?.locale?.toLowerCase().startsWith("ko") ?? false;
   // A freshly-created session sits in "created" status until something
   // calls startRuntimeSession -- patient-new-session-page.tsx used to
   // await that itself (the first AI turn's full generation, sometimes
@@ -215,11 +216,11 @@ export function PatientSessionPage() {
     speak(latestAssistantMessage.id, latestAssistantMessage.content);
   }, [latestAssistantMessage, speak, ttsSupported]);
 
-  if (sessionQuery.isLoading) return <PatientShell title="Session"><PageSkeleton /></PatientShell>;
+  if (sessionQuery.isLoading) return <PatientShell title="세션"><PageSkeleton /></PatientShell>;
   if (!sessionQuery.data || !activeSession) {
     return (
-      <PatientShell title="Session">
-        <Card><EmptyState title="Session not found" description="Return to the session list and start a new runtime session." /></Card>
+      <PatientShell title="세션">
+        <Card><EmptyState title="세션을 찾을 수 없습니다" description="세션 목록으로 돌아가 새 세션을 시작해 주세요." /></Card>
       </PatientShell>
     );
   }
@@ -238,13 +239,13 @@ export function PatientSessionPage() {
 
   return (
     <PatientShell
-      title={activeSession.patientAlias}
-      sessionLabel={activeSession.sessionDefinitionId}
-      progressLabel={activeSession.status}
+      title={isKoreanSession && activeSession.patientAlias === "Test Patient" ? "참여자" : activeSession.patientAlias}
+      sessionLabel={isKoreanSession ? `${Number(activeSession.sessionDefinitionId.match(/s(\d+)/i)?.[1] ?? 0)}회기` : activeSession.sessionDefinitionId}
+      progressLabel={isKoreanSession ? ({ waiting_for_input: "응답 대기", processing: "처리 중", preparing: "준비 중", active: "진행 중", paused: "일시 중지", completed: "완료", created: "생성됨", terminated: "종료됨", safety_paused: "안전 확인 중", escalated: "검토 요청됨", failed: "오류" }[activeSession.status] ?? activeSession.status) : activeSession.status}
       progressPercent={progressPercent}
-      saveState={`Saved ${new Date(activeSession.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
+      saveState={`${isKoreanSession ? "저장됨" : "Saved"} ${new Date(activeSession.updatedAt).toLocaleString(isKoreanSession ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
       actions={
-        <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>Completion</Button>
+        <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>{isKoreanSession ? "완료 내역" : "Completion"}</Button>
       }
     >
       <div className={hasWorksheetBindings(activeSession.sessionDefinitionId) ? "mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1.1fr_1fr]" : "mx-auto max-w-3xl"}>
@@ -252,13 +253,13 @@ export function PatientSessionPage() {
           <div className="border-b border-border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold text-text-primary">Session</div>
-                <div className="mt-1 text-xs text-text-secondary">The patient view shows only the current session state and approved patient-facing safety guidance.</div>
+                <div className="text-sm font-semibold text-text-primary">{isKoreanSession ? "세션" : "Session"}</div>
+                <div className="mt-1 text-xs text-text-secondary">{isKoreanSession ? "현재 세션 상태와 참여자에게 승인된 안내만 표시됩니다." : "The patient view shows only the current session state and approved patient-facing safety guidance."}</div>
               </div>
               <div className="flex gap-2">
                 {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>Start</Button>}
                 {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>Resume</Button>}
-                <Button variant="danger" onClick={() => terminateMutation.mutate()}>End</Button>
+                <Button variant="danger" onClick={() => terminateMutation.mutate()}>{isKoreanSession ? "종료" : "End"}</Button>
               </div>
             </div>
           </div>
@@ -276,7 +277,7 @@ export function PatientSessionPage() {
                     layout={reducedMotion ? undefined : true}
                     className={`max-w-[85%] rounded-panel border px-4 py-3 text-sm ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : "border-border bg-surface-subtle"}`}
                   >
-                    <div className="mb-1 text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role}</div>
+                    <div className="mb-1 text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? (isKoreanSession ? "프로그램" : "Program") : message.role === "patient" ? (isKoreanSession ? "나" : "You") : message.role}</div>
                     <StreamingText
                       streamKey={message.id}
                       text={message.content}
@@ -296,7 +297,7 @@ export function PatientSessionPage() {
                   exit={reducedMotion ? undefined : "exit"}
                   className="max-w-[85%] rounded-panel border border-border bg-surface-subtle px-4 py-3 text-sm"
                 >
-                  <div className="mb-1 text-[11px] font-semibold text-text-muted">Program</div>
+                  <div className="mb-1 text-[11px] font-semibold text-text-muted">{isKoreanSession ? "프로그램" : "Program"}</div>
                   <TypingIndicator />
                 </motion.div>
               )}
@@ -329,7 +330,7 @@ export function PatientSessionPage() {
               />
             ) : activeSession.status === "processing" || isSubmittingTurn ? (
               <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} className="text-sm text-text-secondary">
-                We are reviewing your response and preparing the next step.
+                {isKoreanSession ? "응답을 확인하고 다음 단계를 준비하고 있습니다." : "We are reviewing your response and preparing the next step."}
               </motion.div>
             ) : activeSession.status === "paused" ? (
               <div className="text-sm text-text-secondary">This session is paused. Use Resume when you are ready to continue.</div>

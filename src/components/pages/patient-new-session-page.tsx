@@ -43,7 +43,7 @@ export function PatientNewSessionPage() {
       // actual start once it lands there instead means the patient sees
       // the session's own "처리 중" (processing) state immediately, rather
       // than a spinner glued to a button that hasn't gone anywhere yet.
-      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale, participantId: participantQuery.data?.id });
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale, participantId: participantQuery.data?.id, patientAlias: participantQuery.data?.alias });
       router.push(`/projects/demo/patient/sessions/${session.id}`);
     } catch (error) {
       console.error("Session start failed:", error);
