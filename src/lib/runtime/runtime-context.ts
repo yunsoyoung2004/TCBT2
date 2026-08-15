@@ -213,6 +213,21 @@ function isMeaningfulTextResponse(input: {
   if ((input.field === "evidenceFor" || input.field === "evidenceAgainst") && isNoMoreEvidence(rawText)) return true;
 
   const validation = input.promptItem?.validation as { kind?: string; values?: unknown } | null | undefined;
+  // Checked here, before the NON_ANSWER_TEXT blacklist further down: that
+  // blacklist contains the exact words a valid boolean answer looks like
+  // ("yes"/"no"/네/예/응/sim/não), so a boolean-kind prompt's only two
+  // acceptable answers were always rejected as "non-answers" before this
+  // early return existed. Confirmed live: a plain "네" typed to s03.ts's
+  // redirection-contract (validation:{kind:"boolean"}) looped forever on
+  // "insufficient_input" and never advanced -- every existing boolean-kind
+  // prompt (e.g. s01.ts's confirm-list) had the same latent defect, it just
+  // hadn't been exercised through this exact typed-text path before.
+  if (validation?.kind === "boolean") {
+    return ["yes", "no", "true", "false", "네", "예", "응", "아니", "아니요", "sim", "não", "nao"].includes(normalizeText(rawText));
+  }
+  if (validation?.kind === "enum" && Array.isArray(validation.values)) {
+    return validation.values.some((value) => normalizeText(String(value)) === normalizeText(rawText));
+  }
   const normalized = normalizeText(rawText);
   const normalizedLexical = normalized.replace(/[.,!?…'"`~·\-_/\\()[\]{}]+/g, "").replace(/\s+/g, " ").trim();
   const activeQuestion = normalizeText(input.promptItem?.fallbackPatientText || input.promptItem?.verbatimText || "");

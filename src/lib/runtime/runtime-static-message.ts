@@ -66,9 +66,9 @@ export function reflectThenAskForNextRating(input: { listField: unknown; ratings
 // number out of the ID is exactly equivalent to (but far cheaper and far
 // less entangled than) checking all 8 sessions' branches in one function.
 const SESSION_HANDLERS: Record<number, (promptItem: PromptItem, fields: Record<string, unknown>, locale: string) => string | undefined> = {
-  1: (promptItem, fields) => s01.resolveStaticText(promptItem, fields),
-  2: (promptItem, fields) => s02.resolveStaticText(promptItem, fields),
-  3: (promptItem) => s03.resolveStaticText(promptItem),
+  1: (promptItem, fields, locale) => s01.resolveStaticText(promptItem, fields, locale),
+  2: (promptItem, fields, locale) => s02.resolveStaticText(promptItem, fields, locale),
+  3: (promptItem, fields, locale) => s03.resolveStaticText(promptItem, fields, locale),
   4: (promptItem) => s04.resolveStaticText(promptItem),
   5: (promptItem, fields) => s05.resolveStaticText(promptItem, fields),
   6: (promptItem, fields) => s06.resolveStaticText(promptItem, fields),
