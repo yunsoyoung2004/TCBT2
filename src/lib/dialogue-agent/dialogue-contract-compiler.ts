@@ -235,7 +235,19 @@ export function compileDialogueContract(input: {
     isFirstPromptOfSession: input.isFirstPromptOfSession,
     isFirstPromptOfNode: input.isFirstPromptOfNode,
     isRoleTransitionPrompt: sourcePromptItem.type === "role_transition",
-    clinicianGuidance: runtimePromptItem.modelGuidance?.trim() || undefined,
+    // Deliberately sourcePromptItem.modelGuidance (the raw, optional source
+    // field -- undefined for anything no clinician has ever edited), NOT
+    // runtimePromptItem.modelGuidance (which the release compiler already
+    // defaults to the manual's own quoted text -- see
+    // runtime-release-normalizer.ts -- whenever a clinician hasn't set one).
+    // Reading the runtime-defaulted value here meant this line was, for
+    // every still-unedited prompt (the overwhelming majority right now),
+    // restating the same manual text already sent above as currentTaskText
+    // -- a second, redundant "instruction" pointing at identical content,
+    // which nudged Claude toward longer, more elaborate replies trying to
+    // honor both. Only ever surface real guidance once a clinician has
+    // actually written one.
+    clinicianGuidance: sourcePromptItem.modelGuidance?.trim() || undefined,
     sessionToneGuidance: input.sessionToneGuidance?.trim() || undefined,
   };
 

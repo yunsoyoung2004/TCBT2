@@ -44,6 +44,15 @@ export function PatientSessionPage() {
   // Messages already present the first time the session loads are shown in full;
   // only messages that arrive afterwards stream in, so history never replays.
   const historicalMessageIdsRef = useRef<Set<string> | null>(null);
+  // One server turn can deliver several new Program messages at once (e.g.
+  // a few auto-advanced steps chained before the next one that actually
+  // needs a patient answer) -- without this, every one of those bubbles
+  // used to mount and start streaming simultaneously the instant they
+  // arrived, reading as several replies dumping out in a row instead of a
+  // conversation. Tracks which new (post-mount) assistant messages have
+  // finished their own reveal; only that many, plus the one currently
+  // streaming, are ever rendered -- see displayMessages below.
+  const [revealedNewMessageIds, setRevealedNewMessageIds] = useState<Set<string>>(new Set());
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] });
@@ -175,6 +184,22 @@ export function PatientSessionPage() {
   const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
   const latestAssistantMessage = [...patientVisibleMessages].reverse().find((message) => message.role === "assistant");
 
+  // Walks patientVisibleMessages in order, including every historical
+  // message and every new patient/system message immediately (nothing to
+  // gate -- there's no streaming reveal for those), but stopping right
+  // after the first new assistant message that hasn't finished revealing
+  // yet -- so a batch of several new Program messages still appears one at
+  // a time, in order, each one only mounting once the last one is done.
+  const displayMessages = useMemo(() => {
+    const result: typeof patientVisibleMessages = [];
+    for (const message of patientVisibleMessages) {
+      const isHistorical = historicalMessageIdsRef.current?.has(message.id) ?? true;
+      result.push(message);
+      if (!isHistorical && message.role === "assistant" && !revealedNewMessageIds.has(message.id)) break;
+    }
+    return result;
+  }, [patientVisibleMessages, revealedNewMessageIds]);
+
   useEffect(() => {
     if (historicalMessageIdsRef.current === null && messages.length) {
       historicalMessageIdsRef.current = new Set(messages.map((message) => message.id));
@@ -237,7 +262,7 @@ export function PatientSessionPage() {
           </div>
           <div className="space-y-3 p-4">
             <AnimatePresence initial={false}>
-              {patientVisibleMessages.map((message) => {
+              {displayMessages.map((message) => {
                 const isNewAssistantTurn = message.role === "assistant" && historicalMessageIdsRef.current !== null && !historicalMessageIdsRef.current.has(message.id);
                 return (
                   <motion.div
@@ -254,6 +279,7 @@ export function PatientSessionPage() {
                       streamKey={message.id}
                       text={message.content}
                       active={!reducedMotion && isNewAssistantTurn}
+                      onDone={() => { if (isNewAssistantTurn) setRevealedNewMessageIds((prev) => (prev.has(message.id) ? prev : new Set(prev).add(message.id))); }}
                       className="whitespace-pre-wrap break-words text-text-primary"
                     />
                   </motion.div>
