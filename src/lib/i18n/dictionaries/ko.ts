@@ -390,6 +390,11 @@ const ko = {
     safetyNotice: "사람이 직접 안전을 관리하고 있습니다",
     crisisHelp: "지금 도움이 필요하신가요?",
     sessionProgress: "이번 세션 {percent}% 진행",
+    localeSynced: {
+      withSessions: "언어가 바뀌었어요 -- 진행 중인 세션 {count}건도 이 언어로 계속 진행돼요.",
+      profileOnly: "언어가 바뀌었어요.",
+    },
+    localeSyncFailed: "웹사이트 언어는 바뀌었지만, 프로필/세션 언어 반영에 실패했어요 -- 다시 시도해 주세요.",
   },
   crisis: {
     title: "위기 상담 리소스",
@@ -530,6 +535,7 @@ const ko = {
       title: "프로필 수정",
       displayName: "표시 이름",
       locale: "언어",
+      localeHint: "상단 헤더의 언어 버튼과 같은 설정이에요 -- 여기서 바꾸면 웹사이트 화면 언어와 진행 중인 세션도 함께 바뀌어요. 앞으로 시작할 세션에만 적용되는 게 아니에요.",
       country: "국가",
       storeMemory: "메모리 저장",
       reuseAcrossSessions: "세션 간 재사용",

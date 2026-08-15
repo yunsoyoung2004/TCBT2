@@ -5,12 +5,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Badge, Button } from "@/components/ui/primitives";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
+import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { applyPatientLocaleChange } from "@/lib/api/patient-locale-sync";
 import { fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 
@@ -41,9 +45,41 @@ export function PatientShell({
   const pathname = usePathname();
   const reducedMotion = useReducedMotionPreference();
   const { user, signOut } = useAuth();
+  const queryClient = useQueryClient();
+  // Reuses the same ["runtime-participant", userId] query every patient
+  // page already mounts -- React Query dedupes the identical key, so this
+  // never fires a second network request, it just gives this shared header
+  // a handle on the participant record so the language toggle can sync
+  // participant.locale + open sessions (see patient-locale-sync.ts), not
+  // only the website's own UI chrome text.
+  const participantQuery = useQuery({
+    queryKey: ["runtime-participant", user?.id ?? ""],
+    queryFn: () => getOrCreateParticipantForUser(user!.id),
+    enabled: Boolean(user?.id),
+  });
   const handleLogout = async () => {
     await signOut();
     router.push("/patient/login");
+  };
+  const handleLocaleChange = async (next: "ko" | "en") => {
+    const participant = participantQuery.data;
+    if (!participant) return;
+    try {
+      const updatedSessionCount = await applyPatientLocaleChange(participant, next);
+      await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
+      toast.success(
+        updatedSessionCount > 0
+          ? t("patientShell.localeSynced.withSessions", { count: updatedSessionCount })
+          : t("patientShell.localeSynced.profileOnly"),
+      );
+    } catch {
+      // Non-critical -- the UI chrome language itself already switched via
+      // LocaleToggle's own setLocale call regardless of this promise's
+      // outcome, so a failed sync here degrades to "chrome language changed,
+      // participant record/sessions didn't" rather than blocking anything.
+      toast.error(t("patientShell.localeSyncFailed"));
+    }
   };
   return (
     <div className="min-h-screen bg-background">
@@ -71,7 +107,7 @@ export function PatientShell({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
-            <LocaleToggle />
+            <LocaleToggle onChange={(next) => void handleLocaleChange(next)} />
             <span data-tour-id="theme-toggle"><ThemeToggle /></span>
             {/* Replays the onboarding tour -- it only ever mounts on the
                 session-list page (see patient-list-page.tsx), so this

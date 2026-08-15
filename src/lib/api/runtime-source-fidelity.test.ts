@@ -152,6 +152,38 @@ describe("canonical source-fidelity runtime", () => {
     }
   }, 15_000);
 
+  it("switches session.locale on a mid-session language-switch request instead of treating it as a wrong answer", async () => {
+    // Regression test: a request like "한국어로 해주세요" used to be graded like
+    // any other patient message -- an attempted answer to whatever the
+    // active prompt was asking -- which has no plausible connection to a
+    // clinical question, so it burned a clarification attempt and never
+    // actually changed session.locale (the reply language). This confirms
+    // it's now detected before that pipeline, updates the locale, and does
+    // NOT spend a clarification attempt.
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession({ locale: "en-US" });
+      await startRuntimeSession(session.id);
+      const before = await getRuntimeSession(session.id);
+      const activePromptItemId = before?.session.currentPromptItemId;
+
+      const result = await submitPatientInput(session.id, { kind: "text", value: "한국어로 해주세요" });
+      const after = await getRuntimeSession(session.id);
+
+      expect(result.turnOutcome).toBe("clarification");
+      expect(after?.session.locale).toBe("ko-KR");
+      expect(after?.session.status).toBe("waiting_for_input");
+      expect(after?.session.currentPromptItemId).toBe(activePromptItemId);
+      expect(after?.session.runtimeContext.clarificationAttemptCount ?? 0).toBe(0);
+      const languageSwitchMessage = after?.messages.find((message) => message.role === "assistant" && message.metadata?.clarificationReason === "language_switch");
+      expect(languageSwitchMessage?.content).toBeTruthy();
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
   it("resume grants a genuinely fresh clarification budget, not just one more attempt", async () => {
     // Regression test: resumeRuntimeSession used to only flip status back
     // to "active" without resetting clarificationAttemptCount, which stays

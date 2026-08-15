@@ -12,11 +12,17 @@ import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from
 import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
 import { getPatientProgressSeries } from "@/lib/worksheet/worksheet-projection";
+import { propagateLocaleToOpenSessions } from "@/lib/api/patient-locale-sync";
 import { useT } from "@/lib/i18n/context";
+import { mapToUiLocale } from "@/lib/i18n/locales";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientProfilePage() {
-  const { t } = useT();
+  // Aliased: this page already has its own local `locale`/`setLocale` state
+  // for the pending profile-form edit below -- setUiLocale is the website's
+  // own chrome-language setter from useT(), a separate thing this now also
+  // updates once the locale field is actually saved (see profileMutation).
+  const { t, setLocale: setUiLocale } = useT();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const userId = user?.id ?? "";
@@ -63,7 +69,22 @@ export function PatientProfilePage() {
   const profileMutation = useMutation({
     mutationFn: async () => {
       if (!participantQuery.data) throw new Error("Participant not found");
+      const localeChanged = participantQuery.data.locale !== locale;
       await updateParticipantProfile(participantQuery.data.id, { alias, locale, country, status: participantQuery.data.status });
+      if (localeChanged) {
+        // Previously this only ever affected sessions created AFTER this
+        // save -- an already-open session's own locale field was never
+        // touched, so a patient switching their language mid-program would
+        // keep getting replies in the old one until they started a brand
+        // new session. Also flip the website's own UI chrome to match in
+        // the same step (mapToUiLocale is a no-op if this ever gets a
+        // locale outside ko/en) -- this is the merge the profile "언어"
+        // field and the header language toggle now both go through, see
+        // patient-locale-sync.ts.
+        await propagateLocaleToOpenSessions(participantQuery.data, locale);
+        const mappedUiLocale = mapToUiLocale(locale);
+        if (mappedUiLocale) setUiLocale(mappedUiLocale);
+      }
       await updateParticipantConsent(participantQuery.data.id, {
         memoryStorageAllowed,
         crossSessionUseAllowed,
@@ -81,6 +102,7 @@ export function PatientProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ["runtime-participant"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-profile-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["patient-record"] });
+      await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : t("patientProfile.saveFailed"));
@@ -138,7 +160,7 @@ export function PatientProfilePage() {
           <div className="mt-4 grid gap-4">
             <Field label={t("patientProfile.edit.displayName")}><input className={inputClass} value={alias} onChange={(event) => setAlias(event.target.value)} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("patientProfile.edit.locale")}>
+              <Field label={t("patientProfile.edit.locale")} hint={t("patientProfile.edit.localeHint")}>
                 <select className={inputClass} value={locale} onChange={(event) => setLocale(event.target.value)}>
                   <option value="ko-KR">ko-KR</option>
                   <option value="en-US">en-US</option>

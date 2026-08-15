@@ -6,6 +6,7 @@ import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/sessi
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
 import { getRuntimeParticipant } from "@/lib/api/participant-api";
 import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
+import { detectLanguageSwitchRequest } from "@/lib/runtime/language-switch-detector";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
 import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tracer";
@@ -324,6 +325,107 @@ async function deliverClarificationTurn(input: {
     },
   });
   return { assistantMessage, sessionStatus };
+}
+
+// A patient asking mid-session to switch response language ("한국어로
+// 해주세요") is not an answer to the active prompt at all, so it must never
+// be routed through deliverClarificationTurn -- that would (a) grade it as a
+// wrong answer to whatever the current field is, (b) burn one of
+// MAX_CLARIFICATION_ATTEMPTS on a request that was never about the clinical
+// content, and (c) never touch session.locale, so the reply language
+// wouldn't actually change even after three "clarifications." This instead
+// updates session.locale immediately, acknowledges the switch in the NEW
+// language, and re-delivers the current question's own text (not a
+// clarification re-ask) translated into that language -- all deterministic,
+// no dialogue-agent/LLM round-trip needed for what is just a housekeeping
+// request.
+async function deliverLanguageSwitchTurn(input: {
+  session: RuntimeSession;
+  node: ClinicalStageNode;
+  promptItem: PromptItem;
+  runtimePromptItem: import("@/types/protocol-runtime").RuntimePromptItem;
+  runtimeState: NonNullable<RuntimeSession["runtimeState"]>;
+  patientMessage: RuntimeMessage;
+  targetLocale: string;
+}) {
+  const isKorean = input.targetLocale.toLowerCase().startsWith("ko");
+  const acknowledgment = isKorean ? "네, 지금부터 한국어로 진행할게요!" : "Sure, I'll continue in English from here!";
+  const currentQuestionText = resolveBracketPlaceholders(
+    resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.fallbackPatientText, input.targetLocale),
+    input.session.runtimeContext,
+  );
+  const content = `${acknowledgment}\n\n${currentQuestionText}`;
+  const assistantMessage: RuntimeMessage = {
+    id: makeId("RMSG"),
+    runtimeSessionId: input.session.id,
+    role: "assistant",
+    content,
+    status: "validated",
+    nodeId: input.node.id,
+    promptItemId: input.promptItem.id,
+    sourceEvidenceIds: [],
+    createdAt: new Date().toISOString(),
+    deliveredAt: new Date().toISOString(),
+    metadata: { turnId: makeId("TURN"), turnOutcome: "clarification", clarificationReason: "language_switch" },
+  };
+  const outputValidation = deterministicValidation(content);
+  await commitRuntimeAssistantTurn({
+    sessionId: input.session.id,
+    assistantMessage,
+    providerEvent: {
+      id: makeId("RPE"),
+      runtimeSessionId: input.session.id,
+      provider: "deterministic",
+      model: "runtime-language-switch",
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      inputSummary: "clarification:language_switch",
+      outputText: content,
+      createdAt: new Date().toISOString(),
+    },
+    validationEvent: {
+      id: makeId("RVE"),
+      runtimeSessionId: input.session.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      ...outputValidation,
+      createdAt: new Date().toISOString(),
+    },
+    trace: createRuntimeExecutionTrace({
+      runtimeSessionId: input.session.id,
+      releaseId: input.session.releaseId,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      roleId: input.runtimePromptItem.roleId,
+      provider: "deterministic",
+      model: "runtime-language-switch",
+      contractHash: `language-switch:${input.session.id}:${input.promptItem.id}`,
+      validation: outputValidation,
+      fallbackUsed: false,
+      transitionDecision: "clarification",
+      stateChanges: { activeNodeId: input.node.id, activePromptItemId: input.promptItem.id, localeChangedTo: input.targetLocale },
+      fidelityEvidence: {
+        locale: input.targetLocale,
+        patientFacingText: content,
+        activePromptMatches: true,
+        patientInputPresent: true,
+      },
+    }),
+    sessionPatch: {
+      locale: input.targetLocale,
+      runtimeContext: {
+        ...input.session.runtimeContext,
+        lastPatientMessage: input.patientMessage.content,
+        lastClarificationReason: "language_switch",
+      },
+      currentNodeId: input.node.id,
+      currentPromptItemId: input.promptItem.id,
+      runtimeState: input.runtimeState,
+      promptProgressionReason: "clarification_sent",
+      status: "waiting_for_input",
+    },
+  });
+  return { assistantMessage, sessionStatus: "waiting_for_input" as RuntimeSessionStatus };
 }
 
 async function deliverSafetyOverrideTurn(input: {
@@ -1071,6 +1173,19 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     void saveRuntimeLog(makeLog(sessionId, "input", "completed", "Patient declined to continue; session paused without protocol progression", { nodeId: currentNode.id })).catch(() => {});
     await createRuntimeCheckpoint(sessionId);
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: refusal.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: refusal.sessionStatus, logIds: [] };
+  }
+  // Checked before the normal missing-fields/clarification branch below --
+  // otherwise a request like "한국어로 해주세요" gets graded as a wrong answer
+  // to whatever the active clinical field is (it has no plausible connection
+  // to e.g. "what automatic thought went through your mind"), burns a
+  // clarification attempt, and never actually changes the reply language.
+  // See language-switch-detector.ts for why this stays purely deterministic.
+  const languageSwitchLocale = safetyResult.triggered ? null : detectLanguageSwitchRequest(patientMessage.content);
+  if (languageSwitchLocale) {
+    const languageSwitch = await deliverLanguageSwitchTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, runtimeState, patientMessage, targetLocale: languageSwitchLocale });
+    void saveRuntimeLog(makeLog(sessionId, "input", "completed", `Patient asked to switch response language to ${languageSwitchLocale}`, { nodeId: currentNode.id })).catch(() => {});
+    await createRuntimeCheckpoint(sessionId);
+    return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: languageSwitch.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: languageSwitch.sessionStatus, logIds: [] };
   }
   if (extracted.missingFields.length && !safetyResult.triggered) {
     const clarification = await deliverClarificationTurn({

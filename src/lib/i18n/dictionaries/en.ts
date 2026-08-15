@@ -390,6 +390,11 @@ const en = {
     safetyNotice: "Human safety oversight enabled",
     crisisHelp: "Need help now?",
     sessionProgress: "{percent}% through this session",
+    localeSynced: {
+      withSessions: "Language switched -- {count} open session(s) will continue in this language too.",
+      profileOnly: "Language switched.",
+    },
+    localeSyncFailed: "Website language switched, but couldn't update your profile/session language -- please try again.",
   },
   crisis: {
     title: "Crisis resources",
@@ -530,6 +535,7 @@ const en = {
       title: "Edit profile",
       displayName: "Display name",
       locale: "Locale",
+      localeHint: "This is the same language as the header toggle -- changing it here also switches the website's display language and any open session, not just future ones.",
       country: "Country",
       storeMemory: "Store memory",
       reuseAcrossSessions: "Reuse across sessions",
