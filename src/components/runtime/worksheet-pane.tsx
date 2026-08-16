@@ -258,10 +258,18 @@ function ProgressChecklistRow({ field, isKorean, reducedMotion, isActive }: { fi
     if (justFilled) rowRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
   }, [justFilled, reducedMotion]);
 
+  // Follow the conversation, not only completed writes. The active prompt
+  // can move to a later worksheet field before that field has a value, so a
+  // justFilled-only scroll leaves the right pane pinned near the top while
+  // the chat continues several steps below it.
+  useEffect(() => {
+    if (isActive) rowRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center", inline: "nearest" });
+  }, [isActive, reducedMotion]);
+
   return (
     <motion.div
       ref={rowRef}
-      className={`relative flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : isActive ? "border-clinical-blue bg-clinical-blue-light/40 ring-1 ring-clinical-blue" : "border-dashed border-border bg-surface-subtle/50"}`}
+      className={`relative scroll-my-6 flex items-center justify-between gap-3 rounded-panel border px-3 py-2 transition ${filled ? "border-success/40 bg-success-light/20" : isActive ? "border-clinical-blue bg-clinical-blue-light/40 ring-1 ring-clinical-blue" : "border-dashed border-border bg-surface-subtle/50"}`}
       variants={reducedMotion ? undefined : fadeUp}
       initial={reducedMotion ? false : "initial"}
       animate={reducedMotion ? undefined : "animate"}
