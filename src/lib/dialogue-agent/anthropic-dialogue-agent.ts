@@ -216,12 +216,11 @@ function systemPrompt(contract: DialogueContract) {
 
 export async function generateDialogueDecision(contract: DialogueContract, context: { sessionId: string; turnId: string }): Promise<DialogueAgentResult> {
   const parsedContract = dialogueContractSchema.parse(contract);
-  const fastResult = await generateGroqDecision(parsedContract, context);
-  if (fastResult) return fastResult;
   const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
   if (!apiKey) {
-    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
+    const internalFallback = await generateGroqDecision(parsedContract, context);
+    return internalFallback ?? { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
   }
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
@@ -230,10 +229,9 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();
-  // The patient-turn invariant (section 12): never more than one dialogue
-  // call per participant turn. A transport failure or invalid schema falls
-  // straight to the deterministic fallback below -- it does NOT retry with
-  // a second call for the same turn.
+  // Claude is the patient-facing dialogue owner. Groq is never consulted on
+  // a healthy turn; it is only an internal continuity fallback when Claude
+  // is unavailable or returns an unusable structured result.
   try {
     const userPayload = safeUserPayload(parsedContract);
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -260,7 +258,9 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   } catch (error) {
     const failureReason = error instanceof Error ? error.message : "dialogue agent failed";
     recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "anthropic", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: null, outputTokens: null, totalTokens: null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: false, failureReason });
-    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason };
+    clearTimeout(timeout);
+    const internalFallback = await generateGroqDecision(parsedContract, context);
+    return internalFallback ?? { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason };
   } finally {
     clearTimeout(timeout);
   }
