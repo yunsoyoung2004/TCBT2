@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { HelpCircle } from "lucide-react";
+import { BookOpen, HelpCircle, ListChecks, MessageCircle, Settings, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,11 +84,32 @@ export function PatientShell({
     }
   };
   return (
-    <div className="patient-app min-h-screen overflow-hidden bg-background lg:m-6 lg:min-h-[calc(100vh-48px)] lg:rounded-[32px] lg:shadow-[0_24px_70px_rgba(51,70,112,0.16)]">
-      <header className="patient-app-header border-b border-white/30 px-4 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] lg:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="patient-app min-h-screen overflow-hidden bg-background lg:m-6 lg:flex lg:min-h-[calc(100vh-48px)] lg:rounded-[32px] lg:shadow-[0_24px_70px_rgba(51,70,112,0.16)]">
+      <aside className="hidden w-[260px] shrink-0 flex-col border-r border-border bg-surface lg:flex">
+        <Link href="/projects/demo/patient" className="flex h-[112px] items-center gap-3 border-b border-border px-7">
+          <Logo className="h-12 w-12" />
+          <div><div className="text-xl font-black tracking-[-0.04em]">TBCT</div><div className="text-xs text-text-secondary">프로그램</div></div>
+        </Link>
+        <nav className="flex-1 space-y-2 p-5">
+          <PatientNavLink href="/projects/demo/patient" active={pathname === "/projects/demo/patient"} icon={<ListChecks className="h-5 w-5" />} label={t("patientShell.sessionList")} />
+          <PatientNavLink href="/projects/demo/patient/profile" active={pathname.includes("/profile")} icon={<UserRound className="h-5 w-5" />} label={t("patientPortal.profile")} />
+          <PatientNavLink href="/projects/demo/patient/messages" active={pathname.includes("/messages")} icon={<MessageCircle className="h-5 w-5" />} label={t("messages.title")} />
+          <PatientNavLink href="/projects/demo/patient/memory" active={pathname.includes("/memory")} icon={<BookOpen className="h-5 w-5" />} label={t("patientPortal.memory")} />
+          <div className="my-5 border-t border-border" />
+          <PatientNavLink href="/projects/demo/patient/profile" active={false} icon={<Settings className="h-5 w-5" />} label={t("nav.account")} />
+        </nav>
+        <div className="m-5 rounded-[24px] border border-clinical-blue-light bg-clinical-blue-light/30 p-5 text-center">
+          <div className="text-3xl">🫶</div>
+          <div className="mt-3 text-sm font-bold">{t("patientShell.crisisHelp")}</div>
+          <div className="mt-1 text-xs leading-5 text-text-secondary">언제든지 도움을 드릴게요.</div>
+          <Link href="/crisis" target="_blank"><Button variant="secondary" className="mt-4 w-full"><HelpCircle className="h-4 w-4" />도움말 보기</Button></Link>
+        </div>
+      </aside>
+      <div className="min-w-0 flex-1">
+      <header className="patient-app-header border-b border-white/30 px-4 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] lg:px-8 lg:py-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <Logo className="mt-0.5 h-9 w-9 shrink-0" />
+            <Logo className="mt-0.5 h-9 w-9 shrink-0 lg:hidden" />
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-clinical-blue">{t("patientShell.eyebrow")}</div>
               <h1 className="mt-1 text-xl font-semibold text-text-primary">{title}</h1>
@@ -131,7 +152,7 @@ export function PatientShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl p-4 lg:p-6">
+      <main className="p-4 lg:p-8">
         {/* Every patient page wraps itself in its own <PatientShell> (see
             studio-app.tsx's routing), so this is the one shared place that
             gives every one of them the same subtle enter transition on
@@ -152,6 +173,7 @@ export function PatientShell({
           <span>{t("patientShell.safetyNotice")}</span>
         </div>
       </footer>
+      </div>
       <ConfirmActionDialog
         open={logoutConfirmOpen}
         onClose={() => setLogoutConfirmOpen(false)}
@@ -161,5 +183,14 @@ export function PatientShell({
         confirmLabel={t("auth.logout")}
       />
     </div>
+  );
+}
+
+function PatientNavLink({ href, active, icon, label }: { href: string; active: boolean; icon: ReactNode; label: string }) {
+  return (
+    <Link href={href} className={`relative flex items-center gap-3 rounded-panel px-4 py-3 text-sm font-semibold transition ${active ? "bg-clinical-blue-light text-clinical-blue" : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"}`}>
+      {active && <span className="rainbow-fill absolute -left-5 h-8 w-1 rounded-r-full" />}
+      {icon}<span>{label}</span>
+    </Link>
   );
 }
