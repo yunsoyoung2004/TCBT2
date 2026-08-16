@@ -110,6 +110,28 @@ body:has(.patient-app) {
     radial-gradient(circle at 92% 5%, rgba(129, 112, 236, .18), transparent 30rem);
 }
 
+@media (min-width: 1024px) {
+  .clinician-app::before {
+    content: "";
+    position: fixed;
+    inset: 24px;
+    z-index: 0;
+    border: 1px solid rgba(255, 255, 255, .75);
+    border-radius: 32px;
+    background: rgb(var(--color-surface));
+    box-shadow: 0 24px 70px rgba(51, 70, 112, .16);
+    pointer-events: none;
+  }
+
+  .app-sidebar,
+  .app-workspace-shell {
+    position: relative;
+  }
+
+  .app-sidebar { position: fixed; }
+  .app-workspace-shell { z-index: 1; }
+}
+
 .app-workspace {
   background-color: rgb(var(--color-background));
 }

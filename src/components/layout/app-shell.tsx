@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="clinician-app min-h-screen bg-background">
       <aside
         className={cn(
-          "app-sidebar fixed inset-y-0 left-0 z-50 flex border-r border-border bg-surface text-text-primary shadow-xl transition-all duration-200 lg:bottom-6 lg:left-6 lg:top-6 lg:translate-x-0 lg:rounded-l-[32px]",
+          "app-sidebar fixed inset-y-0 left-0 z-50 flex border-r border-border bg-surface text-text-primary shadow-xl transition-all duration-200 lg:bottom-6 lg:left-6 lg:top-6 lg:translate-x-0 lg:rounded-l-[32px] lg:shadow-none",
           collapsed ? "w-[92px]" : "w-[248px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
@@ -301,7 +301,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {mobileOpen && <button className="fixed inset-0 z-40 bg-[#132A4A]/24 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
 
       <div className={cn("app-workspace-shell transition-all lg:mr-6 lg:py-6", sidebarWidth)}>
-        <div className="app-workspace min-h-screen overflow-hidden bg-background lg:min-h-[calc(100vh-48px)] lg:rounded-r-[32px] lg:shadow-[0_24px_70px_rgba(51,70,112,0.16)]">
+        <div className="app-workspace min-h-screen overflow-hidden bg-background lg:min-h-[calc(100vh-48px)] lg:rounded-r-[32px]">
         <header className="app-topbar sticky top-0 z-30 flex h-[64px] items-center gap-3 border-b border-border/70 bg-surface/90 px-4 backdrop-blur-xl lg:px-7">
           {/* Mobile (<640px) drops the hamburger entirely -- bottom nav is the
               top-level mobile navigation (see the "sm:hidden" nav below).
