@@ -15,13 +15,24 @@ const labelTone: Record<string, "primary" | "warning" | "neutral" | "critical"> 
   repeated: "neutral",
 };
 
+function patientSafeSummary(value: string | undefined) {
+  if (!value) return "";
+  return value
+    .replace(/#{1,6}\s*/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/\bAsk:\s*/gi, "")
+    .replace(/\b(?:SITUATION|AUTOMATIC THOUGHT|EMOTION|BEHAVIOR) BOX\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function MobileStepList({ nodes, selectedStepId, onSelect }: { nodes: FlowNode[]; selectedStepId: string; onSelect: (stepId: string) => void }) {
   const { t } = useT();
 
   if (!nodes.length) return <EmptyState title={t("protocolEditor.mobile.noStepsYet")} />;
 
   return (
-    <div className="space-y-2">
+    <div className="grid content-start gap-3">
       {nodes.map((flowNode) => {
         const step = flowNode.data.step;
         const labels = getClinicianStepLabels(step);
@@ -32,7 +43,7 @@ export function MobileStepList({ nodes, selectedStepId, onSelect }: { nodes: Flo
             type="button"
             onClick={() => onSelect(step.id)}
             className={cn(
-              "w-full min-h-[44px] rounded-panel border p-3 text-left",
+              "static m-0 block min-h-[44px] w-full self-start rounded-panel border p-4 text-left",
               selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border bg-surface",
             )}
           >
@@ -47,7 +58,9 @@ export function MobileStepList({ nodes, selectedStepId, onSelect }: { nodes: Flo
                 ))}
               </div>
             )}
-            <div className="truncate-2 mt-2 text-xs leading-5 text-text-secondary">{step.data.clinicalIntent}</div>
+            {patientSafeSummary(step.data.clinicalIntent) && (
+              <div className="truncate-2 mt-3 text-sm leading-6 text-text-secondary">{patientSafeSummary(step.data.clinicalIntent)}</div>
+            )}
           </button>
         );
       })}

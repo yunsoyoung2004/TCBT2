@@ -17,7 +17,7 @@ export function MobileProtocolTabs({ active, onChange }: { active: MobileProtoco
     tab === "steps" ? t("protocolEditor.mobile.stepsTab") : tab === "flow" ? t("protocolEditor.mobile.flowTab") : t("protocolEditor.mobile.promptTab");
 
   return (
-    <div className="sticky top-[88px] z-10 mx-3 mt-3 flex overflow-hidden rounded-full border border-white/70 bg-surface/90 p-1 shadow-lg backdrop-blur-xl">
+    <div className="sticky top-[56px] z-20 mx-3 mt-3 flex overflow-hidden rounded-full border border-white/70 bg-surface/95 p-1 shadow-lg backdrop-blur-xl">
       {TABS.map((tab) => (
         <button
           key={tab}
