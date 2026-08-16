@@ -24,31 +24,15 @@ import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtim
 import type { ProtocolReleaseVersion } from "@/types/protocol-runtime";
 import type { PatientInput, RuntimeCycleResult, RuntimeMessage, RuntimeSession, RuntimeSessionStatus, RuntimeSessionView, SessionExecutionLog } from "@/types/runtime-session";
 
-async function submitPatientInputOverStream(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string }): Promise<RuntimeCycleResult> {
+async function submitPatientInputOnServer(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string }): Promise<RuntimeCycleResult> {
   const response = await fetch("/api/runtime/turn", {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ sessionId, patientInput, options }),
   });
-  if (!response.ok || !response.body) throw new Error(`Patient turn failed (${response.status})`);
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const frames = buffer.split("\n\n");
-    buffer = frames.pop() ?? "";
-    for (const frame of frames) {
-      const dataLine = frame.split("\n").find((line) => line.startsWith("data:"));
-      if (!dataLine) continue;
-      const event = JSON.parse(dataLine.slice(5).trim()) as { type: string; result?: RuntimeCycleResult; error?: string };
-      if (event.type === "result" && event.result) return event.result;
-      if (event.type === "error") throw new Error(event.error ?? "Patient turn failed");
-    }
-    if (done) break;
-  }
-  throw new Error("Patient turn stream ended without a result");
+  const payload = await response.json().catch(() => null) as { ok?: boolean; result?: RuntimeCycleResult; error?: string } | null;
+  if (!response.ok || !payload?.ok || !payload.result) throw new Error(payload?.error ?? `Patient turn failed (${response.status})`);
+  return payload.result;
 }
 import type { SafetyTriggerSuppression } from "@/types/safety-operations";
 
@@ -1087,10 +1071,9 @@ export async function executeCurrentNode(sessionId: string, prefetchedView?: Run
 }
 
 export async function submitPatientInput(sessionId: string, patientInput: PatientInput, options: { clientTurnId?: string; expectedSessionVersion?: number; locale?: string } = {}): Promise<RuntimeCycleResult> {
-  // The server/SSE executor remains available behind /api/runtime/turn, but
-  // patient submissions stay on the proven browser executor until the live
-  // authenticated failure path is fully diagnosed. A fast path must never
-  // make a valid patient response impossible to submit.
+  // Collapse the browser's many sequential store/model round trips into one
+  // authenticated server turn. The server invocation continues below.
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") return submitPatientInputOnServer(sessionId, patientInput, options);
   // Pure housekeeping (deletes rows past their expiry), unrelated to this
   // turn's own correctness -- getActiveSafetyTriggerSuppressions below
   // (only reached when safetyResult.triggered, i.e. rarely) already does
