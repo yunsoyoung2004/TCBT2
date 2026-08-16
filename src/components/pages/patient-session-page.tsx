@@ -10,7 +10,7 @@ import { PatientInputControls } from "@/components/runtime/patient-input-control
 import { StreamingText, TypingIndicator } from "@/components/runtime/streaming-text";
 import { WorksheetPane } from "@/components/runtime/worksheet-pane";
 import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
-import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
+import { Badge, Button, Card, ConfirmActionDialog, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
@@ -37,6 +37,7 @@ export function PatientSessionPage() {
   const submittingTurnRef = useRef(false);
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
   const [isLongWait, setIsLongWait] = useState(false);
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   // Populated from the same getRuntimeSession call refresh() already makes
   // for the audit snapshot below -- no extra fetch needed, just no longer
   // discarding the result. See session-progress-estimate.ts for why this
@@ -296,7 +297,7 @@ export function PatientSessionPage() {
               <div className="flex gap-2">
                 {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>Start</Button>}
                 {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>Resume</Button>}
-                <Button variant="danger" onClick={() => terminateMutation.mutate()}>{isKoreanSession ? "종료" : "End"}</Button>
+                <Button variant="danger" onClick={() => setEndConfirmOpen(true)}>{isKoreanSession ? "종료" : "End"}</Button>
               </div>
             </div>
           </div>
@@ -417,6 +418,15 @@ export function PatientSessionPage() {
           />
         )}
       </div>
+      <ConfirmActionDialog
+        open={endConfirmOpen}
+        onClose={() => setEndConfirmOpen(false)}
+        onConfirm={() => { setEndConfirmOpen(false); terminateMutation.mutate(); }}
+        title={isKoreanSession ? "세션을 종료하시겠습니까?" : "End this session?"}
+        description={isKoreanSession ? "현재까지의 대화는 저장되지만, 종료한 세션은 다시 이어갈 수 없습니다." : "Your conversation is saved, but an ended session cannot be resumed."}
+        confirmLabel={isKoreanSession ? "세션 종료" : "End session"}
+        confirmDisabled={terminateMutation.isPending}
+      />
     </PatientShell>
   );
 }

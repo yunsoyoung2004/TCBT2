@@ -43,7 +43,7 @@ export default {
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        panel: "10px",
+        panel: "18px",
       },
       boxShadow: {
         none: "none",

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { LocaleProvider } from "@/lib/i18n/context";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { AppSplash } from "@/components/ui/app-splash";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <QueryClientProvider client={client}>
         <LocaleProvider>
+          <AppSplash />
           {children}
           <Toaster richColors position="bottom-right" toastOptions={{ style:{ borderRadius:8 } }} />
         </LocaleProvider>

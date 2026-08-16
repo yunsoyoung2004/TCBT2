@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { Button, Modal, inputClass } from "@/components/ui/primitives";
+import { Button, ConfirmActionDialog, Modal, inputClass } from "@/components/ui/primitives";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
@@ -113,6 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const commandOpen = useStudioStore((state) => state.commandOpen);
   const setCommandOpen = useStudioStore((state) => state.setCommandOpen);
   const unsaved = useStudioStore((state) => state.unsaved);
@@ -272,7 +273,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <button
               type="button"
-              onClick={() => void handleLogout()}
+              onClick={() => setLogoutConfirmOpen(true)}
               className={cn("w-full rounded-panel border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10", collapsed && "p-2")}
             >
               <div className="flex items-center gap-3">
@@ -346,7 +347,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             title={t("auth.logout")}
-            onClick={() => void handleLogout()}
+            onClick={() => setLogoutConfirmOpen(true)}
             className="flex shrink-0 items-center gap-2 rounded-panel border border-border bg-surface px-2 py-1.5 hover:bg-surface-hover"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-clinical-blue-light text-xs font-semibold text-clinical-blue">{identityInitials}</span>
@@ -377,7 +378,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}
       {!showFullNav && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden">
+        <nav className="fixed bottom-[calc(.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex overflow-hidden rounded-[26px] border border-white/70 bg-surface/90 p-1 shadow-[0_16px_46px_rgba(29,45,75,0.2)] backdrop-blur-xl sm:hidden">
           {clinicianNavItems.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -397,6 +398,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
       )}
+      <ConfirmActionDialog
+        open={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => void handleLogout()}
+        title={locale === "ko" ? "로그아웃하시겠습니까?" : "Log out?"}
+        description={locale === "ko" ? "현재 계정에서 안전하게 로그아웃합니다." : "You will be signed out of this account."}
+        confirmLabel={locale === "ko" ? "로그아웃" : "Log out"}
+      />
 
       <Modal open={commandOpen} onClose={() => setCommandOpen(false)} title="Quick Navigation" description="Jump pages, search Step IDs, and run key actions">
         <div className="p-4">

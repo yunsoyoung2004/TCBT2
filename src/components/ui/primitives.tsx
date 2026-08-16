@@ -54,7 +54,7 @@ export function Button({
       whileTap={reducedMotion || loading || props.disabled ? undefined : { scale: 0.96 }}
       transition={{ duration: 0.1 }}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-panel border font-medium transition disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-full border font-semibold shadow-sm transition disabled:pointer-events-none disabled:opacity-50",
         styles[variant],
         sizes[size],
         className,
@@ -69,7 +69,7 @@ export function Button({
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-panel border border-border bg-surface", className)}>{children}</section>;
+  return <section className={cn("rounded-panel border border-white/70 bg-surface/95 shadow-[0_14px_40px_rgba(47,69,110,0.08)] backdrop-blur", className)}>{children}</section>;
 }
 
 export function Badge({
@@ -186,11 +186,11 @@ export function PageHeader({
   // "sm:" twin equal to today's unconditional value, so >=640px (tablet and
   // desktop) resolves to the exact same classes as before this change.
   return (
-    <div className="flex flex-col gap-3 border-b border-border bg-surface px-4 py-3 sm:gap-4 sm:py-5 lg:px-6">
+    <div className="page-hero flex flex-col gap-3 border-b border-white/40 px-4 py-5 sm:gap-4 sm:py-7 lg:px-8">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
           {eyebrow && <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-clinical-blue">{eyebrow}</div>}
-          <h1 className="mt-1 text-lg font-semibold tracking-tight text-text-primary sm:mt-2 sm:text-[26px]">{title}</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-[-0.03em] text-text-primary sm:mt-2 sm:text-[32px]">{title}</h1>
           {/* Descriptive copy is nice-to-have on a full page, but on mobile
               it's pure vertical cost competing with the actual content/tabs
               below it (brief §16) -- still shown unchanged at >=640px. */}
@@ -339,7 +339,7 @@ export function Modal({
           <motion.div
             role="dialog"
             aria-modal="true"
-            className={cn("max-h-[92vh] w-full overflow-hidden rounded-[12px] border border-border bg-surface", width)}
+            className={cn("max-h-[92dvh] w-full overflow-hidden rounded-[28px] border border-white/70 bg-surface/95 shadow-2xl backdrop-blur-xl", width)}
             variants={reducedMotion ? undefined : modalPanel}
             initial={reducedMotion ? false : "initial"}
             animate={reducedMotion ? undefined : "animate"}

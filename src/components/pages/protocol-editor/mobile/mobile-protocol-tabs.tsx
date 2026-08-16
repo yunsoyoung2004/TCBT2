@@ -17,15 +17,15 @@ export function MobileProtocolTabs({ active, onChange }: { active: MobileProtoco
     tab === "steps" ? t("protocolEditor.mobile.stepsTab") : tab === "flow" ? t("protocolEditor.mobile.flowTab") : t("protocolEditor.mobile.promptTab");
 
   return (
-    <div className="sticky top-[88px] z-10 flex border-b border-border bg-surface px-2">
+    <div className="sticky top-[88px] z-10 mx-3 mt-3 flex overflow-hidden rounded-full border border-white/70 bg-surface/90 p-1 shadow-lg backdrop-blur-xl">
       {TABS.map((tab) => (
         <button
           key={tab}
           type="button"
           onClick={() => onChange(tab)}
           className={cn(
-            "flex min-h-[44px] flex-1 items-center justify-center border-b-2 text-sm font-semibold transition",
-            active === tab ? "border-clinical-blue text-clinical-blue" : "border-transparent text-text-secondary",
+            "flex min-h-[44px] flex-1 items-center justify-center rounded-full text-sm font-semibold transition",
+            active === tab ? "bg-clinical-blue text-white shadow-sm" : "text-text-secondary",
           )}
         >
           {label(tab)}

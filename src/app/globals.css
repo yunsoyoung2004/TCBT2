@@ -104,6 +104,42 @@ body {
 
 body {
   font-family: Inter, Pretendard, SUIT, system-ui, sans-serif;
+  background-image:
+    radial-gradient(circle at 8% -10%, rgba(255, 171, 151, 0.2), transparent 31rem),
+    radial-gradient(circle at 92% 0%, rgba(161, 143, 255, 0.22), transparent 34rem);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+  background:
+    radial-gradient(circle at 14% 10%, rgba(255, 165, 145, 0.72), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(168, 146, 255, 0.7), transparent 46%),
+    #f5f4fb;
+}
+
+.page-hero,
+.patient-app-header {
+  background:
+    radial-gradient(circle at 5% 0%, rgba(255, 177, 157, 0.42), transparent 46%),
+    radial-gradient(circle at 95% 0%, rgba(174, 157, 255, 0.38), transparent 50%),
+    rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(22px);
+}
+
+@media (max-width: 639px) {
+  .patient-app main { padding: 16px; }
+  .patient-app footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .mobile-flow-view { height: calc(100dvh - 190px) !important; }
 }
 
 button,

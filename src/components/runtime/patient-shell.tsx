@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Badge, Button } from "@/components/ui/primitives";
+import { Badge, Button, ConfirmActionDialog } from "@/components/ui/primitives";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -45,6 +45,7 @@ export function PatientShell({
   const pathname = usePathname();
   const reducedMotion = useReducedMotionPreference();
   const { user, signOut } = useAuth();
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const queryClient = useQueryClient();
   // Reuses the same ["runtime-participant", userId] query every patient
   // page already mounts -- React Query dedupes the identical key, so this
@@ -83,8 +84,8 @@ export function PatientShell({
     }
   };
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-surface px-4 py-4 lg:px-6">
+    <div className="patient-app min-h-screen bg-background">
+      <header className="patient-app-header border-b border-white/30 px-4 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] lg:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <Logo className="mt-0.5 h-9 w-9 shrink-0" />
@@ -126,7 +127,7 @@ export function PatientShell({
             </span>
             <Link href="/projects/demo/patient"><Button variant="secondary">{t("patientShell.sessionList")}</Button></Link>
             {actions}
-            <Button variant="ghost" onClick={() => void handleLogout()}>{t("auth.logout")}</Button>
+            <Button variant="ghost" onClick={() => setLogoutConfirmOpen(true)}>{t("auth.logout")}</Button>
           </div>
         </div>
       </header>
@@ -151,6 +152,14 @@ export function PatientShell({
           <span>{t("patientShell.safetyNotice")}</span>
         </div>
       </footer>
+      <ConfirmActionDialog
+        open={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        onConfirm={() => void handleLogout()}
+        title={t("auth.logout") === "로그아웃" ? "로그아웃하시겠습니까?" : "Log out?"}
+        description={t("auth.logout") === "로그아웃" ? "진행 내용은 저장되며 로그인 화면으로 이동합니다." : "Your progress is saved and you will return to sign in."}
+        confirmLabel={t("auth.logout")}
+      />
     </div>
   );
 }
