@@ -3,5 +3,6 @@
 .next
 dist
 distbuild
+verifybuild
 node_modules
 *.tsbuildinfo
