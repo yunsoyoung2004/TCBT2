@@ -43,6 +43,32 @@ describe("canonical source-fidelity runtime", () => {
     expect(session.sessionDefinitionId).toBe("tbct-s08");
   });
 
+  it("does not mistake Korean readiness for a problem and accepts the patient's actual problem without repetition", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s02", locale: "ko-KR" });
+      await startRuntimeSession(session.id);
+      await submitPatientInput(session.id, { kind: "text", value: "현재는 그래도 평화로워요." });
+      const before = await getRuntimeSession(session.id);
+      const problemPromptId = before?.session.currentPromptItemId;
+
+      await submitPatientInput(session.id, { kind: "text", value: "네 알겠습니다." });
+      const afterReadiness = await getRuntimeSession(session.id);
+      expect(afterReadiness?.session.runtimeContext.fields.problems).toBeUndefined();
+      expect(afterReadiness?.session.currentPromptItemId).toBe(problemPromptId);
+
+      const actualProblem = "제 생각에는 저는 포기하는 용기가 없는 것 같아요";
+      await submitPatientInput(session.id, { kind: "text", value: actualProblem });
+      const afterProblem = await getRuntimeSession(session.id);
+      expect(afterProblem?.session.runtimeContext.fields.problems).toEqual([actualProblem]);
+      expect(afterProblem?.session.currentPromptItemId).not.toBe(problemPromptId);
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
   it("keeps the active PromptItem and sends a clarification when a patient sends a greeting or gibberish", async () => {
     const previousProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = "mock";

@@ -109,6 +109,11 @@ describe("case 11: Claude output schema invalid", () => {
 });
 
 describe("case: banned content categories", () => {
+  it("rejects a readiness question appended to a list task", () => {
+    const contract = baseContract({ expectedInputType: "ordered_list", targetField: "problems", currentTaskText: "첫 번째 문제를 말씀해 주세요.", locale: "ko-KR" });
+    const decision = { responseType: "reflect_and_ask", patientFacingMessage: "앞으로 함께 살펴볼 중요한 문제를 하나씩 말씀해 주세요. 준비되셨나요?", keepCurrentNode: true, participantResponseState: "valid_answer" } as const;
+    expect(validateDialogueDecision(decision, contract)).toEqual({ accepted: false, reason: "readiness_question_instead_of_task" });
+  });
   it("rejects diagnosis language", () => {
     const contract = baseContract();
     const decision = { responseType: "reflect_and_ask", patientFacingMessage: "This sounds like generalized anxiety disorder.", keepCurrentNode: true, participantResponseState: "valid_answer" } as const;

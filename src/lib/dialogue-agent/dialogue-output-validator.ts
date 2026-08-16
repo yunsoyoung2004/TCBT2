@@ -8,6 +8,7 @@ const DIAGNOSIS_PATTERN = /\b(?:you have|this (?:is|sounds like|indicates)) (?:a
 const TREATMENT_ADVICE_PATTERN = /\b(?:you should (?:take|try)|i recommend (?:medication|therapy|seeing a)|consider (?:medication|antidepressants))\b/i;
 const PROTOCOL_STATE_PATTERN = /\b(?:node[-_ ]?id|prompt ?item|runtime state|completion status|advance the protocol|next node|session state)\b/i;
 const AI_SELF_REFERENCE_PATTERN = /\b(?:as an ai|i am an ai language model|as a language model)\b/i;
+const READINESS_CHECK_PATTERN = /(?:are you ready|ready to (?:begin|continue)|shall we (?:begin|start)|준비되셨나요|준비됐나요|시작할 준비가 되셨나요|괜찮으실까요)\s*[?.!]?\s*$/i;
 
 /**
  * Section 15's pre-display gate: everything here is a REFUSAL check, not a
@@ -39,6 +40,7 @@ export function validateDialogueDecision(decision: DialogueDecision, contract: D
   if (TREATMENT_ADVICE_PATTERN.test(text)) return { accepted: false, reason: "unsolicited_treatment_advice" };
   if (PROTOCOL_STATE_PATTERN.test(text)) return { accepted: false, reason: "protocol_state_language" };
   if (AI_SELF_REFERENCE_PATTERN.test(text)) return { accepted: false, reason: "ai_self_reference" };
+  if (contract.expectedInputType === "ordered_list" && READINESS_CHECK_PATTERN.test(text)) return { accepted: false, reason: "readiness_question_instead_of_task" };
 
   // "assistantMustNotSupply" fields: Claude may report what the participant
   // themselves said (candidateFieldMention is documented as non-authoritative

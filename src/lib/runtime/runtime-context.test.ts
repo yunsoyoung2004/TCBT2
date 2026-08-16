@@ -55,6 +55,29 @@ function makePrompt(field: string, validation?: Record<string, unknown>): Prompt
 }
 
 describe("runtime context extraction", () => {
+  it.each(["네 알겠습니다.", "준비됐어요", "yes, I'm ready", "okay"])("does not record a readiness acknowledgement as a problems-list item: %s", async (value) => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value },
+      currentNode: makeNode("problems"),
+      currentPromptItem: makePrompt("problems", { kind: "array", minItems: 1, maxItems: 5 }),
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      locale: "ko-KR",
+    });
+    expect(result.fields.problems).toBeUndefined();
+    expect(result.missingFields).toEqual(["problems"]);
+  });
+
+  it.each(["제 생각에는 저는 포기하는 용기가 없는 것 같아요", "사람들에게 싫은 말을 못 하는 게 문제예요", "일을 자꾸 미루는 습관이 있어요"])("records a colloquial Korean problem on the first attempt: %s", async (value) => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value },
+      currentNode: makeNode("problems"),
+      currentPromptItem: makePrompt("problems", { kind: "array", minItems: 1, maxItems: 5 }),
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      locale: "ko-KR",
+    });
+    expect(result.fields.problems).toEqual([value]);
+    expect(result.missingFields).toEqual([]);
+  });
   it("recognizes an explicit refusal without treating it as a safety disclosure", () => {
     expect(isExplicitPatientRefusal("I don’t want counsel")).toBe(true);
     expect(isExplicitPatientRefusal("I don't want to continue")).toBe(true);

@@ -43,6 +43,15 @@ const SUM_TO_100_PAIR_KINDS = new Set(["consensus_weights"]);
  * symptom items, evidence, disadvantages/advantages, appeal evidence, ...). */
 const LIST_BUILDING_VALIDATION_KINDS = new Set(["array", "min_items"]);
 
+/** A readiness/acknowledgement reply is not a clinical list item. This is
+ * especially important when generated wording accidentally adds "ready?"
+ * after an otherwise valid problems/goals prompt: accepting "yes" here
+ * shifts the whole list and makes later replies appear misunderstood. */
+function isListAcknowledgementOnly(text: string) {
+  const normalized = normalizeText(text).replace(/[.!?。！？，,]/g, "").trim();
+  return /^(?:yes|yes i am|yes i'm ready|ok|okay|got it|understood|i understand|ready|네|예|응|네 알겠습니다|알겠습니다|이해했습니다|준비됐어요|준비되었습니다)$/.test(normalized);
+}
+
 function isDuplicateListEntry(existing: unknown, candidate: string) {
   if (!Array.isArray(existing)) return false;
   const normalizedCandidate = normalizeText(candidate);
@@ -302,6 +311,9 @@ export async function extractRuntimeState(input: {
   if (riskSignals.length > 0) nextFields.crisisSignal = true;
   const numericValues = [...rawText.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])).filter((value) => value >= 0 && value <= 100);
   if (deterministic.handled && !deterministic.valid && !riskSignals.length) {
+    return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
+  }
+  if (LIST_BUILDING_VALIDATION_KINDS.has(kind) && isListAcknowledgementOnly(rawText) && !riskSignals.length) {
     return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
   }
   if (numericLike && (numericValues.length < directlyEnteredFields.length || !validPercent) && !riskSignals.length) {

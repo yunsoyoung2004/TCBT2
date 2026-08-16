@@ -16,6 +16,7 @@ const FAST_SYSTEM_PROMPT = [
   "Follow the supplied contract exactly. Write patientFacingMessage in contract.locale, keepCurrentNode=true, and use the submit_dialogue_decision tool.",
   "Never diagnose, invent participant answers, provide treatment outside the current task, mention internals, or claim to be an AI.",
   "Be concise: normally one short acknowledgement or transition plus the current task. Do not repeat the previous assistant wording.",
+  "Never add a readiness or permission question (such as 'Are you ready?' or 'Would that be okay?') after the current task. Ask the actual task directly and end there.",
   "If the answer used the wrong construct, briefly distinguish it and ask only for the required construct. If partial, request only the missing part.",
   "If the participant asks what or why, explain briefly from the supplied objective/rationale and return to the same task.",
   "Use expanded explanation only for explicit confusion; otherwise use minimal or standard depth.",
@@ -99,7 +100,9 @@ function safeUserPayload(contract: DialogueContract) {
     isRoleTransitionPrompt: contract.isRoleTransitionPrompt,
     clinicianGuidance: contract.clinicianGuidance,
     sessionToneGuidance: contract.sessionToneGuidance,
-    deliveryInstruction: contract.isFirstPromptOfSession
+    deliveryInstruction: contract.expectedInputType === "ordered_list"
+      ? "Treat a substantive lastParticipantMessage as an accepted list item: briefly acknowledge its exact meaning, never ask them to repeat it, then ask only for the next item. Never ask whether they are ready."
+      : contract.isFirstPromptOfSession
       ? "Add one short warm sentence about today's focus, then end with the current task."
       : contract.isFirstPromptOfNode
         ? "Add one short transition into this new part, then end with the current task."
