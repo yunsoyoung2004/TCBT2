@@ -10,6 +10,7 @@ import { resolveStaticPatientMessage } from "@/lib/runtime/runtime-static-messag
 import { recordModelUsage } from "@/lib/assessment/model-observability";
 import type { PatientRendererRequest } from "@/lib/patient-renderer/patient-renderer-contract";
 import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
+import { defaultFallbackPatientText, resolveModelGroundingText } from "@/lib/runtime/runtime-release-normalizer";
 
 async function callPatientRenderer(request: PatientRendererRequest, context: { sessionId: string; turnId: string }) {
   if (typeof window === "undefined") { const { renderPatientReflection } = await import("@/lib/patient-renderer/anthropic-patient-renderer"); return renderPatientReflection(request, context); }
@@ -118,7 +119,9 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       recentMessages: input.recentMessages,
       clarificationAttemptCount: input.session.runtimeContext.clarificationAttemptCount ?? 0,
       turnId: dynamicRequestId,
-      currentTaskTextOverride: approvedPatientText,
+      currentTaskTextOverride: approvedPatientText === defaultFallbackPatientText(input.session.locale)
+        ? resolveModelGroundingText(input.sourcePromptItem.id, input.sourcePromptItem.fallbackPatientText, input.session.locale)
+        : approvedPatientText,
       deterministicFallbackText: approvedPatientText,
       isFirstPromptOfNode,
       isFirstPromptOfSession,

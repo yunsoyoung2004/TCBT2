@@ -165,6 +165,17 @@ export function resolvePromptLocaleText(promptItemId: string, value: string | un
   return resolveLocaleFallbackPatientText(value, locale);
 }
 
+/**
+ * Grounding supplied to the dialogue model is not itself displayed. Keep a
+ * safe source-specific prompt here even when it is English: Claude needs the
+ * actual task in order to render it in Korean. The display fallback remains
+ * locale-safe through resolvePromptLocaleText.
+ */
+export function resolveModelGroundingText(promptItemId: string, value: string | undefined, locale: string) {
+  if (locale.toLowerCase().startsWith("ko") && REVIEWED_KOREAN_PROMPT_TEXT[promptItemId]) return REVIEWED_KOREAN_PROMPT_TEXT[promptItemId];
+  return isPatientSafeFallbackText(value) ? value!.trim() : defaultFallbackPatientText(locale);
+}
+
 function localizedSourcePromptText(promptItem: PromptItem, locale: string, fallbackCandidate: string | undefined) {
   if (locale.toLowerCase().startsWith("ko") && REVIEWED_KOREAN_PROMPT_TEXT[promptItem.id]) return REVIEWED_KOREAN_PROMPT_TEXT[promptItem.id];
   return fallbackCandidate;

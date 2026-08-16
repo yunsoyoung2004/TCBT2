@@ -40,22 +40,6 @@ function deterministicFallbackDecision(contract: DialogueContract): import("@/li
   };
 }
 
-const RESPONSE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  // Only natural-language text truly needs model generation. The remaining
-  // fields are descriptive metadata or deterministic invariants and are
-  // normalized below; requiring Haiku to spend tokens restating them caused
-  // otherwise-good 1-3s responses to be discarded as fallbacks.
-  required: ["patientFacingMessage"],
-  properties: {
-    responseType: { type: "string", enum: ["acknowledge", "reflect_and_ask", "clarify", "repair", "request_missing_field", "explain_term", "explain_scale", "explain_rationale", "restore_context", "show_required_visual", "acknowledge_pause"] },
-    patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 },
-    keepCurrentNode: { type: "boolean", enum: [true] },
-    participantResponseState: { type: "string", enum: ["valid_answer", "partial_answer", "wrong_construct", "question_not_understood", "missing_visual", "missing_context", "participant_question", "duplicate_answer", "revision_request", "declines", "pause_request", "off_topic"] },
-  },
-} as const;
-
 const FAST_RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -220,7 +204,8 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
   if (!apiKey) {
     const internalFallback = await generateGroqDecision(parsedContract, context);
-    return internalFallback ?? { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
+    if (internalFallback) return internalFallback.failed ? internalFallback : { ...internalFallback, provider: "groq-fallback" };
+    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
   }
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
@@ -244,7 +229,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
         system: [{ type: "text", text: FAST_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify(userPayload) }] }],
         temperature: 0.2,
-        tools: [{ name: "submit_dialogue_decision", description: "Submit the single structured dialogue decision for this turn.", input_schema: RESPONSE_SCHEMA }],
+        tools: [{ name: "submit_dialogue_decision", description: "Submit the single structured dialogue decision for this turn.", input_schema: FAST_RESPONSE_SCHEMA }],
         tool_choice: { type: "tool", name: "submit_dialogue_decision", disable_parallel_tool_use: true },
       }),
     });
@@ -260,7 +245,8 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
     recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "anthropic", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: null, outputTokens: null, totalTokens: null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: false, failureReason });
     clearTimeout(timeout);
     const internalFallback = await generateGroqDecision(parsedContract, context);
-    return internalFallback ?? { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason };
+    if (internalFallback) return internalFallback.failed ? internalFallback : { ...internalFallback, provider: "groq-fallback" };
+    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason };
   } finally {
     clearTimeout(timeout);
   }

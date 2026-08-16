@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveStaticPatientMessage } from "@/lib/runtime/runtime-static-message";
+import { resolveModelGroundingText } from "@/lib/runtime/runtime-release-normalizer";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 
 // Regression test for a real leak a Korean patient hit in production: a
@@ -66,5 +67,15 @@ describe("resolveStaticPatientMessage", () => {
     const result = resolveStaticPatientMessage(englishOnlyPrompt, "en-US");
 
     expect(result?.patientMessage).toBe("Let's pretend that I am not a therapist but a businessperson.");
+  });
+});
+
+describe("resolveModelGroundingText", () => {
+  it("preserves a safe source-specific task for Claude while the Korean display fallback stays localized", () => {
+    const promptId = "tbct-s01-not-in-reviewed-korean-map-3";
+    const sourceTask = "What behavior would Candidate 1 show after feeling proud?";
+
+    expect(resolveModelGroundingText(promptId, sourceTask, "ko-KR")).toBe(sourceTask);
+    expect(resolveStaticPatientMessage(makePromptWithFallback(promptId, sourceTask), "ko-KR")?.patientMessage).not.toBe(sourceTask);
   });
 });
