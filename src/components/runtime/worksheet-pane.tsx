@@ -94,6 +94,22 @@ export function WorksheetPane({
     queryFn: () => getWorksheetView(runtimeSessionId, sessionDefinitionId),
     refetchInterval: isConversationUpdating ? 750 : false,
   });
+  const wasConversationUpdatingRef = useRef(isConversationUpdating);
+  useEffect(() => {
+    const justFinishedTurn = wasConversationUpdatingRef.current && !isConversationUpdating;
+    wasConversationUpdatingRef.current = isConversationUpdating;
+    if (!justFinishedTurn) return undefined;
+    // The projection write and realtime notification can land just after the
+    // main turn response. A short bounded burst closes that race without
+    // restoring permanent polling or adding latency to the reply itself.
+    void worksheetQuery.refetch();
+    const retryOne = window.setTimeout(() => void worksheetQuery.refetch(), 350);
+    const retryTwo = window.setTimeout(() => void worksheetQuery.refetch(), 1200);
+    return () => {
+      window.clearTimeout(retryOne);
+      window.clearTimeout(retryTwo);
+    };
+  }, [isConversationUpdating, worksheetQuery.refetch]);
   // Was refetchInterval: 4000 -- this pane is mounted on every active
   // session screen (both patient chat and clinician Worksheet tab) app-wide,
   // making it the single most-instantiated polling site by total tick count.

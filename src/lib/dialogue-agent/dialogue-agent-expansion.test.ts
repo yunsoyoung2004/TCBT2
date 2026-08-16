@@ -58,6 +58,24 @@ function minimalRuntimePromptItem(overrides: Partial<RuntimePromptItem> = {}): R
 }
 
 describe("dialogue contract compiler: generic classification (S01/S02 fields)", () => {
+  it("gives Claude the concrete discomfort-versus-distress meaning for a participant explanation request", () => {
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s06" && item.title.includes("Discomfort and Distress"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("participant-capsule-summary"))!;
+    const contract = compileDialogueContract({
+      session: minimalSession({ sessionDefinitionId: "tbct-s06", locale: "ko-KR" }),
+      node,
+      sourcePromptItem: promptItem,
+      runtimePromptItem: minimalRuntimePromptItem({ nodeId: node.id, fallbackPatientText: "불편함과 고통의 차이를 어떻게 설명하시겠어요?" }),
+      lastParticipantMessage: "무슨 말인지 설명해줘",
+      recentMessages: [],
+      clarificationAttemptCount: 1,
+      isFirstPromptOfNode: false,
+      isFirstPromptOfSession: false,
+    });
+    expect(contract.expectedConstruct).toContain("manageable");
+    expect(contract.expectedConstruct).toContain("overwhelming");
+  });
+
   it("marks a real content field (candidateOneThought) as participant-owned and assistantMustNotSupply", () => {
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
     const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;

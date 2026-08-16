@@ -30,6 +30,7 @@ const CONSTRUCT_TERMINOLOGY_PATTERNS: Array<{ pattern: RegExp; term: string; mea
   { pattern: /BodySensations/i, term: "body sensations", meaning: "physical feelings noticed in the body at the time, like a racing heart or tight chest." },
   { pattern: /^problems?$/i, term: "problem", meaning: "something currently going on that's causing distress or getting in the way." },
   { pattern: /^goals?$/i, term: "goal", meaning: "something you'd like to be different or achieve going forward." },
+  { pattern: /DiscomfortDistressSummary/i, term: "the difference between discomfort and distress", meaning: "Discomfort is difficult but still manageable while doing something safe or meaningful; distress feels overwhelming or unmanageable and signals that more support or attention may be needed." },
   { pattern: /Summary/i, term: "summary", meaning: "a short restatement, in your own words, of what's been covered so far." },
 ];
 

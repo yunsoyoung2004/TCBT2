@@ -55,6 +55,17 @@ function makePrompt(field: string, validation?: Record<string, unknown>): Prompt
 }
 
 describe("runtime context extraction", () => {
+  it.each(["무슨 말인지 설명해줘", "이해가 안 돼요. 설명해 주세요", "What do you mean by that?"])("keeps an explanation request out of the clinical field: %s", async (value) => {
+    const result = await extractRuntimeState({
+      patientInput: { kind: "text", value },
+      currentNode: makeNode("discomfortDistressSummary"),
+      currentPromptItem: makePrompt("discomfortDistressSummary", { kind: "participant_summary_required" }),
+      currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      locale: "ko-KR",
+    });
+    expect(result.fields.discomfortDistressSummary).toBeUndefined();
+    expect(result.missingFields).toEqual(["discomfortDistressSummary"]);
+  });
   it.each(["네 알겠습니다.", "준비됐어요", "yes, I'm ready", "okay"])("does not record a readiness acknowledgement as a problems-list item: %s", async (value) => {
     const result = await extractRuntimeState({
       patientInput: { kind: "text", value },

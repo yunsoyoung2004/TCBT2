@@ -52,6 +52,11 @@ function isListAcknowledgementOnly(text: string) {
   return /^(?:yes|yes i am|yes i'm ready|ok|okay|got it|understood|i understand|ready|네|예|응|네 알겠습니다|알겠습니다|이해했습니다|준비됐어요|준비되었습니다)$/.test(normalized);
 }
 
+function isExplanationRequest(text: string) {
+  const normalized = normalizeText(text);
+  return /(?:무슨\s*말|무슨\s*뜻|설명해|설명\s*해|이해가?\s*안|잘\s*모르겠|어떻게\s*하라는|what do you mean|what does (?:that|this) mean|can you explain|please explain|i don'?t understand)/i.test(normalized);
+}
+
 function isDuplicateListEntry(existing: unknown, candidate: string) {
   if (!Array.isArray(existing)) return false;
   const normalizedCandidate = normalizeText(candidate);
@@ -314,6 +319,13 @@ export async function extractRuntimeState(input: {
     return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
   }
   if (LIST_BUILDING_VALIDATION_KINDS.has(kind) && isListAcknowledgementOnly(rawText) && !riskSignals.length) {
+    return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
+  }
+  // A request to explain the active task is conversational control, not the
+  // participant's clinical answer. Keep the field unresolved so the same
+  // Claude turn can explain the construct and return to the task instead of
+  // storing "what do you mean?" as worksheet content.
+  if (input.patientInput.kind === "text" && isExplanationRequest(rawText) && !riskSignals.length) {
     return { fields: input.currentContext.fields, responseCategory: "text", riskLevel, riskSignals, confidence: 1, missingFields: expectedFields };
   }
   if (numericLike && (numericValues.length < directlyEnteredFields.length || !validPercent) && !riskSignals.length) {
