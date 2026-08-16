@@ -82,8 +82,8 @@ export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChan
   const { t } = useT();
   return (
     <Card className={cn("min-w-0 flex-1 overflow-hidden", className)}>
-      <SectionHeader title={t("protocolEditor.protocolCanvas")} />
-      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-330px)] min-h-[520px]")}>
+      <SectionHeader title="플로우 캔버스" />
+      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-290px)] min-h-[560px]")}>
         <ReactFlowProvider>
           <div className="absolute inset-0 h-full w-full">
             <ReactFlow

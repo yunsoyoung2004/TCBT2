@@ -22,7 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { applyNodeChanges, type Connection, type NodeChange } from "@xyflow/react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Button, EmptyState, Modal, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState, Modal, PageHeader, PageSkeleton, SaveStatus, inputClass } from "@/components/ui/primitives";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { useT } from "@/lib/i18n/context";
 import {
@@ -479,7 +479,7 @@ export function ProtocolPage() {
             {/* Desktop/tablet (>=640px): unchanged 3-panel row, byte-identical
                 to before this pass -- only hidden below 640px, where the
                 mobile tabbed view below takes over. */}
-            <div className="hidden gap-4 p-4 sm:flex sm:flex-col xl:flex-row lg:p-6">
+            <div className="hidden gap-3 p-4 sm:flex sm:flex-col xl:grid xl:grid-cols-[280px_minmax(420px,1fr)_400px] lg:p-5">
               <SessionPanel
                 sessionTitle={selectedSessionMeta?.title ?? selectedSessionId}
                 nodes={sessionFlowNodes}
@@ -533,6 +533,10 @@ export function ProtocolPage() {
                   )}
                 </div>
               )}
+            </div>
+            <div className="sticky bottom-0 z-20 hidden items-center justify-between border-t border-border bg-surface/95 px-6 py-3 shadow-[0_-8px_28px_rgba(35,50,80,0.08)] backdrop-blur xl:flex">
+              <SaveStatus state={saveState} />
+              <div className="flex gap-3"><Button variant="secondary" loading={runtimeMutation.isPending} onClick={() => runtimeMutation.mutate()}>미리보기</Button><Button loading={saveNodeMutation.isPending || validationMutation.isPending} onClick={() => void handleSave()}>변경사항 저장</Button></div>
             </div>
           </>
         );

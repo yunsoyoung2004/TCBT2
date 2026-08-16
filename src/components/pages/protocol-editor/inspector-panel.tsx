@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Badge, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, Field, SectionHeader, ValidationSeverityBadge, inputClass, textareaClass } from "@/components/ui/primitives";
 import { statusTransition } from "@/lib/motion/motion-variants";
 import { useT } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -63,11 +63,11 @@ export function InspectorPanel(props: InspectorPanelProps) {
     draft, onDraftChange, immutableSourceView, sessionPrompts, selectedPromptItem, onSelectPromptItem,
     onUpdatePromptItem,
     sessionCommonRules, onSaveSessionCommonRules,
-    validationRun, fieldErrors,
+    validationRun, fieldErrors, saving, previewing, onSave, onPreview, onDuplicate, onDelete,
     cardClassName, bodyHeightClassName,
   } = props;
-  const resolvedCardClassName = cardClassName ?? "min-w-[320px] max-w-[480px] shrink-0 overflow-hidden xl:w-[380px]";
-  const resolvedBodyHeightClassName = bodyHeightClassName ?? "max-h-[calc(100vh-330px)]";
+  const resolvedCardClassName = cardClassName ?? "min-w-[340px] shrink-0 overflow-hidden xl:w-[400px]";
+  const resolvedBodyHeightClassName = bodyHeightClassName ?? "max-h-[calc(100vh-350px)]";
 
   if (!draft) {
     return (
@@ -82,7 +82,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
 
   return (
     <Card className={resolvedCardClassName}>
-      <SectionHeader title={t("protocolEditor.nodeInspector")} description={draft.data.title} />
+      <SectionHeader title="Step / Prompt Editor" description={draft.data.title} />
       <motion.div key={draft.id} className={cn("space-y-4 overflow-auto p-4", resolvedBodyHeightClassName)} variants={statusTransition} initial="initial" animate="animate">
         <Field label={t("protocolEditor.stepName")}>
           <input value={draft.data.title} readOnly={immutableSourceView} onChange={(event) => onDraftChange({ ...draft, data: { ...draft.data, title: event.target.value } })} className={inputClass} />
@@ -180,6 +180,12 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </Field>
           </fieldset>
         </details>
+        <div className="grid grid-cols-2 gap-2 border-t border-border pt-4">
+          <Button variant="secondary" onClick={onDuplicate}>단계 복제</Button>
+          <Button variant="danger" onClick={onDelete}>단계 삭제</Button>
+          <Button variant="secondary" loading={previewing} onClick={onPreview}>미리보기</Button>
+          <Button loading={saving} onClick={onSave}>변경사항 저장</Button>
+        </div>
       </motion.div>
     </Card>
   );

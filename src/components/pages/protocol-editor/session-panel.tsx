@@ -44,10 +44,9 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
   }
 
   return (
-    <Card className="min-w-[240px] max-w-[340px] shrink-0 overflow-hidden xl:w-[280px]">
+    <Card className="min-w-[260px] shrink-0 overflow-hidden xl:w-[280px]">
       <SectionHeader
-        title={t("protocolEditor.sessionExplorer")}
-        description={t("protocolEditor.sessionSteps")}
+        title="세션 단계"
         action={
           <div className="flex items-center gap-2">
             <Badge tone="neutral">{sessionTitle}</Badge>
@@ -62,8 +61,8 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
           </div>
         }
       />
-      <div className="max-h-[calc(100vh-330px)] space-y-2 overflow-auto p-3">
-        {nodes.map((flowNode) => {
+      <div className="max-h-[calc(100vh-290px)] space-y-2 overflow-auto p-3">
+        {nodes.map((flowNode, index) => {
           const step = flowNode.data.step;
           const labels = getClinicianStepLabels(step);
           return (
@@ -79,7 +78,7 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
                 selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border hover:bg-surface-subtle",
               )}
             >
-              <div className="text-sm font-semibold text-text-primary">{step.data.title}</div>
+              <div className="flex items-start gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selectedStepId === step.id ? "bg-ai-violet-light text-ai-violet" : "bg-surface-subtle text-text-secondary"}`}>{String(index + 1).padStart(2, "0")}</span><div className="min-w-0"><div className="text-sm font-semibold text-text-primary">{step.data.title}</div>
               {labels.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {labels.map((label) => (
@@ -87,7 +86,7 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
                   ))}
                 </div>
               )}
-              <div className="mt-2 text-xs text-text-secondary">{step.data.clinicalIntent}</div>
+              <div className="mt-2 truncate-2 text-xs leading-5 text-text-secondary">{step.data.clinicalIntent}</div></div></div>
             </motion.button>
           );
         })}
