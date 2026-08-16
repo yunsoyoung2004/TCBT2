@@ -25,7 +25,7 @@ export function MobileProtocolTabs({ active, onChange }: { active: MobileProtoco
           onClick={() => onChange(tab)}
           className={cn(
             "flex min-h-[44px] flex-1 items-center justify-center rounded-full text-sm font-semibold transition",
-            active === tab ? "bg-clinical-blue text-white shadow-sm" : "text-text-secondary",
+            active === tab ? "rainbow-fill text-white shadow-sm" : "text-text-secondary",
           )}
         >
           {label(tab)}

@@ -11,7 +11,7 @@ type Tone = "neutral" | "primary" | "violet" | "success" | "warning" | "critical
 
 const toneClass: Record<Tone, string> = {
   neutral: "border-border bg-surface-subtle text-text-secondary",
-  primary: "border-clinical-blue-light bg-clinical-blue-light text-clinical-blue",
+  primary: "rainbow-fill border-transparent text-white",
   violet: "border-ai-violet-light bg-ai-violet-light text-ai-violet",
   success: "border-success-light bg-success-light text-success",
   warning: "border-warning-light bg-warning-light text-warning",
@@ -36,7 +36,7 @@ export function Button({
   loading?: boolean;
 }) {
   const styles = {
-    primary: "border-clinical-blue bg-clinical-blue text-white hover:bg-[#2f5b9f]",
+    primary: "rainbow-button border-transparent text-white hover:brightness-105",
     secondary: "border-border bg-surface text-text-primary hover:bg-surface-hover",
     ghost: "border-transparent bg-transparent text-text-secondary hover:bg-surface-hover",
     danger: "border-critical bg-critical text-white hover:bg-[#ac3340]",
@@ -69,7 +69,7 @@ export function Button({
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-panel border border-white/70 bg-surface/95 shadow-[0_14px_40px_rgba(47,69,110,0.08)] backdrop-blur", className)}>{children}</section>;
+  return <section className={cn("rainbow-card rounded-panel bg-surface/95 shadow-[0_14px_40px_rgba(47,69,110,0.08)] backdrop-blur", className)}>{children}</section>;
 }
 
 export function Badge({

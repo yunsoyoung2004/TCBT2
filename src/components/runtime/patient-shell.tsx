@@ -100,7 +100,7 @@ export function PatientShell({
               {progressPercent !== undefined && (
                 <div className="mt-3 max-w-xs">
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-                    <div className="h-full rounded-full bg-clinical-blue transition-[width] duration-500" style={{ width: `${progressPercent}%` }} />
+                    <div className="rainbow-fill h-full rounded-full transition-[width] duration-500" style={{ width: `${progressPercent}%` }} />
                   </div>
                   <div className="mt-1 text-[11px] text-text-muted">{t("patientShell.sessionProgress", { percent: progressPercent })}</div>
                 </div>

@@ -106,9 +106,34 @@ body {
   font-family: Inter, Pretendard, SUIT, system-ui, sans-serif;
   background-image:
     radial-gradient(circle at 8% -10%, rgba(255, 171, 151, 0.2), transparent 31rem),
-    radial-gradient(circle at 92% 0%, rgba(161, 143, 255, 0.22), transparent 34rem);
+    radial-gradient(circle at 92% 0%, rgba(161, 143, 255, 0.22), transparent 34rem),
+    radial-gradient(circle at 48% 110%, rgba(60, 211, 180, 0.12), transparent 32rem);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+}
+
+.rainbow-fill,
+.rainbow-button {
+  background-image: linear-gradient(115deg, #ff6f61 0%, #ffb52e 20%, #26c99a 42%, #04a9df 62%, #3566ee 79%, #8d4de8 100%);
+}
+
+.rainbow-button {
+  box-shadow: 0 8px 22px rgba(70, 98, 210, 0.2);
+}
+
+.rainbow-text {
+  color: transparent;
+  background: linear-gradient(100deg, #ff6f61, #f0a928, #20bda0, #079fd5, #4966e9, #8d4de8);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.rainbow-card {
+  position: relative;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgb(var(--color-surface) / .96), rgb(var(--color-surface) / .96)) padding-box,
+    linear-gradient(125deg, rgba(255,111,97,.42), rgba(255,181,46,.28), rgba(38,201,154,.3), rgba(4,169,223,.34), rgba(141,77,232,.36)) border-box;
 }
 
 .app-splash {
@@ -130,8 +155,10 @@ body {
 .page-hero,
 .patient-app-header {
   background:
-    radial-gradient(circle at 5% 0%, rgba(255, 177, 157, 0.42), transparent 46%),
-    radial-gradient(circle at 95% 0%, rgba(174, 157, 255, 0.38), transparent 50%),
+    radial-gradient(circle at 3% 0%, rgba(255, 119, 101, 0.35), transparent 38%),
+    radial-gradient(circle at 32% -20%, rgba(255, 195, 73, 0.25), transparent 34%),
+    radial-gradient(circle at 65% -20%, rgba(26, 201, 172, 0.22), transparent 36%),
+    radial-gradient(circle at 97% 0%, rgba(148, 91, 238, 0.34), transparent 42%),
     rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(22px);
 }

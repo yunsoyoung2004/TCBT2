@@ -228,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       collapsed && "justify-center px-0",
                     )}
                   >
-                    {active && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r bg-clinical-blue" />}
+                    {active && <span className="rainbow-fill absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r" />}
                     <item.icon className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="truncate">{navLabel(item)}</span>}
                   </Link>
