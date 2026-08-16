@@ -102,6 +102,53 @@ body {
   color: rgb(var(--color-text-primary));
 }
 
+.clinician-app,
+body:has(.patient-app) {
+  background-color: #dfe7f5;
+  background-image:
+    radial-gradient(circle at 8% 8%, rgba(255, 151, 132, .18), transparent 28rem),
+    radial-gradient(circle at 92% 5%, rgba(129, 112, 236, .18), transparent 30rem);
+}
+
+.app-workspace {
+  background-color: rgb(var(--color-background));
+}
+
+.app-content {
+  min-height: calc(100vh - 112px);
+}
+
+.app-sidebar .text-blue-100,
+.app-sidebar a.text-blue-100 {
+  color: rgb(var(--color-text-secondary));
+}
+
+.app-sidebar .border-white\/10 {
+  border-color: rgb(var(--color-border));
+}
+
+.app-sidebar .bg-white\/5 {
+  background-color: rgb(var(--color-surface-subtle));
+}
+
+.app-sidebar .text-white {
+  color: rgb(var(--color-text-primary));
+}
+
+.app-sidebar nav a:not(.bg-clinical-blue-light):hover {
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface-hover));
+}
+
+@media (min-width: 1024px) {
+  .app-sidebar {
+    border-right: 0;
+  }
+  .app-content {
+    min-height: calc(100vh - 112px);
+  }
+}
+
 body {
   font-family: Inter, Pretendard, SUIT, system-ui, sans-serif;
   background-image:

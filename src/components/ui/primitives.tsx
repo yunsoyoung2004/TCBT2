@@ -155,13 +155,13 @@ export function MetricCard({
   action?: ReactNode;
 }) {
   return (
-    <Card className="flex min-h-[132px] flex-col justify-between p-4">
+    <Card className="flex min-h-[148px] flex-col justify-between p-5">
       <div className="flex items-start justify-between gap-3">
         <Badge tone={accent}>{label}</Badge>
         {action}
       </div>
       <div>
-        <div className="mt-6 text-[28px] font-semibold tracking-tight text-text-primary">{value}</div>
+        <div className="mt-6 text-[32px] font-bold tracking-[-0.04em] text-text-primary">{value}</div>
         <div className="mt-2 text-xs text-text-secondary">{helper}</div>
       </div>
     </Card>

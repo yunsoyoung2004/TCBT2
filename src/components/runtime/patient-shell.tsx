@@ -84,7 +84,7 @@ export function PatientShell({
     }
   };
   return (
-    <div className="patient-app min-h-screen bg-background">
+    <div className="patient-app min-h-screen overflow-hidden bg-background lg:m-6 lg:min-h-[calc(100vh-48px)] lg:rounded-[32px] lg:shadow-[0_24px_70px_rgba(51,70,112,0.16)]">
       <header className="patient-app-header border-b border-white/30 px-4 pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] lg:px-6">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">

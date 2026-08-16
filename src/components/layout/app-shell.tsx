@@ -146,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [setActiveActor]);
 
   const breadcrumbs = useMemo(() => buildBreadcrumb(pathname), [pathname]);
-  const sidebarWidth = collapsed ? "lg:pl-[92px]" : "lg:pl-[248px]";
+  const sidebarWidth = collapsed ? "lg:pl-[116px]" : "lg:pl-[272px]";
   const showFullNav = !isClinicianAudience(activeActorRole);
   const visibleNavItems = useMemo(
     () =>
@@ -160,10 +160,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const clinicianNavItems = useMemo(() => NAV_ITEMS.filter((item) => item.audience === "clinician"), []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="clinician-app min-h-screen bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex border-r border-[#20436f] bg-navy-900 text-white transition-all duration-200 lg:translate-x-0",
+          "app-sidebar fixed inset-y-0 left-0 z-50 flex border-r border-border bg-surface text-text-primary shadow-xl transition-all duration-200 lg:bottom-6 lg:left-6 lg:top-6 lg:translate-x-0 lg:rounded-l-[32px]",
           collapsed ? "w-[92px]" : "w-[248px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
@@ -201,13 +201,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {!collapsed && (
             <div className="border-b border-white/10 px-4 py-4">
-              <div className="rounded-panel border border-white/10 bg-white/5 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] uppercase tracking-[0.12em] text-blue-100">Project</div>
-                  <span className="rounded-md border border-[#6d90c4] bg-[#214473] px-2 py-1 text-[10px] font-semibold text-blue-100">Demo Mode</span>
+              <div className="app-sidebar-project rounded-panel border border-border bg-surface-subtle p-3">
+                <div className="flex items-center gap-3">
+                  <span className="rainbow-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-md">{identityInitials}</span>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-text-primary">{user?.email?.split("@")[0] ?? "Clinician"}</div>
+                    <div className="truncate text-[11px] text-text-secondary">{role ?? "clinician"}</div>
+                  </div>
                 </div>
-                <div className="mt-3 text-sm font-semibold">TBCT-BR-001</div>
-                <div className="mt-1 text-xs text-blue-100">Korea · Korean · Pilot readiness</div>
+                <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">Workspace</div>
+                    <div className="mt-1 text-xs font-semibold">TBCT-BR-001</div>
+                  </div>
+                  <span className="rounded-full bg-success-light px-2 py-1 text-[10px] font-semibold text-success">Pilot</span>
+                </div>
               </div>
             </div>
           )}
@@ -292,8 +300,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {mobileOpen && <button className="fixed inset-0 z-40 bg-[#132A4A]/24 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
 
-      <div className={cn("transition-all", sidebarWidth)}>
-        <header className="sticky top-0 z-30 flex h-[56px] items-center gap-3 border-b border-border bg-surface/96 px-4 backdrop-blur lg:px-5">
+      <div className={cn("app-workspace-shell transition-all lg:mr-6 lg:py-6", sidebarWidth)}>
+        <div className="app-workspace min-h-screen overflow-hidden bg-background lg:min-h-[calc(100vh-48px)] lg:rounded-r-[32px] lg:shadow-[0_24px_70px_rgba(51,70,112,0.16)]">
+        <header className="app-topbar sticky top-0 z-30 flex h-[64px] items-center gap-3 border-b border-border/70 bg-surface/90 px-4 backdrop-blur-xl lg:px-7">
           {/* Mobile (<640px) drops the hamburger entirely -- bottom nav is the
               top-level mobile navigation (see the "sm:hidden" nav below).
               Tablet (640-1024px) keeps today's drawer trigger unchanged, and
@@ -358,7 +367,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Extra bottom clearance for the fixed mobile nav below, plus the
             iOS home-indicator safe area on top of that. Unchanged >=640px
             (no bottom nav there). */}
-        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
+        <main className="app-content pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
           {/* Every clinician page wraps itself in its own <AppShell> (see
               studio-app.tsx's routing), so this is the one shared place that
               gives every one of them the same subtle enter transition
@@ -374,6 +383,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </motion.div>
         </main>
+        </div>
       </div>
 
       {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}
