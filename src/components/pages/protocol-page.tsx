@@ -391,6 +391,7 @@ export function ProtocolPage() {
   return (
     <AppShell>
       <PageHeader
+        className="protocol-builder-hero"
         title={t("protocolEditor.pageTitle")}
         description={t("protocolEditor.pageDescription")}
         meta={<Badge tone="neutral">{selectedSessionMeta?.title ?? selectedSessionId}</Badge>}
@@ -479,7 +480,7 @@ export function ProtocolPage() {
             {/* Desktop/tablet (>=640px): unchanged 3-panel row, byte-identical
                 to before this pass -- only hidden below 640px, where the
                 mobile tabbed view below takes over. */}
-            <div className="hidden gap-3 p-4 sm:flex sm:flex-col xl:grid xl:grid-cols-[280px_minmax(420px,1fr)_400px] lg:p-5">
+            <div className="protocol-builder-grid hidden gap-3 p-4 sm:flex sm:flex-col xl:grid lg:p-4">
               <SessionPanel
                 sessionTitle={selectedSessionMeta?.title ?? selectedSessionId}
                 nodes={sessionFlowNodes}

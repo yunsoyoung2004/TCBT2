@@ -66,8 +66,8 @@ export function InspectorPanel(props: InspectorPanelProps) {
     validationRun, fieldErrors, saving, previewing, onSave, onPreview, onDuplicate, onDelete,
     cardClassName, bodyHeightClassName,
   } = props;
-  const resolvedCardClassName = cardClassName ?? "min-w-[340px] shrink-0 overflow-hidden xl:w-[400px]";
-  const resolvedBodyHeightClassName = bodyHeightClassName ?? "max-h-[calc(100vh-350px)]";
+  const resolvedCardClassName = cardClassName ?? "protocol-builder-panel min-w-0 max-w-full shrink-0 overflow-hidden";
+  const resolvedBodyHeightClassName = bodyHeightClassName ?? "max-h-[calc(100vh-334px)]";
 
   if (!draft) {
     return (

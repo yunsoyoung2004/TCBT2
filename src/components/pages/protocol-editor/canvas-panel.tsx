@@ -81,9 +81,9 @@ interface CanvasPanelProps {
 export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChange, onNodeClick, onNodeDragStart, onNodeDragStop, onConnect, onEdgeDoubleClick, heightClassName, className }: CanvasPanelProps) {
   const { t } = useT();
   return (
-    <Card className={cn("min-w-0 flex-1 overflow-hidden", className)}>
+    <Card className={cn("protocol-builder-panel min-w-0 max-w-full flex-1 overflow-hidden", className)}>
       <SectionHeader title="플로우 캔버스" />
-      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-290px)] min-h-[560px]")}>
+      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-272px)] min-h-[520px]")}>
         <ReactFlowProvider>
           <div className="absolute inset-0 h-full w-full">
             <ReactFlow

@@ -25,7 +25,7 @@ const labelTone: Record<string, "primary" | "warning" | "neutral" | "critical"> 
   repeated: "neutral",
 };
 
-export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, collapsed, onToggleCollapsed, reducedMotion }: SessionPanelProps) {
+export function SessionPanel({ sessionTitle: _sessionTitle, nodes, selectedStepId, onSelect, collapsed, onToggleCollapsed, reducedMotion }: SessionPanelProps) {
   const { t } = useT();
 
   if (collapsed) {
@@ -44,12 +44,12 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
   }
 
   return (
-    <Card className="min-w-[260px] shrink-0 overflow-hidden xl:w-[280px]">
+    <Card className="protocol-builder-panel min-w-0 shrink-0 overflow-hidden">
       <SectionHeader
         title="세션 단계"
         action={
           <div className="flex items-center gap-2">
-            <Badge tone="neutral">{sessionTitle}</Badge>
+            <Badge tone="neutral">{nodes.length} 단계</Badge>
             <button
               type="button"
               onClick={onToggleCollapsed}
@@ -61,7 +61,7 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
           </div>
         }
       />
-      <div className="max-h-[calc(100vh-290px)] space-y-2 overflow-auto p-3">
+      <div className="max-h-[calc(100vh-272px)] space-y-2 overflow-auto p-2.5">
         {nodes.map((flowNode, index) => {
           const step = flowNode.data.step;
           const labels = getClinicianStepLabels(step);
@@ -74,7 +74,7 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
               animate={reducedMotion ? undefined : "animate"}
               onClick={() => onSelect(step.id)}
               className={cn(
-                "w-full rounded-panel border p-3 text-left",
+                "w-full rounded-[12px] border p-3 text-left",
                 selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border hover:bg-surface-subtle",
               )}
             >
@@ -86,11 +86,20 @@ export function SessionPanel({ sessionTitle, nodes, selectedStepId, onSelect, co
                   ))}
                 </div>
               )}
-              <div className="mt-2 truncate-2 text-xs leading-5 text-text-secondary">{step.data.clinicalIntent}</div></div></div>
+              <div className="mt-2 truncate-2 text-xs leading-5 text-text-secondary">{cleanClinicalSummary(step.data.clinicalIntent)}</div></div></div>
             </motion.button>
           );
         })}
       </div>
     </Card>
   );
+}
+
+function cleanClinicalSummary(value: string | undefined) {
+  return (value ?? "")
+    .replace(/#{1,6}\s*/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/\bAsk:\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

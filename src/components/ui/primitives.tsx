@@ -174,19 +174,21 @@ export function PageHeader({
   eyebrow,
   meta,
   actions,
+  className,
 }: {
   title: string;
   description: string;
   eyebrow?: string;
   meta?: ReactNode;
   actions?: ReactNode;
+  className?: string;
 }) {
   // Mobile (<640px) gets a denser title/spacing tier so more of the page's
   // actual content is visible without scrolling; every value below has a
   // "sm:" twin equal to today's unconditional value, so >=640px (tablet and
   // desktop) resolves to the exact same classes as before this change.
   return (
-    <div className="page-hero flex flex-col gap-3 border-b border-white/40 px-4 py-5 sm:gap-4 sm:py-7 lg:px-8">
+    <div className={cn("page-hero flex flex-col gap-3 border-b border-white/40 px-4 py-5 sm:gap-4 sm:py-7 lg:px-8", className)}>
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
           {eyebrow && <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-clinical-blue">{eyebrow}</div>}
