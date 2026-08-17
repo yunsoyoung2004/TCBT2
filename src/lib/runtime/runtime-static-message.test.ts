@@ -41,6 +41,34 @@ function makePromptWithFallback(id: string, fallbackPatientText: string): Prompt
   };
 }
 
+describe("resolveStaticPatientMessage: S02 CCPH/CCGH six-anchor scale text stays under the 600-char safety cap", () => {
+  // Regression test for a real bug: static-messages/s02.ts's computed
+  // six-anchor-problem-scale/six-anchor-goal-scale branches were verbose
+  // enough in English (~660-800 chars) to fail isPatientSafeFallbackText's
+  // 600-char cap in runtime-release-normalizer.ts, silently substituting the
+  // content-free generic locale line (defaultFallbackPatientText) on every
+  // English CCPH/CCGH turn -- so an English-speaking participant never saw
+  // the six colored rating anchors at all, while Korean's denser phrasing
+  // (~446-485 chars) always passed. Found via a real deterministic-fallback
+  // session run (no ANTHROPIC_API_KEY), this repo's actual default.
+  for (const [promptItemId, mustContain] of [
+    ["tbct-s02-n04-p02-six-anchor-problem-scale", ["light blue", "dark blue", "light green", "dark green", "yellow", "red"]],
+    ["tbct-s02-n08-p02-six-anchor-goal-scale", ["light blue", "dark blue", "light green", "dark green", "yellow", "red"]],
+  ] as const) {
+    it.each([
+      [{ problemScaleCardAvailable: true, goalScaleCardAvailable: true }, "card available"],
+      [{ problemScaleCardAvailable: false, goalScaleCardAvailable: false }, "no card"],
+    ])(`${promptItemId} (%s) delivers the real six-anchor scale text in English, not the generic fallback`, (fields) => {
+      const prompt = makePromptWithFallback(promptItemId, "");
+      const result = resolveStaticPatientMessage(prompt, "en-US", { fields, riskSignals: [], iterationCounts: {}, riskLevel: "low" });
+      expect(result).not.toBeNull();
+      expect(result!.patientMessage).not.toBe("We can take this one step at a time. What feels most important to share right now?");
+      for (const anchor of mustContain) expect(result!.patientMessage).toContain(anchor);
+      expect(result!.patientMessage.length).toBeLessThanOrEqual(600);
+    });
+  }
+});
+
 describe("resolveStaticPatientMessage", () => {
   it("never ships raw English fallbackPatientText to a Korean session, even for a PromptItem with no curated translation", () => {
     const englishOnlyPrompt = makePromptWithFallback(

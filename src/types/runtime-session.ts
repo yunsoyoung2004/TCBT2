@@ -69,6 +69,12 @@ export interface RuntimeSessionState {
   fields: Record<string, unknown>;
   turnCount: number;
   nodeIterationCount: number;
+  /** Accepted-input count per repeat_until PromptItem id. nodeIterationCount
+   * is shared by every prompt in the node, so a node with TWO repeat_until
+   * prompts (S08 Step 12's surrebuttal + per-pair "Therefore") would have the
+   * second loop start with the first loop's spent budget and force-complete
+   * after one answer. Optional so persisted pre-existing states still load. */
+  promptIterationCounts?: Record<string, number>;
 }
 
 export interface PatientProfile {
@@ -296,6 +302,21 @@ export interface StateExtractionResult {
   riskSignals: string[];
   confidence?: number;
   missingFields: string[];
+  /**
+   * Phase 3 (runtime orchestration simplification): distinguishes a genuine
+   * accepted clinical answer from a participant-driven state correction
+   * (e.g. "this isn't a goal, remove it") -- both persist `fields` and both
+   * report `missingFields: []`, but they must not be treated identically by
+   * the reducer: a correction must never consume a repeat_until prompt's
+   * iteration budget or be counted as "one more rating given". Optional and
+   * defaults to the existing "answer_accepted" behavior everywhere it isn't
+   * explicitly set, so every extraction path outside S02's rating-correction
+   * gate (runtime-context.ts) is unaffected. "clarification_required" exists
+   * for completeness/symmetry with the reducer event naming; in practice
+   * every current clarification path already signals via a non-empty
+   * `missingFields` instead of setting this.
+   */
+  inputDisposition?: "answer_accepted" | "state_corrected" | "clarification_required";
 }
 
 export interface SafetyOrchestrationResult {

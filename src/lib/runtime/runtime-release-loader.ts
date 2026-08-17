@@ -67,5 +67,6 @@ export function normalizeRuntimeSessionState(session: RuntimeSession, release: R
     fields: normalizeClinicalFields(session.runtimeContext.fields),
     turnCount: session.runtimeState?.turnCount ?? 0,
     nodeIterationCount: session.runtimeState?.nodeIterationCount ?? 0,
+    promptIterationCounts: { ...(session.runtimeState?.promptIterationCounts ?? {}) },
   };
 }

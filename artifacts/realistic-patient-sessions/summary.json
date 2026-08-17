@@ -1,0 +1,497 @@
+[
+  {
+    "definitionId": "tbct-s06",
+    "runtimeSessionId": "RTS-c829c054",
+    "turns": 13,
+    "trapUsed": true,
+    "trapRecovered": true,
+    "finalStatus": "paused",
+    "log": [
+      {
+        "turn": 1,
+        "field": "sessionLanguage,languageLocked",
+        "patient": "sessionLanguage: 이번 주에 있었던 일 하나로 말씀드릴게요.; languageLocked: 이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 2,
+        "field": "symptomItems",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 3,
+        "field": "symptomItems",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 4,
+        "field": "symptomItems",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 5,
+        "field": "symptomItems",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 6,
+        "field": "calibrationScore",
+        "patient": "1",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 7,
+        "field": "symptomItemScores",
+        "patient": "5",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 8,
+        "field": "discomfortDistressSummary",
+        "patient": "okay",
+        "outcome": "clarification",
+        "trap": true
+      },
+      {
+        "turn": 9,
+        "field": "discomfortDistressSummary",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 10,
+        "field": "discomfortDistressSummary",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 11,
+        "field": "discomfortDistressSummary",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "clarification",
+        "trap": false
+      },
+      {
+        "turn": 12,
+        "field": "discomfortDistressSummary",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "clarification",
+        "trap": false
+      },
+      {
+        "turn": 13,
+        "field": "discomfortDistressSummary",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "clarification",
+        "trap": false
+      },
+      {
+        "turn": 14,
+        "field": "-",
+        "patient": "-",
+        "outcome": "stopped:paused",
+        "trap": false
+      }
+    ]
+  },
+  {
+    "definitionId": "tbct-s08",
+    "runtimeSessionId": "RTS-678db33b",
+    "turns": 54,
+    "trapUsed": true,
+    "trapRecovered": true,
+    "finalStatus": "completed",
+    "log": [
+      {
+        "turn": 1,
+        "field": "distressingSituation,automaticThought",
+        "patient": "distressingSituation: 어제 회사에서 발표 준비하다가 실수한 일이요.; automaticThought: 제가 무능하다는 생각이 들었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 2,
+        "field": "coreBelief",
+        "patient": "제가 무능하다는 생각이 들었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 3,
+        "field": "coreBeliefBaselinePercent",
+        "patient": "55",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 4,
+        "field": "baselineEmotion",
+        "patient": "okay",
+        "outcome": "clarification",
+        "trap": true
+      },
+      {
+        "turn": 5,
+        "field": "baselineEmotion",
+        "patient": "많이 불안하고 좀 창피했어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 6,
+        "field": "baselineEmotionIntensityPercent",
+        "patient": "55",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 7,
+        "field": "defendantRoleReady",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 8,
+        "field": "defendantPreProsecutionBeliefPercent,defendantPreProsecutionEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 9,
+        "field": "prosecutorImagery",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 10,
+        "field": "prosecutorRoleReady",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 11,
+        "field": "prosecutionEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 12,
+        "field": "prosecutionEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 13,
+        "field": "prosecutionEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 14,
+        "field": "prosecutionEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 15,
+        "field": "defendantPostProsecutionBeliefPercent,defendantPostProsecutionEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 16,
+        "field": "defenseImagery",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 17,
+        "field": "defenseRoleReady",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 18,
+        "field": "defenseEvidence",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 19,
+        "field": "defenseEvidence",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 20,
+        "field": "defenseEvidence",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 21,
+        "field": "defenseEvidence",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 22,
+        "field": "defendantPostDefenseBeliefPercent,defendantPostDefenseEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 23,
+        "field": "prosecutorRoleReady",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 24,
+        "field": "prosecutionRebuttals",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 25,
+        "field": "defendantPostRebuttalBeliefPercent,defendantPostRebuttalEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 26,
+        "field": "unrebuttedDefenseEvidence",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 27,
+        "field": "defenseRoleReady",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 28,
+        "field": "defenseSurrebuttals",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 29,
+        "field": "thereforeConclusions",
+        "patient": "그 생각이 완전히 맞는 건 아닌 것 같아요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 30,
+        "field": "defendantPostSurrebuttalBeliefPercent,defendantPostSurrebuttalEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 31,
+        "field": "juryOrientation",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 32,
+        "field": "juryOrientation",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 33,
+        "field": "juryReview",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 34,
+        "field": "juryReview",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 35,
+        "field": "juryReview",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 36,
+        "field": "juryReview",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 37,
+        "field": "verdict",
+        "patient": "guilty",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 38,
+        "field": "verdict",
+        "patient": "guilty",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 39,
+        "field": "verdictAnnounced",
+        "patient": "그 생각이 완전히 맞는 건 아닌 것 같아요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 40,
+        "field": "defendantPostVerdictReady",
+        "patient": "예전엔 비슷한 발표를 잘 끝낸 적도 있어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 41,
+        "field": "defendantPostVerdictBeliefPercent,defendantPostVerdictEmotionIntensityPercent",
+        "patient": "55, 54",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 42,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 43,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 44,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 45,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 46,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 47,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 48,
+        "field": "trialDiscussion",
+        "patient": "이번 주에 있었던 일 하나로 말씀드릴게요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 49,
+        "field": "positiveBelief",
+        "patient": "제가 무능하다는 생각이 들었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 50,
+        "field": "appealEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 51,
+        "field": "appealEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 52,
+        "field": "appealEvidence",
+        "patient": "그날 발표에서 말을 좀 더듬었어요.",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 53,
+        "field": "positiveBeliefPercent",
+        "patient": "55",
+        "outcome": "normal",
+        "trap": false
+      },
+      {
+        "turn": 54,
+        "field": "originalChargeFinalBeliefPercent,originalChargeFinalEmotionIntensityPercent",
+        "patient": "55, 54",
+        "trap": false
+      }
+    ]
+  }
+]

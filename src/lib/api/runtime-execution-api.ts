@@ -5,7 +5,7 @@ import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
 import { extractMemoryCandidates, generateSessionSummary } from "@/lib/api/session-summary-api";
 import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, placeSessionOnSafetyHold } from "@/lib/api/safety-operations-api";
 import { getRuntimeParticipant } from "@/lib/api/participant-api";
-import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
+import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal, violatesThirdPersonRequirement, normalizeText, looksLikeMetaQuestionAboutTheProcess, looksLikeMeaningClarificationRequest, looksLikeS02ExplanationRequest } from "@/lib/runtime/runtime-context";
 import { detectLanguageSwitchRequest } from "@/lib/runtime/language-switch-detector";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
@@ -14,10 +14,12 @@ import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-va
 import { injectLongitudinalMemory } from "@/lib/memory/memory-context-injector";
 import { projectRuntimeFieldsToWorksheet } from "@/lib/worksheet/worksheet-projection";
 import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
-import { resolveBracketPlaceholders } from "@/lib/runtime/runtime-static-message";
+import { resolveBracketPlaceholders, resolveStaticPatientMessage } from "@/lib/runtime/runtime-static-message";
+import { composeCrpPlanSummary } from "@/lib/runtime/static-messages/s07";
+import { composeTrialClosingSummary } from "@/lib/runtime/static-messages/s08";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 import { loadRuntimeRelease, normalizeRuntimeSessionState } from "@/lib/runtime/runtime-release-loader";
-import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
+import { PASSIVE_PROMPT_TYPES as PASSIVE_CLARIFICATION_PROMPT_TYPES, acknowledgedOnDeliveryFields, resolvePromptLocaleText } from "@/lib/runtime/runtime-release-normalizer";
 import { reduceRuntimeState } from "@/lib/runtime/runtime-state-reducer";
 import { assertRuntimeTransition } from "@/lib/runtime/runtime-state-machine";
 import { evaluateRuntimeCondition, resolveActiveRuntimeStep } from "@/lib/runtime/runtime-step-resolver";
@@ -65,7 +67,7 @@ function getPromptCompletionEffectType(promptItem: PromptItem) {
   return typeof promptItem.completionEffect?.type === "string" ? promptItem.completionEffect.type : "advance_prompt";
 }
 
-function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem): RuntimeSession["runtimeContext"] {
+function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem, locale = "en-US"): RuntimeSession["runtimeContext"] {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
   const ratingValues = (value: unknown): number[] => {
     if (Array.isArray(value)) return value.flatMap(ratingValues);
@@ -80,6 +82,21 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
   if (validationKind === "calculated_goal_totals") {
     const ratings = ratingValues(runtimeContext.fields.goalRatings);
     return { ...runtimeContext, fields: { ...runtimeContext.fields, totalGoalsScore: ratings.reduce((sum, value) => sum + value, 0), yellowRedGoalsCount: ratings.filter((value) => value >= 4).length } };
+  }
+  // S07's closing summarizes the six action-plan fields back to the
+  // participant and then completes the session on delivery -- it never waits
+  // for an answer, so nothing could ever write crpPlanSummary and the field
+  // stayed empty in every completed run. Record the exact string that was
+  // spoken (composeCrpPlanSummary is the same composer the static-message
+  // resolver uses) so the message and the stored summary cannot drift.
+  if (validationKind === "plan_summary_without_praise_or_persuasion") {
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, crpPlanSummary: composeCrpPlanSummary(runtimeContext.fields, locale) } };
+  }
+  // S08's Step 21 closing works the same way: the warm before/after
+  // comparison is spoken on delivery and completes the session, so the
+  // identical composed string is recorded here rather than left unwritten.
+  if (validationKind === "warm_before_after_comparison") {
+    return { ...runtimeContext, fields: { ...runtimeContext.fields, trialClosingSummary: composeTrialClosingSummary(runtimeContext.fields, locale) } };
   }
   const effect = promptItem.completionEffect;
   // Copies an already-confirmed field's value into a second field this
@@ -98,6 +115,11 @@ function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeCont
   if (effect?.type === "redirect_to_three_person_example") {
     return { ...runtimeContext, fields: { ...runtimeContext.fields, redirectToThreePersonExample: true } };
   }
+  // See acknowledgedOnDeliveryFields: a passive prompt's outputFields can only
+  // mean "this content was delivered", and nothing else in the runtime could
+  // ever write them.
+  const acknowledged = Object.fromEntries(acknowledgedOnDeliveryFields(promptItem).filter((field) => runtimeContext.fields[field] === undefined).map((field) => [field, true]));
+  if (Object.keys(acknowledged).length) return { ...runtimeContext, fields: { ...runtimeContext.fields, ...acknowledged } };
   return runtimeContext;
 }
 
@@ -113,6 +135,23 @@ function deterministicValidation(finalText: string) {
 }
 
 const MAX_CLARIFICATION_ATTEMPTS = 3;
+
+/** Names the courtroom role a prompt is spoken from, for the third-person
+ * correction below. Keyed on the NODE id, not the prompt slug: Step 10's
+ * prompt is "rebut-each-defense-item" but is argued by the PROSECUTOR, so
+ * matching the slug would name the wrong role at exactly the moment the
+ * correction is meant to remind the participant which role they are in. The
+ * node id ("...n10-prosecution-rebuttal") is authored, never participant
+ * data, so this stays deterministic. */
+const ROLE_NAME_BY_NODE_FRAGMENT: Array<[RegExp, { en: string; ko: string }]> = [
+  [/prosecut/, { en: "the prosecutor", ko: "검사" }],
+  [/defense|surrebuttal/, { en: "the defense attorney", ko: "변호인" }],
+  [/jury|juror/, { en: "a juror", ko: "배심원" }],
+];
+
+export function courtroomRoleNameForNode(nodeId: string) {
+  return ROLE_NAME_BY_NODE_FRAGMENT.find(([pattern]) => pattern.test(nodeId))?.[1];
+}
 
 async function deliverClarificationTurn(input: {
   session: RuntimeSession;
@@ -135,13 +174,50 @@ async function deliverClarificationTurn(input: {
   // than ask a question -- a short reply here is usually the patient asking to move on,
   // not an incomplete answer, so it should never be met with "give a concrete example."
   const isPassiveNode = PASSIVE_CLARIFICATION_PROMPT_TYPES.has(input.promptItem.type);
-  const sourceSpecificClarification = input.promptItem.id === "tbct-s08-n01-p01-distressing-situation"
+  // S08 Key Principle 3: a first-person slip inside a courtroom role gets ONE
+  // gentle, immediate correction naming the role -- not a generic "could you
+  // give a concrete example". extractRuntimeState routes only the first such
+  // turn here (see its clarificationAttemptCount === 0 gate), so this can
+  // never become a loop.
+  const roleName = courtroomRoleNameForNode(input.promptItem.nodeId);
+  const thirdPersonCorrection = roleName
+    && (input.promptItem.validation as { requiresThirdPerson?: boolean } | null)?.requiresThirdPerson
+    && violatesThirdPersonRequirement(input.patientMessage.content)
+    ? tr(
+        `I noticed you said "I" just now -- remember, right now you are speaking as ${roleName.en}, about the defendant. Could you say that again in the third person?`,
+        `방금 "저"라고 말씀하셨어요 -- 지금은 ${roleName.ko}(으)로서 피고인에 대해 이야기하시는 중이에요. 3인칭으로 다시 말씀해 주시겠어요?`,
+      )
+    : undefined;
+  // P1 (Session 2 manual-control recovery): "\uc798 \ubaa8\ub974\uaca0\ub294\ub370 \uc124\uba85\ud574\uc8fc\uc138\uc694" /
+  // "\ubb34\uc2a8\uc9c8\ubb38\uc774\uc694?" at the rating-card question, or during problem/goal
+  // collection, must explain what's actually being asked -- not the
+  // generic "give a short concrete example" fallback (adaptiveClarification
+  // below), which says nothing about scale cards or problems/goals at all.
+  const isS02RatingCardCheck = input.promptItem.id === "tbct-s02-n04-p01-rating-card-check" || input.promptItem.id === "tbct-s02-n08-p01-goal-rating-card-check";
+  const isS02ListCollection = missing.has("problems") || missing.has("goals");
+  const s02ExplanationClarification = (isS02RatingCardCheck || isS02ListCollection) && looksLikeS02ExplanationRequest(input.patientMessage.content)
+    ? isS02RatingCardCheck
+      ? tr(
+          "The rating scale card is a reference sheet for scoring each problem or goal from 0 to 5. It's fine if you don't have it in front of you -- I'll walk you through what each score means right after this.",
+          "\ud3c9\uac00 \ucc99\ub3c4 \uce74\ub4dc\ub294 \ubb38\uc81c\ub098 \ubaa9\ud45c\ub97c 0\uc810\ubd80\ud130 5\uc810\uae4c\uc9c0 \ud3c9\uac00\ud560 \ub54c \ucc38\uace0\ud558\ub294 \uae30\uc900\ud45c\uc608\uc694. \uce74\ub4dc\uac00 \ubc14\ub85c \ubcf4\uc774\uc9c0 \uc54a\uc544\ub3c4 \uad1c\ucc2e\uc544\uc694. \uc81c\uac00 \uac01 \uc810\uc218\uc758 \uc758\ubbf8\ub97c \uc774\uc5b4\uc11c \uc124\uba85\ud574 \ub4dc\ub9b4\uac8c\uc694.",
+        )
+      : missing.has("problems")
+        ? tr(
+            "I'm asking about something in your life right now that feels difficult or that you'd like to change. Just one thing that comes to mind is enough -- no need to think of several at once.",
+            "\uc9c0\uae08 \uc0dd\ud65c\ud558\uba74\uc11c \ud798\ub4e4\uac8c \ub290\uaef4\uc9c0\ub294 \uac83\uc774\ub098 \ubc14\uafb8\uace0 \uc2f6\uc740 \uac83\uc5d0 \ub300\ud574 \uc5ec\uc5b4\ubcf4\ub294 \uac70\uc608\uc694. \ud55c \ubc88\uc5d0 \uc5ec\ub7ec \uac1c\ub97c \ub5a0\uc62c\ub9ac\uc9c0 \uc54a\uc73c\uc154\ub3c4 \ub418\uace0, \uac00\uc7a5 \uba3c\uc800 \uc0dd\uac01\ub098\ub294 \uac83 \ud558\ub098\uba74 \ucda9\ubd84\ud574\uc694.",
+          )
+        : tr(
+            "I'm asking about something you'd like therapy to help you work toward. Just one thing that comes to mind is enough for now.",
+            "\uce58\ub8cc\ub97c \ud1b5\ud574 \uc774\ub8e8\uace0 \uc2f6\uc740 \uac83\uc5d0 \ub300\ud574 \uc5ec\uc5b4\ubcf4\ub294 \uac70\uc608\uc694. \uc9c0\uae08\uc740 \ub5a0\uc624\ub974\ub294 \uac83 \ud558\ub098\ub9cc \ub9d0\uc500\ud574 \uc8fc\uc154\ub3c4 \ub3fc\uc694.",
+          )
+    : undefined;
+  const sourceSpecificClarification = thirdPersonCorrection ?? s02ExplanationClarification ?? (input.promptItem.id === "tbct-s08-n01-p04-distressing-situation"
     ? missing.has("distressingSituation") && !missing.has("automaticThought")
       ? tr("Please describe a specific distressing situation and the important facts of what actually happened.", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uc2e4\uc81c\ub85c \uc788\uc5c8\ub358 \uc911\uc694\ud55c \uc0ac\uc2e4\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694?")
       : missing.has("automaticThought") && !missing.has("distressingSituation")
         ? tr("What automatic thought did that situation trigger?", "\uadf8 \uc0c1\ud669\uc5d0\uc11c \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
         : tr("Please identify a specific distressing situation and the automatic thought it triggered. What actually happened, and what went through your mind?", "\uad6c\uccb4\uc801\uc73c\ub85c \ud798\ub4e4\uc5c8\ub358 \uc0c1\ud669\uacfc \uadf8\ub54c \ub5a0\uc624\ub978 \uc0dd\uac01\uc744 \ub9d0\uc500\ud574 \uc8fc\uc2dc\uaca0\uc5b4\uc694? \uc2e4\uc81c\ub85c \ubb34\uc2a8 \uc77c\uc774 \uc788\uc5c8\uace0, \uc5b4\ub5a4 \uc0dd\uac01\uc774 \uc2a4\uccd0 \uc9c0\ub098\uac14\ub098\uc694?")
-    : undefined;
+    : undefined);
   const proposedContent = input.reason === "patient_refusal"
     ? tr(
         "I understand. We can pause here, and you do not need to continue. You can end the session or resume later only if you choose. If it helps, I can summarize what we've covered so far instead.",
@@ -428,6 +504,213 @@ async function deliverLanguageSwitchTurn(input: {
         ...input.session.runtimeContext,
         lastPatientMessage: input.patientMessage.content,
         lastClarificationReason: "language_switch",
+      },
+      currentNodeId: input.node.id,
+      currentPromptItemId: input.promptItem.id,
+      runtimeState: input.runtimeState,
+      promptProgressionReason: "clarification_sent",
+      status: "waiting_for_input",
+    },
+  });
+  return { assistantMessage, sessionStatus: "waiting_for_input" as RuntimeSessionStatus };
+}
+
+// P0-5: sessions where a genuine "I don't understand the question" or "why
+// are you asking this?" request must be recognized and explained instead of
+// silently stored as if it were the participant's clinical answer -- see
+// deliverProcessClarificationTurn. Scoped to S01-S03 (this task's stated
+// scope); every other session keeps its exact prior behavior (such a message
+// falls through to the normal extraction/clarification pipeline unchanged).
+const PROCESS_CLARIFICATION_SESSIONS = new Set(["tbct-s01", "tbct-s02", "tbct-s03"]);
+
+// Deliberately narrow, like detectLanguageSwitchRequest above: only fires
+// when the entire message is essentially just the clarification request, so
+// a longer message that happens to start with a confused word but also
+// carries real clinical content is never silently short-circuited out of
+// the normal pipeline.
+const PROCESS_CLARIFICATION_MAX_LENGTH = 60;
+
+// CCPH/CCGH scale UX pass: "잘 모르겠어요" / "색깔이 무슨 뜻이에요?" / "4점이랑
+// 5점이 뭐가 달라요?" said in answer to the scale-comprehension check must be
+// treated as a request to re-explain the scale, not an invalid boolean
+// answer -- but this uncertainty phrasing ("잘 모르겠어요") is deliberately
+// NOT added to the general-purpose looksLikeMeaningClarificationRequest
+// above: that function runs for every S01-S03 prompt, and "잘 모르겠어요" is
+// often a genuine, acceptable uncertain clinical answer elsewhere (see
+// FIELDS_ACCEPTING_UNCERTAINTY in runtime-context.ts). Scoped narrowly to
+// the two scale-comprehension prompts instead, where it can only ever mean
+// "I don't understand the scale."
+const SCALE_COMPREHENSION_PROMPT_IDS = new Set(["tbct-s02-n04-p03-discomfort-distress-distinction"]);
+function looksLikeScaleComprehensionUncertainty(normalized: string) {
+  return /^(?:잘\s*)?모르겠어요\??$/.test(normalized) // "(잘) 모르겠어요"
+    || /색(?:깔|상)?이?\s*무슨\s*(?:뜻|의미)/.test(normalized) // "색깔이 무슨 뜻이에요?"
+    || /점(?:이|들이)?\s*무슨\s*(?:뜻|의미)/.test(normalized) // "점이 무슨 뜻이에요?"
+    || /\d\s*점.{0,10}\d\s*점.{0,10}(?:달라|다른가요|차이)/.test(normalized); // "4점이랑 5점이 뭐가 달라요?"
+}
+
+function detectProcessClarificationRequest(sessionDefinitionId: string, rawText: string, activePromptId?: string): "rationale" | "meaning" | null {
+  if (!PROCESS_CLARIFICATION_SESSIONS.has(sessionDefinitionId)) return null;
+  const trimmed = rawText.trim();
+  if (!trimmed || trimmed.length > PROCESS_CLARIFICATION_MAX_LENGTH) return null;
+  const normalized = normalizeText(trimmed);
+  if (looksLikeMetaQuestionAboutTheProcess(normalized)) return "rationale";
+  if (looksLikeMeaningClarificationRequest(normalized)) return "meaning";
+  if (activePromptId && SCALE_COMPREHENSION_PROMPT_IDS.has(activePromptId) && looksLikeScaleComprehensionUncertainty(normalized)) return "meaning";
+  return null;
+}
+
+// P0-5: deterministic "explain this question more simply" text, keyed by the
+// active prompt's own output field -- same construct-aware idea
+// deliverClarificationTurn already uses for INCOMPLETE answers (Situation/
+// Thought/Emotion/Behavior/Body), applied here to a different trigger: the
+// participant said they don't understand the question at all ("뭘요?", "무슨
+// 뜻이에요?"), not that their answer was insufficient. Falls back to the
+// prompt's own already-approved text (still re-asks the SAME question, never
+// a different one) when no field-specific simplification applies.
+function simplifiedMeaningExplanation(input: { outputField: string; approvedPatientText: string; locale: string }) {
+  const isKorean = input.locale.toLowerCase().startsWith("ko");
+  const tr = (en: string, ko: string) => (isKorean ? ko : en);
+  if (/problems?$/i.test(input.outputField)) {
+    return tr(
+      "I'm asking about something in your life right now that feels difficult or that you'd like to change. You don't need to name several at once -- just the first one that comes to mind is enough.",
+      "지금 생활하면서 줄이거나 바꾸고 싶은 어려움을 말하는 거예요. 한 번에 여러 개 말씀하실 필요는 없고, 가장 먼저 떠오르는 것 하나부터 말씀해 주세요.",
+    );
+  }
+  if (/goals?$/i.test(input.outputField)) {
+    return tr(
+      "I'm asking about something you'd like therapy to help you work toward. Just one thing that comes to mind is enough for now.",
+      "치료를 통해 이루고 싶은 것에 대해 여쭤보는 거예요. 지금은 떠오르는 것 하나만 말씀해 주셔도 돼요.",
+    );
+  }
+  if (/situation/i.test(input.outputField)) {
+    return tr("I'm asking what actually happened -- a real moment, not a feeling or a thought.", "실제로 있었던 일을 여쭤보는 거예요 -- 감정이나 생각이 아니라, 실제 상황이요.");
+  }
+  if (/thought|belief/i.test(input.outputField)) {
+    return tr("I'm asking what went through your mind at that moment -- the exact words or idea, not the feeling.", "그 순간 머릿속에 스쳐 지나간 생각을 여쭤보는 거예요 -- 감정이 아니라, 어떤 생각이었는지요.");
+  }
+  if (/emotion/i.test(input.outputField)) {
+    return tr("I'm asking what you felt -- a feeling word, like anxious, sad, or angry.", "그때 느끼신 감정을 여쭤보는 거예요 -- 불안, 슬픔, 화 같은 감정 단어로요.");
+  }
+  if (/behavior/i.test(input.outputField)) {
+    return tr("I'm asking what you actually did, or wanted to do, in that moment.", "그 순간 실제로 무엇을 하셨는지, 또는 하고 싶으셨는지를 여쭤보는 거예요.");
+  }
+  if (/body|sensation/i.test(input.outputField)) {
+    return tr("I'm asking what you noticed physically in your body -- like a racing heart or a tight chest.", "몸에서 느껴진 신체적인 감각을 여쭤보는 거예요 -- 심장이 빨리 뛰거나 가슴이 답답한 것처럼요.");
+  }
+  return tr(`Let me put it more simply. ${input.approvedPatientText}`, `조금 더 쉽게 다시 말씀드릴게요. ${input.approvedPatientText}`);
+}
+
+function rationaleExplanation(input: { participantRationale?: string; locale: string }) {
+  if (input.participantRationale) return input.participantRationale;
+  return input.locale.toLowerCase().startsWith("ko")
+    ? "지금 함께 진행하고 있는 과정에 필요한 내용을 확인하기 위해 여쭤보는 거예요."
+    : "I'm asking this because it helps with the step we're working on together right now.";
+}
+
+// P0-5: a participant asking "뭘요?" / "무슨 뜻이에요?" / "왜 이걸 물어봐요?" is not
+// answering the active clinical question -- before this existed, that text
+// fell through to normal extraction and, for most fields (no validation.kind
+// to reject it), was silently stored as if it WERE the participant's actual
+// problem/situation/thought/emotion. Mirrors deliverLanguageSwitchTurn above:
+// fully deterministic, keeps the SAME active PromptItem, and -- unlike
+// deliverClarificationTurn -- never increments clarificationAttemptCount,
+// since a clarification request is not a wrong or incomplete answer.
+async function deliverProcessClarificationTurn(input: {
+  session: RuntimeSession;
+  node: ClinicalStageNode;
+  promptItem: PromptItem;
+  runtimePromptItem: import("@/types/protocol-runtime").RuntimePromptItem;
+  runtimeState: NonNullable<RuntimeSession["runtimeState"]>;
+  patientMessage: RuntimeMessage;
+  kind: "rationale" | "meaning";
+}) {
+  // Prefer the session's own live static-message resolver (e.g. S02's
+  // scale explanations, which depend on runtime fields like
+  // problemScaleCardAvailable and are computed by static-messages/s02.ts,
+  // not baked into the compiled RuntimePromptItem at release time) over the
+  // compiled fallbackPatientText, which is a generic locale-fallback string
+  // for any prompt whose wording is entirely dynamic. Falls back to the
+  // compiled text for prompts that have no dynamic override, unchanged from
+  // before.
+  const currentQuestionText = resolveBracketPlaceholders(
+    resolveStaticPatientMessage(input.promptItem, input.session.locale, input.session.runtimeContext)?.patientMessage
+      ?? resolvePromptLocaleText(input.runtimePromptItem.id, input.runtimePromptItem.fallbackPatientText, input.session.locale),
+    input.session.runtimeContext,
+  );
+  const outputField = input.promptItem.outputFields[0] ?? "";
+  const explanation = input.kind === "rationale"
+    ? rationaleExplanation({ participantRationale: input.node.participantRationale, locale: input.session.locale })
+    : simplifiedMeaningExplanation({ outputField, approvedPatientText: currentQuestionText, locale: input.session.locale });
+  // "meaning" already re-states the question in its own simplified wording
+  // for most fields, so appending the original verbatim question again would
+  // be redundant; "rationale" explains WHY and must still re-ask the actual
+  // task, since a rationale alone answers a different thing than the
+  // question itself.
+  const content = input.kind === "rationale" ? `${explanation}\n\n${currentQuestionText}` : explanation;
+  const assistantMessage: RuntimeMessage = {
+    id: makeId("RMSG"),
+    runtimeSessionId: input.session.id,
+    role: "assistant",
+    content,
+    status: "validated",
+    nodeId: input.node.id,
+    promptItemId: input.promptItem.id,
+    sourceEvidenceIds: [],
+    createdAt: new Date().toISOString(),
+    deliveredAt: new Date().toISOString(),
+    metadata: { turnId: makeId("TURN"), turnOutcome: "clarification", clarificationReason: `process_clarification_${input.kind}` },
+  };
+  const outputValidation = deterministicValidation(content);
+  await commitRuntimeAssistantTurn({
+    sessionId: input.session.id,
+    assistantMessage,
+    providerEvent: {
+      id: makeId("RPE"),
+      runtimeSessionId: input.session.id,
+      provider: "deterministic",
+      model: "runtime-process-clarification",
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      inputSummary: `clarification:process_clarification_${input.kind}`,
+      outputText: content,
+      createdAt: new Date().toISOString(),
+    },
+    validationEvent: {
+      id: makeId("RVE"),
+      runtimeSessionId: input.session.id,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      ...outputValidation,
+      createdAt: new Date().toISOString(),
+    },
+    trace: createRuntimeExecutionTrace({
+      runtimeSessionId: input.session.id,
+      releaseId: input.session.releaseId,
+      nodeId: input.node.id,
+      promptItemId: input.promptItem.id,
+      roleId: input.runtimePromptItem.roleId,
+      provider: "deterministic",
+      model: "runtime-process-clarification",
+      contractHash: `process-clarification:${input.session.id}:${input.promptItem.id}`,
+      validation: outputValidation,
+      fallbackUsed: false,
+      transitionDecision: "clarification",
+      stateChanges: { activeNodeId: input.node.id, activePromptItemId: input.promptItem.id },
+      fidelityEvidence: {
+        locale: input.session.locale,
+        patientFacingText: content,
+        activePromptMatches: true,
+        patientInputPresent: true,
+      },
+    }),
+    sessionPatch: {
+      runtimeContext: {
+        ...input.session.runtimeContext,
+        lastPatientMessage: input.patientMessage.content,
+        lastClarificationReason: `process_clarification_${input.kind}`,
+        // clarificationAttemptCount is deliberately NOT included/incremented
+        // here (P0-5) -- a process-clarification request must never count
+        // toward MAX_CLARIFICATION_ATTEMPTS or push the session toward pause.
       },
       currentNodeId: input.node.id,
       currentPromptItemId: input.promptItem.id,
@@ -977,7 +1260,7 @@ export async function executeCurrentNode(sessionId: string, prefetchedView?: Run
       : await deliverRuntimePrompt({ session: activeSession, node, promptItem, release: view.release, recentMessages: view.messages });
     const nextRuntimeState = delivered?.stateReduction.state ?? runtimeState;
     const completedPromptItemIds = nextRuntimeState.completedPromptItemIds;
-    const nextContext = applyPromptCompletionEffect(runtimeContext, promptItem);
+    const nextContext = applyPromptCompletionEffect(runtimeContext, promptItem, activeSession.locale);
     const completionEffectType = getPromptCompletionEffectType(promptItem);
     if (completionEffectType === "pause_session") {
       await updateRuntimeSessionRecord(sessionId, {
@@ -1214,6 +1497,20 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     void createRuntimeCheckpoint(sessionId).catch(() => {});
     return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: languageSwitch.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: languageSwitch.sessionStatus, logIds: [] };
   }
+  // P0-5, checked before the normal missing-fields/clarification branch below
+  // for the same reason as the language-switch check above: "뭘요?" / "왜
+  // 이걸 물어봐요?" has no plausible connection to whatever the active clinical
+  // field is asking, so grading it as a wrong/incomplete answer both burns a
+  // clarification attempt toward MAX_CLARIFICATION_ATTEMPTS and -- for fields
+  // with no validation.kind to reject it -- can silently store the literal
+  // clarification request as if it were the participant's real answer.
+  const processClarificationKind = safetyResult.triggered ? null : detectProcessClarificationRequest(session.sessionDefinitionId, patientMessage.content, currentPromptItem.id);
+  if (processClarificationKind) {
+    const processClarification = await deliverProcessClarificationTurn({ session, node: currentNode, promptItem: currentPromptItem, runtimePromptItem: activeStep.promptItem, runtimeState, patientMessage, kind: processClarificationKind });
+    void saveRuntimeLog(makeLog(sessionId, "input", "completed", `Patient asked for a process clarification (${processClarificationKind})`, { nodeId: currentNode.id })).catch(() => {});
+    void createRuntimeCheckpoint(sessionId).catch(() => {});
+    return { sessionId, previousNodeId: session.previousNodeId, currentNodeId: currentNode.id, currentPromptItemId: currentPromptItem.id, stateExtraction: extracted, safetyResult, generatedMessage: processClarification.assistantMessage, turnOutcome: "clarification", fallbackUsed: false, sessionStatus: processClarification.sessionStatus, logIds: [] };
+  }
   if (extracted.missingFields.length && !safetyResult.triggered) {
     const clarification = await deliverClarificationTurn({
       session,
@@ -1394,12 +1691,16 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     release: runtimeRelease,
     currentState: runtimeState,
     activeStep,
-    event: "patient_input_accepted",
+    // Phase 3: a participant-driven state correction (e.g. rating-loop item
+    // removal) is a distinct reducer event from a genuine accepted answer --
+    // see reduceRuntimeState's own doc comment for why this must never
+    // consume a repeat_until prompt's iteration budget.
+    event: extracted.inputDisposition === "state_corrected" ? "patient_state_corrected" : "patient_input_accepted",
     confirmedFields: extracted.fields,
   });
   const completedPromptItemIds = reduction.state.completedPromptItemIds;
   const reducedSkippedPromptItemIds = mergePromptItemIds(skippedPromptItemIds, reduction.skippedPromptItemIds);
-  const contextAfterCompletion = applyPromptCompletionEffect(nextContext, currentPromptItem);
+  const contextAfterCompletion = applyPromptCompletionEffect(nextContext, currentPromptItem, initialSession.locale);
   const completionEffectType = getPromptCompletionEffectType(currentPromptItem);
   if (completionEffectType === "pause_session") {
     await updateRuntimeSessionRecord(sessionId, {

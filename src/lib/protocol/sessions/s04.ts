@@ -173,7 +173,13 @@ export const spec: SessionSpec = {
       terminal: true,
       prompts: [
         { slug: "final-belief-check", type: "rating", source: [784, 786], outputFields: ["revisedPatientAutomaticThoughtBeliefPercent"], validation: { kind: "rating", min: 0, max: 100 } },
-        { slug: "final-emotional-check", type: "question", source: [784, 786], outputFields: ["finalEvaluation"], validation: { kind: "enum", values: ["same", "a little better", "much better"] }, completionEffect: { type: "complete_session" } },
+        // This prompt carries completionEffect: complete_session, so an answer it
+        // cannot match leaves the session unable to end. The choices are English
+        // only, and matchEnumChoice compares against `values` plus these aliases
+        // -- without them a Korean participant answering "그대로" burned the
+        // clarification budget instead of closing the session (same class of
+        // defect as S07's readiness enum, which carries aliases for this reason).
+        { slug: "final-emotional-check", type: "question", source: [784, 786], outputFields: ["finalEvaluation"], validation: { kind: "enum", values: ["same", "a little better", "much better"], aliases: { "same": ["그대로", "그대로예요", "똑같아요", "같아요", "비슷해요", "변화 없어요", "변함없어요", "그대로인 것 같아요"], "a little better": ["조금 나아졌어요", "조금 나아짐", "약간 나아졌어요", "조금 괜찮아졌어요", "조금 나아진 것 같아요", "약간 좋아졌어요"], "much better": ["많이 나아졌어요", "많이 나아짐", "훨씬 나아졌어요", "훨씬 좋아졌어요", "많이 괜찮아졌어요", "많이 좋아졌어요"] } }, completionEffect: { type: "complete_session" } },
       ],
     },
     {

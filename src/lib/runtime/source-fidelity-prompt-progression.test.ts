@@ -54,8 +54,14 @@ describe("source-fidelity PromptItem progression", () => {
     });
 
     expect(promptItems.map((promptItem) => promptItem.id)).toEqual([
-      "tbct-s08-n01-p01-distressing-situation",
-      "tbct-s08-n01-p02-downward-arrow",
+      // The participant guide's "quick word first" -- the materials check and
+      // the belief-as-charge orientation (with its invited reaction) precede
+      // the investigation itself.
+      "tbct-s08-n01-p01-trial-materials-ready",
+      "tbct-s08-n01-p02-belief-as-charge-orientation",
+      "tbct-s08-n01-p03-orientation-reaction",
+      "tbct-s08-n01-p04-distressing-situation",
+      "tbct-s08-n01-p05-downward-arrow",
     ]);
     expect(first.promptItem?.id).toBe(promptItems[0]?.id);
     expect(second.promptItem?.id).toBe(promptItems[1]?.id);

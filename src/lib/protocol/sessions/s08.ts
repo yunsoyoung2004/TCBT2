@@ -20,6 +20,14 @@ const metadata: SessionSourceMetadata = {
   safetyRange: [1634, 1651],
 };
 
+// The verdict is the one answer the assistant may never supply, so it has to
+// accept however the participant naturally states it -- typed, transcribed, or
+// in the session language -- rather than only the canonical snake_case token.
+const VERDICT_ALIASES: Record<string, string[]> = {
+  guilty: ["guilty as charged", "i find the defendant guilty", "유죄", "유죄입니다", "유죄예요"],
+  not_guilty: ["not guilty", "innocent", "i find the defendant not guilty", "무죄", "무죄입니다", "무죄예요"],
+};
+
 export const spec: SessionSpec = {
   metadata,
   nodes: [
@@ -28,10 +36,35 @@ export const spec: SessionSpec = {
       title: "Step 1 - Investigation and Core Belief",
       type: "session_start",
       source: [1578, 1578],
-      requiredFields: ["distressingSituation", "automaticThought", "coreBelief"],
+      requiredFields: ["trialMaterialsReady", "chargeOrientationReaction", "distressingSituation", "automaticThought", "coreBelief"],
       safetyRuleIds: ["TBCT-S08-CRISIS-STOP"],
       restrictions: [sourceText([1549, 1574])],
       prompts: [
+        // The participant guide promises the guide checks the Trial One
+        // worksheet and appeal form are to hand before beginning.
+        {
+          slug: "trial-materials-ready",
+          type: "confirmation",
+          source: [1578, 1578],
+          patientText: "Before we begin, one quick check: the Trial One worksheet and the Preparation for the Appeal record sit alongside our conversation and fill in as we go — the same forms from your guide. Do you have them in view?",
+          outputFields: ["trialMaterialsReady"],
+          validation: { kind: "boolean" },
+        },
+        // "A quick word first — the belief as a charge": a short orientation
+        // to the idea underneath the whole method, BEFORE any of the work.
+        // The session used to open cold on "describe a distressing
+        // situation", so a participant met the courtroom framing for the
+        // first time in Step 3, half an hour in.
+        {
+          slug: "belief-as-charge-orientation",
+          type: "explanation",
+          source: [1578, 1578],
+          patientText: "Before anything else, a short word about the idea underneath today's method. A harsh belief about yourself works rather like an accusation you have been carrying without ever getting to answer it. We tend to treat something like \"I am a failure\" as a plain fact rather than a claim that could be examined and tested. Putting it on trial is simply a way of finally examining it — with all the fairness a real court would demand.",
+          outputFields: ["chargeAsAccusationExplained"],
+        },
+        // "It's a short orientation, not a lecture, and you'll be asked what
+        // you make of it before moving on."
+        { slug: "orientation-reaction", type: "question", source: [1578, 1578], patientText: "What do you make of that?", outputFields: ["chargeOrientationReaction"] },
         {
           slug: "distressing-situation",
           type: "question",
@@ -62,6 +95,10 @@ export const spec: SessionSpec = {
       requiredFields: ["courtroomOrientationAcknowledged", "charge"],
       restrictions: [sourceText([1549, 1574])],
       prompts: [
+        // Source order for Step 3: propose the courtroom and orient the four
+        // roles FIRST, then frame the core belief as the formal charge. The
+        // two prompts used to run the other way around.
+        { slug: "roles-orientation", type: "instruction", source: [1580, 1580], patientText: "We will examine one of your core beliefs in a symbolic internal courtroom. You will move through the roles of defendant, prosecutor, defense attorney, and juror while I guide the process. In a moment I will state the charge this court will consider.", outputFields: ["courtroomOrientationAcknowledged"], validation: { kind: "courtroom_roles_understood" } },
         // No `marker` here on purpose: Step 3's source line only offers
         // "The charge is: I am a failure." as an illustrative example of
         // the pattern, not literal script text, but marker-extraction
@@ -73,7 +110,6 @@ export const spec: SessionSpec = {
         // coreBelief field instead; the completionEffect below persists
         // that same value into the charge field once delivered.
         { slug: "state-charge", type: "explanation", source: [1580, 1580], outputFields: ["charge"], completionEffect: { type: "copy_field", from: "coreBelief", to: "charge" } },
-        { slug: "roles-orientation", type: "instruction", source: [1580, 1580], patientText: "We will examine this charge in a symbolic internal courtroom. You will move through the roles of defendant, prosecutor, defense attorney, and juror while I guide the process.", outputFields: ["courtroomOrientationAcknowledged"], validation: { kind: "courtroom_roles_understood" } },
       ],
     },
     {
@@ -121,12 +157,14 @@ export const spec: SessionSpec = {
           type: "question",
           source: [1585, 1589],
           outputFields: ["prosecutionEvidence"],
-          validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, participantSuppliesEvidence: true, acrossLife: true },
-          // Re-asks for one piece of evidence at a time until at least two
-          // are collected (or the participant signals there are no more),
-          // instead of accepting a single item and moving on.
+          validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, participantSuppliesEvidence: true, acrossLife: true, requiresThirdPerson: true },
+          // Re-asks for one piece of evidence at a time. The sufficiency rule
+          // (runtime-context.ts LIST_SUFFICIENCY_RULES) keeps inviting the
+          // next piece up to the source's "three, exceptionally four" -- it
+          // no longer stops the moment the 2nd piece lands -- and honors an
+          // explicit "no more" once at least two are collected.
           executionMode: "repeat_until",
-          maxIterations: 4,
+          maxIterations: 6,
           completionCondition: { kind: "field", field: "prosecutionEvidenceSufficient", operator: "equals", value: true },
         },
       ],
@@ -157,9 +195,9 @@ export const spec: SessionSpec = {
           type: "question",
           source: [1593, 1598],
           outputFields: ["defenseEvidence"],
-          validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, concreteExamplesRequired: true },
+          validation: { kind: "array", minItems: 2, maxItems: 4, oneAtATime: true, concreteExamplesRequired: true, requiresThirdPerson: true },
           executionMode: "repeat_until",
-          maxIterations: 4,
+          maxIterations: 6,
           completionCondition: { kind: "field", field: "defenseEvidenceSufficient", operator: "equals", value: true },
         },
         { slug: "concrete-defense-evidence", type: "clarification", source: [1593, 1598], marker: "concrete example", activationCondition: { field: "defenseEvidenceIsVague", operator: "equals", value: true }, outputFields: ["defenseEvidence"] },
@@ -185,7 +223,22 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([1549, 1574]), sourceText([1601, 1601])],
       prompts: [
         { slug: "return-to-prosecutor", type: "role_transition", source: [1601, 1601], outputFields: ["prosecutorRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
-        { slug: "rebut-each-defense-item", type: "question", source: [1601, 1601], marker: "The defense said", outputFields: ["prosecutionRebuttals"], validation: { kind: "one_rebuttal_per_defense_item", requiresButPhrase: true, assistantMustNotCoach: true } },
+        // One rebuttal PER defense item, presented individually and never
+        // grouped (source line 1601). The loop quotes the next unrebutted
+        // defense item each iteration (static-messages/s08.ts) and completes
+        // when every item has a rebuttal -- or the prosecutor concedes one
+        // ("cannot rebut"), which Step 11's unrebutted-defense-note records.
+        {
+          slug: "rebut-each-defense-item",
+          type: "question",
+          source: [1601, 1601],
+          marker: "The defense said",
+          outputFields: ["prosecutionRebuttals"],
+          validation: { kind: "array", oneRebuttalPerDefenseItem: true, requiresButPhrase: true, assistantMustNotCoach: true, requiresThirdPerson: true },
+          executionMode: "repeat_until",
+          maxIterations: 6,
+          completionCondition: { kind: "field", field: "prosecutionRebuttalsComplete", operator: "equals", value: true },
+        },
       ],
     },
     {
@@ -208,8 +261,36 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([1549, 1574]), sourceText([1604, 1604])],
       prompts: [
         { slug: "return-to-defense", type: "role_transition", source: [1604, 1604], outputFields: ["defenseRoleReady"], validation: { kind: "slow_explicit_role_transition", requiresReadyConfirmation: true } },
-        { slug: "surrebut-each-pair", type: "question", source: [1604, 1604], marker: "The prosecution said", outputFields: ["defenseSurrebuttals"], validation: { kind: "one_surrebuttal_per_rebuttal" } },
-        { slug: "participant-therefore", type: "follow_up", source: [1604, 1604], marker: "Therefore", outputFields: ["thereforeConclusions"], validation: { kind: "participant_generated", perEvidencePair: true, assistantMustNotSupply: true } },
+        // One surrebuttal PER rebuttal: each iteration reads back the pair
+        // (the defense's own evidence + the prosecution's rebuttal of it) and
+        // asks the defense to answer that specific rebuttal.
+        {
+          slug: "surrebut-each-pair",
+          type: "question",
+          source: [1604, 1604],
+          marker: "The prosecution said",
+          outputFields: ["defenseSurrebuttals"],
+          validation: { kind: "array", oneSurrebuttalPerRebuttal: true, requiresThirdPerson: true },
+          executionMode: "repeat_until",
+          maxIterations: 6,
+          completionCondition: { kind: "field", field: "defenseSurrebuttalsComplete", operator: "equals", value: true },
+        },
+        // Each surrebutted pair receives its own participant-completed
+        // "Therefore..." conclusion (source line 1604) -- one per pair, not
+        // one for the whole argument. Requires the per-prompt iteration
+        // counter in runtime-state-reducer.ts: this node has two repeat_until
+        // loops, which used to share one budget.
+        {
+          slug: "participant-therefore",
+          type: "follow_up",
+          source: [1604, 1604],
+          marker: "Therefore",
+          outputFields: ["thereforeConclusions"],
+          validation: { kind: "array", perEvidencePair: true, participantGenerated: true, assistantMustNotSupply: true, requiresThirdPerson: true },
+          executionMode: "repeat_until",
+          maxIterations: 6,
+          completionCondition: { kind: "field", field: "thereforeConclusionsComplete", operator: "equals", value: true },
+        },
       ],
     },
     {
@@ -242,10 +323,16 @@ export const spec: SessionSpec = {
           outputFields: ["juryReview"],
           validation: { kind: "array", minItems: 4, maxItems: 4, blocks: ["prosecution", "defense", "prosecution_rebuttal", "defense_surrebuttal"], oneItemAtATime: true },
           executionMode: "repeat_until",
-          maxIterations: 4,
+          // The jury must review all four evidence blocks, so the completion
+          // condition needs four accepted answers. maxIterations was also 4 --
+          // zero slack: one duplicate or rejected juror answer consumed an
+          // iteration and repeatLimitReached force-completed the review with a
+          // block never examined. Two spare turns keep the four-block review
+          // intact without letting the loop run away.
+          maxIterations: 6,
           completionCondition: { kind: "field", field: "juryReviewCount", operator: "greater_than", value: 3 },
         },
-        { slug: "participant-verdict", type: "question", source: [1609, 1616], marker: "verdict: guilty or not guilty", outputFields: ["verdict"], validation: { kind: "enum", values: ["guilty", "not_guilty"], participantGenerated: true, assistantMustNotSupply: true, challengeGuiltyThroughEvidenceReview: true } },
+        { slug: "participant-verdict", type: "question", source: [1609, 1616], marker: "verdict: guilty or not guilty", outputFields: ["verdict"], validation: { kind: "enum", values: ["guilty", "not_guilty"], aliases: VERDICT_ALIASES, participantGenerated: true, assistantMustNotSupply: true, challengeGuiltyThroughEvidenceReview: true } },
         {
           slug: "guilty-verdict-recheck",
           type: "clarification",
@@ -253,7 +340,7 @@ export const spec: SessionSpec = {
           patientText: "Before that verdict is announced, look back once more at the defense evidence and the defense's responses to the prosecution. Considering all four blocks again, do you still find the defendant guilty, or does this second look change the verdict?",
           activationCondition: { field: "verdict", operator: "equals", value: "guilty" },
           outputFields: ["verdict"],
-          validation: { kind: "enum", values: ["guilty", "not_guilty"], participantGenerated: true, assistantMustNotSupply: true },
+          validation: { kind: "enum", values: ["guilty", "not_guilty"], aliases: VERDICT_ALIASES, participantGenerated: true, assistantMustNotSupply: true },
         },
       ],
     },
@@ -284,15 +371,23 @@ export const spec: SessionSpec = {
       title: "Step 17 - Open Discussion",
       type: "dialogue",
       source: [1620, 1627],
-      requiredFields: ["trialDiscussion"],
+      // One field per question: all seven used to write the same
+      // `trialDiscussion` string, so each later answer silently overwrote the
+      // previous one and six of the seven discussion answers were lost.
+      requiredFields: ["trialExperience", "prosecutionSatisfaction", "defenseDemonstration", "preferredAlly", "goodDefenseTraits", "personDefinition", "upwardArrowReflection"],
       prompts: [
-        { slug: "trial-experience", type: "question", source: [1620, 1627], marker: "What was it like", outputFields: ["trialDiscussion"] },
-        { slug: "prosecution-satisfaction", type: "question", source: [1620, 1627], marker: "Was the prosecution satisfied", outputFields: ["trialDiscussion"] },
-        { slug: "defense-demonstration", type: "question", source: [1620, 1627], marker: "What did the defense want", outputFields: ["trialDiscussion"] },
-        { slug: "preferred-ally", type: "question", source: [1620, 1627], marker: "Who would you prefer", outputFields: ["trialDiscussion"] },
-        { slug: "good-defense", type: "question", source: [1620, 1627], marker: "What does a good defense attorney", outputFields: ["trialDiscussion"] },
-        { slug: "what-defines-person", type: "question", source: [1620, 1627], marker: "What defines a person", outputFields: ["trialDiscussion"] },
-        { slug: "upward-arrow", type: "question", source: [1620, 1627], marker: "If the defense and the jury are correct", outputFields: ["trialDiscussion"] },
+        { slug: "trial-experience", type: "question", source: [1620, 1627], marker: "What was it like", outputFields: ["trialExperience"] },
+        // If the participant answers that the prosecution was NOT satisfied,
+        // the source's "the prosecution may be requesting an appeal" bridge
+        // into Step 19 is delivered conversationally -- see the
+        // step-specific guidance for this prompt in
+        // dialogue-contract-compiler.ts.
+        { slug: "prosecution-satisfaction", type: "question", source: [1620, 1627], marker: "Was the prosecution satisfied", outputFields: ["prosecutionSatisfaction"] },
+        { slug: "defense-demonstration", type: "question", source: [1620, 1627], marker: "What did the defense want", outputFields: ["defenseDemonstration"] },
+        { slug: "preferred-ally", type: "question", source: [1620, 1627], marker: "Who would you prefer", outputFields: ["preferredAlly"] },
+        { slug: "good-defense", type: "question", source: [1620, 1627], marker: "What does a good defense attorney", outputFields: ["goodDefenseTraits"] },
+        { slug: "what-defines-person", type: "question", source: [1620, 1627], marker: "What defines a person", outputFields: ["personDefinition"] },
+        { slug: "upward-arrow", type: "question", source: [1620, 1627], marker: "If the defense and the jury are correct", outputFields: ["upwardArrowReflection"] },
       ],
     },
     {
@@ -325,7 +420,7 @@ export const spec: SessionSpec = {
           outputFields: ["appealEvidence"],
           validation: { kind: "array", minItems: 2, maxItems: 3, supportsField: "positiveBelief" },
           executionMode: "repeat_until",
-          maxIterations: 3,
+          maxIterations: 5,
           completionCondition: { kind: "field", field: "appealEvidenceSufficient", operator: "equals", value: true },
         },
         { slug: "daily-appeal-homework", type: "instruction", source: [1630, 1630], marker: "daily task", outputFields: ["appealHomeworkAcknowledged"] },
@@ -346,11 +441,17 @@ export const spec: SessionSpec = {
       title: "Step 21 - Original Charge Final Ratings",
       type: "session_complete",
       source: [1632, 1632],
-      requiredFields: ["originalChargeFinalBeliefPercent", "originalChargeFinalEmotionIntensityPercent"],
+      requiredFields: ["originalChargeFinalBeliefPercent", "originalChargeFinalEmotionIntensityPercent", "trialClosingSummary"],
       restrictions: [sourceText([1634, 1651])],
       terminal: true,
       prompts: [
-        { slug: "original-charge-final-ratings", type: "rating", source: [1632, 1632], marker: "re-assess their final level of belief", outputFields: ["originalChargeFinalBeliefPercent", "originalChargeFinalEmotionIntensityPercent"], validation: { kind: "paired_ratings", min: 0, max: 100, stateScaleEveryTime: true }, completionEffect: { type: "complete_session" } },
+        { slug: "original-charge-final-ratings", type: "rating", source: [1632, 1632], marker: "re-assess their final level of belief", outputFields: ["originalChargeFinalBeliefPercent", "originalChargeFinalEmotionIntensityPercent"], validation: { kind: "paired_ratings", min: 0, max: 100, stateScaleEveryTime: true } },
+        // The source closes Step 21 by comparing the final ratings with the
+        // baseline "warmly". The comparison is composed from the recorded
+        // fields (static-messages/s08.ts) and persisted verbatim into
+        // trialClosingSummary by applyPromptCompletionEffect, exactly like
+        // S07's plan summary -- then the session completes on delivery.
+        { slug: "trial-closing", type: "closing", source: [1632, 1632], outputFields: ["trialClosingSummary"], validation: { kind: "warm_before_after_comparison" }, completionEffect: { type: "complete_session" } },
       ],
     },
     {

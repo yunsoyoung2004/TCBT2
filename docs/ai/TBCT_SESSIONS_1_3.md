@@ -1,0 +1,129 @@
+TBCT Sessions 1-3 — Verified Implementation Notes
+
+This file must be populated from the actual repository during one-time onboarding. Do not fill gaps from assumptions.
+
+Last verified: 2026-08-13, commit 8805f75 (branch Session1-3)
+
+Companion references (not a substitute for this file — this file is the
+code-verified record; those two are editing-rule references):
+- docs/ai/TBCT_SESSION_OWNER_MANUAL.md — human-authored session-ownership manual (which file to edit for which goal, protected field names, priority order for AI wording).
+- prompts/.claude/rules/tbct-session-manual.md — the same content compiled into a mandatory Claude Code operating rule, with a pre/post-edit checklist.
+Both were cross-checked against code in this pass where practical (see inline notes below); where a claim could not be re-verified this pass, it is marked accordingly rather than asserted as fact.
+
+Shared context (applies to all three sessions, verified once here to avoid repetition):
+- All three sessions run through the same session-agnostic engine in src/lib/runtime/ and src/lib/api/runtime-execution-api.ts. Session-specific content lives only in src/lib/protocol/sessions/sNN.ts (clinical script) and src/lib/runtime/static-messages/sNN.ts (a small set of hand-approved literal fallback strings). See docs/ai/CODEMAP.md sections 3-4 for the full pipeline.
+- A RuntimeSession row is scoped to exactly one sessionDefinitionId (tbct-s01/02/03). There is no automatic in-code chaining from one session's completion into the next session starting -- the patient/UI selects the next session explicitly (src/components/pages/patient-new-session-page.tsx `handleStartSession`), using the ordering in CANONICAL_SESSION_PLAN.orderedEntries (source-fidelity-catalog.ts:353, ordered 1,2,3...).
+- Patient turn entrypoint for all three: submitPatientInput() in src/lib/api/runtime-execution-api.ts:948.
+- AI-wording precedence (per both manuals above, and consistent with code read in this pass): (1) src/lib/runtime/static-messages/sNN.ts `resolveStaticText()` — exact fixed text, wins outright when it matches; (2) src/lib/protocol/sessions/sNN.ts `PromptSpec.patientText` — material the dialogue agent phrases naturally, and what ships verbatim if the model call is unavailable; (3) `NodeSpec.participantRationale` — supporting "why this step" explanation, not sent every turn. Verified in this pass via scripts/run-local-session.ts (see docs/ai/CODEMAP.md §7): when `ANTHROPIC_API_KEY` is unset, prompts without an explicit `patientText` fall back to a generic filler line rather than a session-specific one, because `fallbackPatientText: prompt.patientText` (source-fidelity-catalog.ts:208) is empty for those prompts — worth knowing when smoke-testing without a live key.
+
+Session 1
+
+Purpose in current implementation: "Introduction to the TBCT Model" -- teaches the participant to distinguish Situation from Thoughts/Emotion/Behavior using a Cognitive Conceptualization Diagram (CCD Level 1), via a scripted three-person example. Source: src/lib/protocol/sessions/s01.ts:6-9 (id `tbct-s01`, techniqueName "Cognitive Conceptualization Diagram (CCD), Level 1").
+
+Entry condition: Session created with sessionDefinitionId `tbct-s01` (patient-new-session-page.tsx) and started via startRuntimeSession() (runtime-execution-api.ts:672), which resolves the release's entry node (`mandatory-opening`, s01.ts:26) and delivers it.
+
+Exit/transition condition: Deterministic, driven by runtime-state-reducer.ts evaluating each node's `requiredFields`/`completionCondition` against extracted patient input -- not by the LLM (dialogue agent's `keepCurrentNode` is hardcoded `true`, dialogue-agent-orchestrator.ts / anthropic-dialogue-agent.ts:71). Session ends at whichever node has `type: "session_complete"` in the compiled catalog (source-fidelity-catalog.ts:283); `completeRuntimeSession()` then persists status "completed" and triggers summary generation. Confirmed end-to-end in this pass by running `npx tsx scripts/run-local-session.ts tbct-s01` to completion (32 patient turns, reached "session_complete"). Exact terminal node id UNVERIFIED here -- s01.ts's tail (past the three-person-example nodes) was not read line-by-line; the owner manual's file map does not name it either.
+
+Main implementation path(s):
+- Content: src/lib/protocol/sessions/s01.ts (nodes: mandatory-opening, situation-thought-distinction, three-person-example, first-candidate, second-candidate, ... — source lines 18-222 of the TBCT source manual).
+- Approved literal fallback text: src/lib/runtime/static-messages/s01.ts (one hand-approved override for the opening acknowledgement, `tbct-s01-n01-p01-warm-acknowledgement`, plus a valence-correct "cycle" confirmation fix for candidate 2/3 reactions).
+- Worksheet UI: src/components/runtime/worksheet-renderers/s01-worksheet.tsx; binding: src/lib/worksheet/worksheet-bindings/tbct-s01.ts (per Owner Manual; not independently re-verified this pass).
+- Homework UI: src/components/pages/homework/s01-weekly-examples.tsx (per Owner Manual; not independently re-verified this pass).
+- Shared engine: src/lib/api/runtime-execution-api.ts, src/lib/runtime/runtime-orchestrator.ts, src/lib/dialogue-agent/*.
+
+Prompt/config source(s):
+- Clinical script + line-range source citations: s01.ts `metadata.sourceLineStart/sourceLineEnd` (18-222) and each node/prompt's own `source: [start, end]`.
+- Dialogue-agent system prompt (phrasing-only instructions, session-agnostic): src/lib/dialogue-agent/anthropic-dialogue-agent.ts:42-87.
+- Model: `ANTHROPIC_MODEL` env (default `claude-sonnet-5`), dialogue agent enabled for `tbct-s01` (dialogue-agent-orchestrator.ts:14).
+
+State read: `runtimeContext.fields` accumulated so far in the session (e.g. `situationThoughtDistinction`, `candidateOneEmotion/Thought/Behavior/Reaction`, etc., per s01.ts `outputFields`); `confirmedState` passed into the dialogue-agent contract for narrative continuity within the turn.
+
+State written: Same `runtimeContext.fields` map, via `extractRuntimeState()` (runtime-context.ts) on each patient answer, plus `completionEffect` side-effects declared per-prompt (e.g. `redirect_to_three_person_example`, s01.ts:61).
+
+External/shared dependencies:
+- Safety rules from src/mocks/data.ts `safetyRules` (global rules apply; Session 1 has no session-specific rule in the excerpt read).
+- Longitudinal memory retrieval/injection (src/lib/memory/) runs before every node delivery regardless of session.
+- src/lib/runtime/* and src/lib/dialogue-agent/* (shared with Sessions 2-8 -- see docs/ai/CODEMAP.md §8).
+
+Safety/fallback behavior: No session-specific safetyRuleIds observed in the read portion of s01.ts (contrast with Session 3's explicit `TBCT-S03-CRISIS-PAUSE`). Global safety rules (self-harm/psychotic-symptom signals, `sessions: ["All Sessions"]` in src/mocks/data.ts) still apply via runSafetyOrchestrator. Every dialogue-agent call falls back to the deterministic `deterministicFallbackText`/`fallbackPatientText` on transport failure, schema-validation failure, or missing `ANTHROPIC_API_KEY` -- never a second retry per turn (anthropic-dialogue-agent.ts:101-104). Without a key, most S01 prompts show a generic filler line rather than session-specific text (see "Shared context" above) — an expected but easy-to-misread artifact when smoke-testing locally.
+
+Existing tests: No test file is scoped to only `tbct-s01`. Coverage comes from session-agnostic engine tests plus catalog checks that reference S01 nodes explicitly, e.g. `does not let the situation-or-thought clarification overwrite the participant's actual situation answer` and `asks specifically for the still-missing automatic thought...` in src/lib/api/runtime-source-fidelity.test.ts, and the full-protocol walk in src/lib/runtime/testing/simulated-patient-runner.test.ts (`Sessions 01-08 simulated patient audit`).
+
+Enhancement-sensitive invariants: The `situation-or-thought` clarification prompt (s01.ts:60) unconditionally re-runs for every participant and previously overwrote the confirmed situation with whatever they answered to "is that a situation or thought?" -- already fixed per the inline comment at s01.ts:46-59, but any future edit to this node must preserve that the re-ask does NOT write to `situationThoughtDistinction`. No output-field names are called out as protected for S01 in either manual, but avoid renaming without checking downstream worksheet/homework binding files listed above anyway.
+
+Session 2
+
+Purpose in current implementation: "Problems and Goals" -- builds a Color-Coded Problem Hierarchy (CCPH) and Color-Coded Goals/Aspirations Hierarchy (CCGH). Source: s02.ts:6-9 (id `tbct-s02`).
+
+Entry condition: Session created with sessionDefinitionId `tbct-s02`; entry node `opening` (s02.ts:26).
+
+Exit/transition condition: Same deterministic engine as Session 1. `opening` node branches on `openingMode`: `first-session-opening` (default) vs. `returning-opening`/`between-session-bridge`/`assessment-transition`, all three of the latter gated by `activationCondition: { field: "returningParticipant", operator: "equals", value: true }` (s02.ts:33-35).
+
+**Verified gap**: `returningParticipant` is declared only as an `activationCondition` field in s02.ts -- no file under src/lib/runtime/ or src/lib/api/ ever sets `runtimeContext.fields.returningParticipant`. As implemented, the "returning participant" branch (welcome-back opening, between-session homework bridge) is unreachable; every Session 2 run takes `first-session-opening`. This is not mentioned in either owner manual (which describes the opening only as a session-local editing target, not as a known gap) — confirm before treating it as a working feature, and see "Missing high-value tests" below.
+
+Main implementation path(s):
+- Content: src/lib/protocol/sessions/s02.ts (opening, elicit-problems, and further nodes not read in full -- file is 208 lines; nodes past `elicit-problems` were not inspected in this pass).
+- Fixed AI text: src/lib/runtime/static-messages/s02.ts (not read in detail this pass -- exists per file listing and both manuals).
+- Worksheet UI: src/components/runtime/worksheet-renderers/s02-worksheet.tsx; binding: src/lib/worksheet/worksheet-bindings/tbct-s02.ts; homework: src/components/pages/homework/s02-checkin.tsx (per both manuals; not independently re-verified this pass).
+- Cumulative rating handling: runtime-context.ts `CUMULATIVE_RATING_FIELDS`/`LIST_RATING_PAIRS` explicitly cover Session 2's `problemRatings`/`goalRatings` (pointer fields `currentProblemText`/`currentGoalText`, completion flags `allProblemsRated`/`allGoalsRated`).
+- Calculated totals: runtime-execution-api.ts `applyPromptCompletionEffect()` handles `validation.kind === "calculated_problem_totals" | "calculated_goal_totals"` (sums ratings, counts entries >= 4 as "yellow/red").
+
+Prompt/config source(s): s02.ts `sourceLineStart/sourceLineEnd` 223-429 of the TBCT source manual; dialogue-agent system prompt as in Session 1 (session-agnostic).
+
+State read/written: `runtimeContext.fields.problems`/`goals` (growing lists), `problemRatings`/`goalRatings` (parallel rating arrays), derived `totalProblemScore`/`yellowRedProblemsCount`/`totalGoalsScore`/`yellowRedGoalsCount`.
+
+Data carried to next session: No direct in-code handoff into Session 3. Cross-session continuity is generic: on Session 2 completion, `completeRuntimeSession()` -> `generateSessionSummary()` (src/lib/memory/session-summary-generator.ts, keyword-heuristic extraction of goals/homework/barriers/coping strategies from the transcript) -> `extractMemoryCandidates()` persists `LongitudinalMemory` rows; Session 3 (or any later session) retrieves/ranks relevant ones via `runMemoryRetrieval()` (executeCurrentNode, runtime-execution-api.ts:809) and injects them into `runtimeContext.longitudinalMemory` before each node, which the dialogue-agent contract can reference narratively (`confirmedState`). This pipeline is not Session-2-to-3-specific; it is the same mechanism for any nn -> nn+1 transition.
+
+External/shared dependencies: Same shared engine/safety-rules dependency as Session 1. Session 2 has a session-specific safety range noted in metadata (`safetyRange: [411, 429]`, s02.ts:19) -- specific safetyRuleIds for Session 2 nodes were not enumerated in this pass (nodes past `elicit-problems` unread).
+
+Safety/fallback behavior: Same deterministic-fallback guarantee as Session 1 (see above). Session-specific safety content (metadata.safetyRange 411-429) not yet inspected -- UNVERIFIED, check the tail of s02.ts for `safetyRuleIds` assignments.
+
+Existing tests: No test file scoped to only `tbct-s02`. `src/lib/session-catalog.test.ts` verifies all eight canonical `SessionDefinitions` are present/aliased correctly (covers S02 generically, not behaviorally). `simulated-patient-runner.test.ts` walks S02 as part of the full 8-session audit.
+
+Missing high-value tests: A test asserting `returningParticipant` is either (a) actually set from participant/session history somewhere, or (b) documented as intentionally unimplemented -- currently unverifiable either way from tests. A test for the `calculated_problem_totals`/`calculated_goal_totals` completion-effect arithmetic in `applyPromptCompletionEffect()` (runtime-execution-api.ts:64-70) was not found in this pass -- confirm via grep for `calculated_problem_totals` in *.test.ts before assuming coverage.
+
+Enhancement-sensitive invariants: `LIST_RATING_PAIRS` in runtime-context.ts hardcodes the field-name triples for problems/goals (and Session 5's symptom items) -- renaming any of `problems`/`problemRatings`/`currentProblemText`/`allProblemsRated` in s02.ts without updating runtime-context.ts breaks rating-pointer advancement silently (no compiler error, since these are string-keyed dynamic fields). Both owner manuals independently flag `problems`, `problemRatings`, `goals`, `goalRatings` as protected/never-rename, matching what the code shows (clinician progress UI, homework UI, and score aggregation all consume these names as raw strings, per the manuals — the consuming UI files themselves were not re-opened this pass).
+
+Session 3
+
+Purpose in current implementation: "Intrapersonal Thought Record (Intra-TR)" -- the participant's first individual thought-record exercise. Source: s03.ts:6-9 (id `tbct-s03`).
+
+Entry condition: Session created with sessionDefinitionId `tbct-s03`; entry node `safety-check` (s03.ts:26), which is the session's mandatory first move.
+
+Exit/transition condition: Deterministic engine as above. Node 1 (`safety-check`) requires field `safetyCheck`, has `type: "session_start"`, and is explicitly `safetyRuleIds: ["TBCT-S03-CRISIS-PAUSE"]` (s03.ts:31,35) with `validation: { kind: "safety_check" }` and `completionEffect: { type: "evaluate_safety" }`. `nextSlug: "intra-tr-introduction"` (s03.ts:33) names the deterministic follow-on node explicitly (the only session of the three observed to use `nextSlug` rather than relying purely on transition rules -- UNVERIFIED whether s01/s02 also use `nextSlug` elsewhere, since their full files were not read).
+
+Main implementation path(s):
+- Content: src/lib/protocol/sessions/s03.ts (`safety-check`, `intra-tr-introduction`, and further nodes not fully read -- file is 217 lines).
+- Fixed AI text: src/lib/runtime/static-messages/s03.ts; worksheet: src/components/runtime/worksheet-renderers/s03-worksheet.tsx; binding: src/lib/worksheet/worksheet-bindings/tbct-s03.ts; homework: src/components/pages/homework/s03-review-intra-tr.tsx (per both manuals; not independently re-verified this pass).
+- **Important disambiguation**: src/lib/protocol/session-03-real.ts / session-03-importer.ts define a *separate* "Session 03" (`REAL_SESSION_03_ID = "tbct-br-001-session-03"`, pt-BR locale, `ProtocolGraphNode`/`ProtocolGraphEdge` model, imported into Dexie by `session-03-importer.ts`). This is NOT the same object as the canonical `tbct-s03` served by the live runtime engine -- it predates/parallels the source-fidelity catalog rebuild and is not mentioned in either owner manual (which documents only the canonical s03.ts). Before changing "Session 3," confirm which of the two a given task actually targets; the patient-facing runtime described in this document uses s03.ts, not session-03-real.ts. UNVERIFIED whether session-03-real.ts is reachable from any live UI path today.
+- The Korean crisis-safety-check node is directly exercised by src/lib/api/runtime-source-fidelity.test.ts `preempts Session 03 progression for a direct Korean suicide disclosure` (line 73) -- confirms the safety-check node blocks normal progression into `intra-tr-introduction` on disclosure.
+
+Prompt/config source(s): s03.ts sourceLineStart/sourceLineEnd 430-745 of the TBCT source manual; `safetyRange: [455, 470]` doubles as the opening range -- i.e. the safety check IS the session opening.
+
+State read: `runtimeContext.fields` from prior turns in this session; safety disposition depends on `extractRuntimeState()`'s `riskLevel`/`riskSignals` classification of the patient's answer to "how are you doing today."
+
+State written: `safetyCheck` field; on a triggered safety rule, `runtimeContext.riskLevel` is escalated ("medium"/"high") and the turn is diverted to `deliverSafetyOverrideTurn()` (runtime-execution-api.ts:329) instead of normal node delivery -- this path never reaches the LLM (safety-critical prompt, `isSafetyCriticalPrompt()` returns true whenever `safetyRuleIds.length > 0`). Further downstream, `automaticThought`, `evidenceFor`, and `evidenceAgainst` (S03's protected fields per both owner manuals) get dedicated shared handling in runtime-context.ts, confirmed by direct grep in this pass: `evidenceFor`/`evidenceAgainst` are treated as growing evidence lists with an explicit "no more evidence" phrase detector (`isNoMoreEvidence`, runtime-context.ts:10-23,461) rather than plain overwrite-on-answer fields, and `automaticThought` has a dedicated misclassification check (`automaticThoughtReportedAsFeeling` / `looksLikeFeelingOrUrgeNotThought`, runtime-context.ts:480-485) that only writes `automaticThought` when the answer doesn't read as a feeling/urge instead. This corroborates the manuals' "never rename" guidance for these three fields with an actual code mechanism, not just documentation.
+
+External/shared dependencies: **Verified gap**: `TBCT-S03-CRISIS-PAUSE` (s03.ts:31,206,209 — used by both the `safety-check` and `pause-and-escalate` nodes) has no matching entry in src/mocks/data.ts `safetyRules` (grep confirms zero occurrences there; only `GLOBAL-RISK-01`, `GLOBAL-RISK-02`, `SESSION-03-MOOD`, etc. exist). In `runSafetyOrchestrator` (runtime-safety-orchestrator.ts:13-14), `linkedRuleIds` includes this id but `linkedRules = safetyRules.filter(...)` finds no row for it, so it contributes nothing beyond the global rules that already apply to every session. Session 3's crisis pause therefore currently relies entirely on the two global rules (`GLOBAL-RISK-01/02`), not on a Session-3-specific rule — functionally still covered by the global "self-harm or acute safety signal" rule, but the session-specific rule id is dead/unmatched. Neither owner manual mentions this gap. Worth flagging to a clinical reviewer rather than assuming it's benign.
+
+Safety/fallback behavior: The safety-check prompt is excluded from the dialogue agent unconditionally (`isSafetyCriticalPrompt`), so its question text and any crisis-pause response are always the deterministic/approved strings, never LLM-generated -- by design, independent of session enablement.
+
+Existing tests: `preempts Session 03 progression for a direct Korean suicide disclosure` (runtime-source-fidelity.test.ts:73) is the one test directly exercising Session 3's safety-check node. `session-03-importer.test.ts` / `session-03-real.test.ts` test the separate, non-canonical draft described above -- do not count these as coverage of the live `tbct-s03` safety-check or Intra-TR flow.
+
+Missing high-value tests: A test that would have caught the `TBCT-S03-CRISIS-PAUSE` id mismatch (see External/shared dependencies above) -- e.g. asserting every `safetyRuleIds` value referenced from src/lib/protocol/sessions/*.ts resolves to a real row in src/mocks/data.ts `safetyRules`, which would also guard Sessions 4-8. A test asserting the `nextSlug: "intra-tr-introduction"` deterministic transition actually fires after a non-crisis answer would also close a gap (only the crisis-diversion path is currently tested here).
+
+Enhancement-sensitive invariants: `TBCT-S03-CRISIS-PAUSE` node-level gating and the unconditional dialogue-agent exclusion for any `safetyRuleIds`-bearing prompt (dialogue-agent-orchestrator.ts:26-30) must both stay intact -- removing either would let Claude phrase (and potentially soften) a crisis-relevant turn. `automaticThought`, `evidenceFor`, `evidenceAgainst` must not be renamed without updating the runtime-context.ts logic named above (code-verified this pass, not just manual guidance).
+
+Cross-session 1 -> 2 -> 3 flow
+
+Shared state: There is no dedicated "Session 1/2/3 handoff" data structure. Continuity is entirely mediated by (a) `runtimeContext.fields`, scoped to a single RuntimeSession/session definition and not automatically copied forward, and (b) the generic longitudinal-memory pipeline (session summary -> memory candidates -> ranked retrieval -> `runtimeContext.longitudinalMemory` injection), which applies uniformly to all 8 sessions, not specially to 1->2->3.
+
+Transition mechanism: The patient explicitly starts each session from the session list (patient-new-session-page.tsx `handleStartSession`), ordered by `CANONICAL_SESSION_PLAN.orderedEntries` (order 1, 2, 3, ... from source-fidelity-catalog.ts:353-364). Nothing in the runtime engine auto-advances a patient from a completed Session N into Session N+1.
+
+Data carried forward: Only what the memory-retrieval pipeline selects and ranks (goals, homework, barriers, coping strategies, preferences -- see memory-retrieval-engine.ts `getTypeWeight`), not raw field-for-field state. `SessionCommonRules.previousSessionContext` (source-fidelity-catalog.ts / source-fidelity-types.ts) is static clinical-documentation text describing what the *source manual* assumes about prior sessions -- it is not dynamically populated from an actual prior RuntimeSession at runtime. UNVERIFIED whether any UI surface displays it to the clinician as authored documentation only, or expects it to reflect live state -- confirm before treating it as functional.
+
+Failure/retry behavior: Uniform across all three (and all 8) sessions -- `MAX_CLARIFICATION_ATTEMPTS = 3` (runtime-execution-api.ts:103) pauses the session on repeated insufficient input; `resumeRuntimeSession()` resets the clarification-attempt counter; `retryStalledRuntimeNode()` recovers a session stuck at status "active" with an already-delivered prompt (see the incident note at runtime-execution-api.ts:719-732 describing a real production session stuck for 10+ minutes before this existed).
+
+Shared prompts/services: src/lib/dialogue-agent/anthropic-dialogue-agent.ts (system prompt, model, schema), src/lib/runtime/* (state machine, safety orchestrator, execution tracer), src/mocks/data.ts safetyRules (global rules), src/lib/memory/* (cross-session continuity). All are common to Sessions 4-8 as well. Both owner manuals independently converge on the same shared-file list (source-fidelity-types.ts, patient-input-controls.tsx, runtime-execution-api.ts, src/mocks/data.ts + runtime-context.ts, source-fidelity-catalog.ts) as the "coordination required" set — consistent with what this pass found by reading code directly.
+
+Regression risks: Editing src/lib/dialogue-agent/*, src/lib/runtime/* (outside static-messages/sNN.ts), or src/mocks/data.ts safetyRules for a Sessions-1-3 task will also change behavior for Sessions 4-8 -- flag and confirm before touching these per CLAUDE.md's shared-dependency rule and prompts/.claude/rules/tbct-session-manual.md §6. Within Sessions 1-3 specifically, three concrete landmines were identified and code-verified in this pass: (1) the `returningParticipant` dead branch in s02.ts (condition field never set anywhere), (2) the unmatched `TBCT-S03-CRISIS-PAUSE` rule id in s03.ts (no corresponding row in src/mocks/data.ts safetyRules), and (3) the session-03-real.ts/session-03-importer.ts naming collision with the canonical s03.ts (a different protocol id/data model reachable only via Dexie import, not the live patient runtime). None of these block current behavior in a user-visible way (global safety rules and the default S02 opening still work), but each should be resolved or explicitly accepted before building on top of them. None of the three are mentioned in either owner manual — they were found only by reading the runtime code, which is the reason this file exists separately from the manuals rather than just deferring to them.

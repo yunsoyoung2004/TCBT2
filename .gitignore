@@ -3,6 +3,10 @@ node_modules
 *.tsbuildinfo
 .env*
 dist
+distbuild
+verifybuild
 
 .vercel
 .env*
+
+*.log

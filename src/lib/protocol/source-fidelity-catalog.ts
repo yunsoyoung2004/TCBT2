@@ -148,6 +148,15 @@ function fidelityFor(metadata: SessionSourceMetadata, range: SourceRange, isolat
   return isolatedPrompt ? "exact" : "structured_from_source";
 }
 
+/** The source document lists many of its scripted lines as bullets ("•\t What
+ * defines a person -- ..."). `.trim()` doesn't remove the bullet or its tab,
+ * so the marker line shipped to the patient still opened with the raw list
+ * glyph -- visible verbatim in S08's Step 17 discussion questions. A leading
+ * bullet is never part of what the therapist says out loud, in any session. */
+function stripSourceListMarkers(line: string) {
+  return line.replace(/^\s*[•▪◦‣·]\s*/, "").trim();
+}
+
 function quotedSourceText(range: SourceRange, marker?: string) {
   const text = sourceText(range);
   if (!marker) return { text, isolatedPrompt: false };
@@ -163,10 +172,10 @@ function quotedSourceText(range: SourceRange, marker?: string) {
   const quoteStart = markerLine.lastIndexOf('"', markerIndexInLine);
   const quoteEnd = markerLine.indexOf('"', markerIndexInLine + marker.length);
   if (quoteStart < 0 || quoteEnd < 0 || quoteEnd <= quoteStart + 1) {
-    return markerLine.includes('"') ? { text, isolatedPrompt: false } : { text: markerLine.trim(), isolatedPrompt: true };
+    return markerLine.includes('"') ? { text, isolatedPrompt: false } : { text: stripSourceListMarkers(markerLine), isolatedPrompt: true };
   }
 
-  return { text: markerLine.slice(quoteStart + 1, quoteEnd).trim(), isolatedPrompt: true };
+  return { text: stripSourceListMarkers(markerLine.slice(quoteStart + 1, quoteEnd)), isolatedPrompt: true };
 }
 
 function nodeId(sessionNumber: number, index: number, slug: string) {

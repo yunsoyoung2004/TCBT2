@@ -20,6 +20,7 @@ function cloneState(state: RuntimeSessionState): RuntimeSessionState {
     completedNodeIds: [...state.completedNodeIds],
     completedPromptItemIds: [...state.completedPromptItemIds],
     fields: { ...state.fields },
+    promptIterationCounts: { ...(state.promptIterationCounts ?? {}) },
   };
 }
 
@@ -27,7 +28,18 @@ export function reduceRuntimeState(input: {
   release: RuntimeRelease;
   currentState: RuntimeSessionState;
   activeStep: RuntimeActiveStep;
-  event: "assistant_delivered" | "patient_input_accepted";
+  // Phase 3 (runtime orchestration simplification): "patient_state_corrected"
+  // is a distinct patient turn from "patient_input_accepted" -- the
+  // participant corrected the runtime's state (e.g. "this isn't a goal,
+  // remove it"), not answered the active question. It persists
+  // confirmedFields and evaluates completion exactly like an accepted
+  // answer (a correction can legitimately finish a repeat_until rating loop
+  // when the corrected list has no unrated items left -- see
+  // runtime-context.ts's applyCurrentRatingItemCorrection), but it must
+  // NEVER consume the repeat_until iteration budget or be counted as "one
+  // more rating given": the iteration-increment block below deliberately
+  // still checks `=== "patient_input_accepted"` only.
+  event: "assistant_delivered" | "patient_input_accepted" | "patient_state_corrected";
   confirmedFields?: Record<string, unknown>;
 }): RuntimeStateReduction {
   const state = cloneState(input.currentState);
@@ -37,16 +49,28 @@ export function reduceRuntimeState(input: {
   state.activePromptItemId = input.activeStep.promptItem.id;
   state.activePromptIndex = input.activeStep.promptIndex;
 
-  const completionFlags = input.event === "patient_input_accepted"
+  const isPatientTurn = input.event === "patient_input_accepted" || input.event === "patient_state_corrected";
+  const completionFlags = isPatientTurn
     ? { "turn.patient_input_validated": true }
     : { "turn.assistant_message_delivered": true };
   if (input.event === "patient_input_accepted" && input.activeStep.promptItem.executionMode === "repeat_until") {
     state.nodeIterationCount += 1;
+    // The repeat budget must be per-prompt: nodeIterationCount is shared by
+    // every prompt in the node, so a second repeat_until prompt in the same
+    // node would inherit the first loop's spent iterations and force-complete
+    // almost immediately (S07 Step 1's two lists, S08 Step 12's surrebuttal +
+    // "Therefore" loops).
+    const counts = state.promptIterationCounts ?? {};
+    counts[input.activeStep.promptItem.id] = (counts[input.activeStep.promptItem.id] ?? 0) + 1;
+    state.promptIterationCounts = counts;
   }
   const completionConditionMet = evaluateRuntimeCondition(input.activeStep.promptItem.completionCondition, state, completionFlags);
+  const repeatIterations = state.promptIterationCounts
+    ? state.promptIterationCounts[input.activeStep.promptItem.id] ?? 0
+    : state.nodeIterationCount;
   const repeatLimitReached = input.activeStep.promptItem.executionMode === "repeat_until"
-    && state.nodeIterationCount >= (input.activeStep.promptItem.maxIterations ?? 1);
-  const promptComplete = completionConditionMet && (input.event === "patient_input_accepted" || !input.activeStep.promptItem.requiresPatientInput)
+    && repeatIterations >= (input.activeStep.promptItem.maxIterations ?? 1);
+  const promptComplete = completionConditionMet && (isPatientTurn || !input.activeStep.promptItem.requiresPatientInput)
     || repeatLimitReached;
   if (!promptComplete) {
     return {

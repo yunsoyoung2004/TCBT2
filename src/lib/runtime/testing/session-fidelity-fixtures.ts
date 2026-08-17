@@ -37,6 +37,19 @@ const CONTENT_POOLS: Array<{ pattern: RegExp; replies: string[] }> = [
     "Maybe it means I'm fundamentally unlovable.",
     "I suppose it means I'm a failure at the things that matter.",
   ] },
+  // Must precede the generic /emotion/ pool below, which this field name also
+  // matches: the empty chair is an alternating dialogue between two parts,
+  // not a list of emotion words, and it needs enough DISTINCT utterances to
+  // reach the source's "several exchanges" floor (a repeat is skipped as a
+  // duplicate, so a short pool stalls the loop against its iteration cap).
+  { pattern: /emotionReasonDialogue/i, replies: [
+    "I'm scared that if we do this, it all falls apart and I'm the one left holding it.",
+    "I hear that you're scared, and the fear makes sense, but staying silent hasn't made it better either.",
+    "You keep saying it will be fine, and you don't know that.",
+    "You're right, I don't know that. What I do know is the not-knowing is costing us both.",
+    "If it goes badly I don't think I can take it.",
+    "Then let's agree we go slowly, and you can stop us at any point.",
+  ] },
   { pattern: /emotion/i, replies: [
     "Mostly anxious, honestly, maybe around 70%.",
     "I felt embarrassed and a little angry at myself.",
@@ -55,11 +68,76 @@ const CONTENT_POOLS: Array<{ pattern: RegExp; replies: string[] }> = [
     "I texted an apology right away, even though I wasn't sure I needed to.",
     "I just kept scrolling my phone to avoid thinking about it.",
   ] },
+  // Courtroom-role answers are third-person by protocol (S08 KP3) -- a
+  // first-person reply earns one gentle correction, which the audit counts as
+  // a clarification and fails on. The prosecution argues FOR the charge and
+  // the defense against it, so they need opposing content: one shared pool
+  // had the prosecutor presenting the defendant's achievements as proof of
+  // guilt, which no real run would produce.
+  { pattern: /prosecutionEvidence/i, replies: [
+    "They missed the March deadline and the whole team had to cover for them.",
+    "They went quiet in the review meeting when they were asked a direct question.",
+    "They put off the difficult conversation with their sister for three years.",
+    "They dropped the evening class after two weeks last autumn.",
+  ] },
   { pattern: /evidence/i, replies: [
-    "My manager actually thanked me for a report last month.",
-    "I've met every deadline this quarter without missing one.",
-    "A coworker told me my presentation last week was clear and helpful.",
-    "I handled a similar situation fine back in the spring.",
+    "Their manager actually thanked them for a report last month.",
+    "They met every deadline this quarter without missing one.",
+    "A coworker told them their presentation last week was clear and helpful.",
+    "They handled a similar situation fine back in the spring.",
+  ] },
+  // Step 10/12 pair each answer with one item of the previous list, so these
+  // need the "BUT..."/"Therefore..." shape the source asks for.
+  { pattern: /prosecutionRebuttals/i, replies: [
+    "BUT that one thank-you does not cancel the day they froze in the meeting.",
+    "BUT meeting deadlines is the minimum anyone is expected to do.",
+    "BUT one clear presentation does not make them reliable.",
+    "BUT the spring case was much easier than this one.",
+  ] },
+  { pattern: /defenseSurrebuttals/i, replies: [
+    "BUT the manager's thanks was specific and unprompted, which says something real about their work.",
+    "BUT meeting every deadline under this workload took genuine effort.",
+    "BUT the coworker had no reason to say it unless it was true.",
+    "BUT they still chose to handle the spring case rather than avoid it.",
+  ] },
+  { pattern: /thereforeConclusions/i, replies: [
+    "Therefore the defendant is someone whose work is recognized by others.",
+    "Therefore the defendant follows through even when it is hard.",
+    "Therefore one difficult moment does not define the defendant.",
+    "Therefore the defendant is far more capable than the charge claims.",
+  ] },
+  { pattern: /juryReview/i, replies: [
+    "The prosecution seems to be using all-or-nothing thinking about one bad day.",
+    "The defense's examples are concrete and check out as factual.",
+    "The rebuttals mostly discount the evidence rather than answer it.",
+    "The defense's answers and conclusions hold up as true.",
+  ] },
+  // S07's decisional balance and empty chair are collected one item at a time
+  // up to the source's own limits, so each pool needs at least as many
+  // DISTINCT replies as its target -- a repeat is skipped as a duplicate and
+  // would stall the loop against its iteration cap instead of completing.
+  { pattern: /^disadvantages$/i, replies: [
+    "I would probably lie awake the night before.",
+    "It could make the next family dinner awkward.",
+    "I might hear something I don't want to hear.",
+    "It would take up a whole afternoon I don't really have.",
+    "I could end up feeling worse than before I tried.",
+    "My sister might take it the wrong way.",
+    "I'd have to admit I've been avoiding it for years.",
+  ] },
+  { pattern: /^advantages$/i, replies: [
+    "I would stop carrying this around every day.",
+    "It might actually clear the air between us.",
+    "I'd find out where I really stand.",
+    "My partner would stop worrying about me over it.",
+    "I could stop rehearsing the conversation in my head.",
+    "It would prove to me that I can do hard things.",
+    "The next family event wouldn't feel like a minefield.",
+  ] },
+  { pattern: /consensusLearning/i, replies: [
+    "Both parts want the same thing, they just disagree about the cost.",
+    "The fear isn't trying to stop me, it's trying to protect me from being hurt again.",
+    "I don't have to pick a side today to still move a little.",
   ] },
   { pattern: /goal/i, replies: [
     "Getting a full night's sleep most nights.",
@@ -121,11 +199,48 @@ function nextReply(field: string): string {
   return fallback[genericCounter % fallback.length];
 }
 
+/** Prompts where the synthetic patient should answer something other than the
+ * first enum value, so the audit walks the clinically expected path. */
+const PROMPT_ANSWER_OVERRIDES: Record<string, string> = {
+  // values[0] is "guilty", which routes every audit run through the
+  // guilty-verdict recheck branch and never exercises the ordinary
+  // announce-the-verdict path. The trial is designed to end in acquittal
+  // often enough that this is the more representative run.
+  "tbct-s08-n14-p04-participant-verdict": "not_guilty",
+};
+
+let choiceFormatCounter = 0;
+
 export function syntheticPatientInput(prompt: PromptItem): PatientInput {
   const validation = validationOf(prompt);
   const fields = prompt.outputFields;
-  if (validation.kind === "boolean") return { kind: "boolean", value: true };
-  if (validation.kind === "enum" && validation.values?.length) return { kind: "single_choice", value: String(validation.values[0]) };
+  // Alternate between the button-shaped answer and the typed/transcribed one
+  // for the SAME value. Always submitting the canonical token meant the audit
+  // never went through the text path, which is where the enum matching used
+  // to reject every natural phrasing ("not ready", "무죄") and pause the
+  // session -- green audits, broken live sessions.
+  if (validation.kind === "boolean") {
+    choiceFormatCounter += 1;
+    return choiceFormatCounter % 2 === 0 ? { kind: "boolean", value: true } : { kind: "text", value: "yes" };
+  }
+  // Phase 1 (runtime orchestration simplification): private_placeholder_labels
+  // is now a closed-form kind like boolean/enum above -- it requires an
+  // explicit decline or a nameable letter, so a generic free-text reply
+  // (this prompt's outputField-derived nextReply() fallback below) no longer
+  // parses and the audit would see a clarification turn instead of the
+  // normal path. Alternates decline/accept like the boolean/enum branches
+  // above, exercising both real paths.
+  if (validation.kind === "private_placeholder_labels") {
+    choiceFormatCounter += 1;
+    return choiceFormatCounter % 2 === 0 ? { kind: "text", value: "no" } : { kind: "text", value: "X" };
+  }
+  if (validation.kind === "enum" && validation.values?.length) {
+    const canonical = PROMPT_ANSWER_OVERRIDES[prompt.id] ?? String(validation.values[0]);
+    choiceFormatCounter += 1;
+    return choiceFormatCounter % 2 === 0
+      ? { kind: "single_choice", value: canonical }
+      : { kind: "text", value: canonical.replace(/_/g, " ") };
+  }
   if (validation.kind && SUM_TO_100_PAIR_KINDS.has(validation.kind) && fields.length === 2) {
     return { kind: "rating", value: "60, 40" };
   }

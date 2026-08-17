@@ -158,8 +158,13 @@ export const spec: SessionSpec = {
       source: [1172, 1183],
       requiredFields: ["reliefVersusOvercomingInsight"],
       prompts: [
-        { slug: "relief-curve", type: "question", source: [1172, 1183], marker: "When you go quiet in a meeting", outputFields: ["reliefVersusOvercomingInsight"] },
-        { slug: "next-meeting", type: "question", source: [1172, 1183], marker: "And the next meeting", outputFields: ["reliefVersusOvercomingInsight"] },
+        // The markers here are the source's *example* situation ("going quiet in
+        // a meeting"), not a situation every participant has. Without a
+        // patientText the marker text reached participants verbatim and asked
+        // about meetings even when nothing in their hierarchy involved one --
+        // so these ask about the safety behavior the participant actually named.
+        { slug: "relief-curve", type: "question", source: [1172, 1183], marker: "When you go quiet in a meeting", patientText: "At the moment you use that safety behavior, does the anxiety go up or down?", outputFields: ["reliefVersusOvercomingInsight"] },
+        { slug: "next-meeting", type: "question", source: [1172, 1183], marker: "And the next meeting", patientText: "And the next time you are in that same situation, what happens?", outputFields: ["reliefVersusOvercomingInsight"] },
         { slug: "overcoming-curve", type: "explanation", source: [1172, 1183], marker: "Anxiety rises", outputFields: ["reliefVersusOvercomingInsight"] },
       ],
     },

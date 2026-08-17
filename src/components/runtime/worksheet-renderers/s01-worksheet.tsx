@@ -5,16 +5,21 @@ import { CycleArrow, FocusLine, SessionSignals, WorksheetCell, capturedStatus, l
 import type { WorksheetFieldView, WorksheetView } from "@/types/worksheet";
 
 // Recreates the TBCT Session 1 "Conceptualization Diagram" (three-person
-// teaching example): one shared Situation feeding three parallel
-// Thought -> Emotion -> Behavior branches (candidates 1-3), then the
-// participant's own cycle expressed as three link-recognition cells plus a
-// confirmed summary. See tbct-s01.ts's header for why the personal cycle is
-// grounded in the candidate example rather than a fourth discrete quad.
+// teaching example): the participant's own situation and initial thought
+// (captured in Opening, before the example), then one shared Situation
+// feeding three parallel Thought -> Emotion -> Behavior branches (people
+// 1-3), then the participant's own Emotion/Behavior/Body -- reusing the
+// same situation+thought already captured above rather than a separate
+// discrete quad. See tbct-s01.ts's header for the full field mapping.
+//
+// Labels say "Person N" (not "Candidate N") to match the dialogue's own
+// wording; the underlying field names (candidateOneEmotion, etc.) are
+// unchanged -- see .claude/TASK_SCOPE.json's note2026_08_17b entry.
 
 const CANDIDATES = [
-  { n: "1", tone: "Candidate 1", thought: "candidateOneThought", emotion: "candidateOneEmotion", behavior: "candidateOneBehavior" },
-  { n: "2", tone: "Candidate 2", thought: "candidateTwoThought", emotion: "candidateTwoEmotion", behavior: "candidateTwoBehavior" },
-  { n: "3", tone: "Candidate 3", thought: "candidateThreeThought", emotion: "candidateThreeEmotion", behavior: "candidateThreeBehavior" },
+  { n: "1", tone: "Person 1", thought: "candidateOneThought", emotion: "candidateOneEmotion", behavior: "candidateOneBehavior" },
+  { n: "2", tone: "Person 2", thought: "candidateTwoThought", emotion: "candidateTwoEmotion", behavior: "candidateTwoBehavior" },
+  { n: "3", tone: "Person 3", thought: "candidateThreeThought", emotion: "candidateThreeEmotion", behavior: "candidateThreeBehavior" },
 ] as const;
 
 export function S01Worksheet({
@@ -40,22 +45,24 @@ export function S01Worksheet({
   // tbct-s01.ts) -- its signals are structural completion counts instead of
   // ratings, sourced only from fields already bound above.
   const candidatesComplete = CANDIDATES.filter((c) => isFilled(get(c.thought)) && isFilled(get(c.emotion)) && isFilled(get(c.behavior))).length;
-  const personalLinksComplete = [get("personalThoughtEmotionLink"), get("personalEmotionBehaviorLink"), get("personalBehaviorSituationLink")].filter(isFilled).length;
+  const personalComplete = [get("personalEmotion"), get("personalBehavior"), get("personalBodySensations")].filter(isFilled).length;
 
   return (
     <div className="space-y-5 rounded-panel border border-border bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-subtle)_100%)] p-4 sm:p-6">
       <FocusLine text={get("situationThoughtDistinction")?.value?.displayValue} />
       <SessionSignals
         items={[
-          { label: "Candidates explored", value: `${candidatesComplete} of 3` },
-          { label: "Personal cycle links", value: `${personalLinksComplete} of 3` },
+          { label: "People explored", value: `${candidatesComplete} of 3` },
+          { label: "My own emotion/behavior/body", value: `${personalComplete} of 3` },
           { label: "Summary", value: capturedStatus(get("participantSummary")) },
           { label: "Distortions recognized", value: listCount(get("participantSelectedDistortions")) },
         ]}
       />
 
-      {/* One shared Situation feeding three parallel candidate branches */}
-      <WorksheetCell field={get("situationThoughtDistinction")} q="1" active={isActive(get("situationThoughtDistinction"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} label="The shared situation" />
+      {/* Situation and the first, uncertainty-tolerant look at the thought,
+          both captured in Opening before the three-person example */}
+      <WorksheetCell field={get("situationThoughtDistinction")} q="1" active={isActive(get("situationThoughtDistinction"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} label="My situation" />
+      <WorksheetCell field={get("openingInitialThought")} q="1" active={isActive(get("openingInitialThought"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} label="My first thought about it" />
 
       <div className="space-y-3">
         {CANDIDATES.map((candidate) => (
@@ -76,20 +83,16 @@ export function S01Worksheet({
 
       <WorksheetCell field={get("threePersonModelInsight")} q="2" label="What the three-person example showed me" active={isActive(get("threePersonModelInsight"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
 
-      {/* Personal cycle -- link recognition, framed as its own loop */}
+      {/* Personal cycle -- same situation+thought as above, now the
+          participant's own emotion/behavior/body */}
       <div className="rounded-panel border border-dashed border-clinical-blue/40 p-3 sm:p-4">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">My own cycle</div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">My own experience</div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
-          <WorksheetCell field={get("personalThoughtEmotionLink")} q="3" label="Thought → Emotion" compact active={isActive(get("personalThoughtEmotionLink"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+          <WorksheetCell field={get("personalEmotion")} q="3" label="Emotion" compact active={isActive(get("personalEmotion"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
           <CycleArrow reducedMotion={reducedMotion} />
-          <WorksheetCell field={get("personalEmotionBehaviorLink")} q="3" label="Emotion → Behavior" compact active={isActive(get("personalEmotionBehaviorLink"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
+          <WorksheetCell field={get("personalBehavior")} q="3" label="Behavior" compact active={isActive(get("personalBehavior"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
           <CycleArrow reducedMotion={reducedMotion} />
-          <WorksheetCell field={get("personalBehaviorSituationLink")} q="3" label="Behavior → Situation" compact active={isActive(get("personalBehaviorSituationLink"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
-        </div>
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-text-muted" aria-hidden>
-          <span className="h-px flex-1 border-t border-dashed border-clinical-blue/30" />
-          <span>and the loop feeds itself again</span>
-          <span className="h-px flex-1 border-t border-dashed border-clinical-blue/30" />
+          <WorksheetCell field={get("personalBodySensations")} q="3" label="Body" compact active={isActive(get("personalBodySensations"))} onConfirm={onConfirm} onEdit={onEdit} busy={busy} reducedMotion={reducedMotion} />
         </div>
       </div>
 

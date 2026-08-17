@@ -11,12 +11,51 @@ import { recordModelUsage } from "@/lib/assessment/model-observability";
 import type { PatientRendererRequest } from "@/lib/patient-renderer/patient-renderer-contract";
 import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
 import { defaultFallbackPatientText, resolveModelGroundingText } from "@/lib/runtime/runtime-release-normalizer";
+import { resolveRepeatedFallbackText as resolveS01RepeatedFallbackText } from "@/lib/runtime/static-messages/s01";
+import { resolveRepeatedFallbackText as resolveS02RepeatedFallbackText } from "@/lib/runtime/static-messages/s02";
+import { resolveRepeatedFallbackText as resolveS03RepeatedFallbackText } from "@/lib/runtime/static-messages/s03";
+import { composeDistortionCandidateText, selectDistortionCandidatesDeterministically, type DistortionCandidate } from "@/lib/protocol/sessions/s01-distortion-candidates";
 
 async function callPatientRenderer(request: PatientRendererRequest, context: { sessionId: string; turnId: string }) {
   if (typeof window === "undefined") { const { renderPatientReflection } = await import("@/lib/patient-renderer/anthropic-patient-renderer"); return renderPatientReflection(request, context); }
   const response = await runtimeFetch("/api/patient-reflection", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request, context }) });
   const payload = await response.json().catch(() => null); if (!response.ok || !payload?.ok) return { reflection: "Thank you for sharing that.", provider: "none", failed: true };
   return payload.data as { reflection: string; patientMessage?: string; provider: string; failed: boolean; failureReason?: string };
+}
+
+// S01-only, cognitive-distortions candidate selection (task's registry
+// redesign brief; .claude/TASK_SCOPE.json's note2026_08_17d entry). Never
+// invoked for any other session. selectDistortionCandidatesDeterministically
+// is a pure, offline, registry-only function -- safe to import statically
+// and use directly as the browser-side/no-network fallback; the Anthropic-
+// backed path (which touches ANTHROPIC_API_KEY) stays server-only, mirroring
+// callPatientRenderer's dynamic-import/fetch split above.
+async function callDistortionClassifier(request: { locale: string; situation: string; automaticThought: string; emotion?: string }, context: { sessionId: string; turnId: string }): Promise<{ candidates: DistortionCandidate[] }> {
+  if (typeof window === "undefined") {
+    const { selectDistortionCandidates } = await import("@/lib/protocol/sessions/s01-distortion-candidates");
+    const result = await selectDistortionCandidates(request, context);
+    return { candidates: result.candidates };
+  }
+  try {
+    const response = await runtimeFetch("/api/distortion-candidates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ request, context }) });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) throw new Error("distortion candidate request failed");
+    return { candidates: (payload.data.candidates as DistortionCandidate[]) ?? [] };
+  } catch {
+    return { candidates: selectDistortionCandidatesDeterministically(request) };
+  }
+}
+
+const IDENTIFY_DISTORTION_PROMPT_ID = "tbct-s01-n10-p02-identify-distortion";
+
+async function resolveS01DistortionCandidateText(input: { sessionId: string; turnId: string; locale: string; fields: Record<string, unknown> }): Promise<string | undefined> {
+  const situation = input.fields.situationThoughtDistinction;
+  const automaticThought = input.fields.openingInitialThought;
+  if (typeof situation !== "string" || !situation.trim() || typeof automaticThought !== "string" || !automaticThought.trim()) return undefined;
+  const emotion = typeof input.fields.personalEmotion === "string" ? input.fields.personalEmotion : undefined;
+  const { candidates } = await callDistortionClassifier({ locale: input.locale, situation, automaticThought, emotion }, { sessionId: input.sessionId, turnId: input.turnId });
+  if (!candidates.length) return undefined;
+  return composeDistortionCandidateText(candidates, input.locale);
 }
 
 function activeActionType(activeStep: RuntimeActiveStep) {
@@ -38,6 +77,52 @@ function fallbackResponse(input: { requestId: string; contract: CompiledPromptCo
     nextActionRecommendation: "stay",
     providerMetadata: { provider: "mock", model: "runtime-fallback" },
   };
+}
+
+/**
+ * When the dialogue agent falls back to the identical approved static text
+ * three turns in a row, the generic override below invites the participant
+ * to share "one specific moment" -- a Personal-Example-shaped question that
+ * must never fire mid-Neutral-Example (or any other S01 phase) in Session 1.
+ * S01 gets its own phase-preserving rephrase (resolveS01RepeatedFallbackText,
+ * static-messages/s01.ts) instead; every other session's override is
+ * byte-identical to the prior behavior. Exported so both branches can be
+ * unit-tested directly without driving a full session/provider-failure
+ * simulation -- see .claude/TASK_SCOPE.json's note2026_08_17b entry.
+ */
+export function resolveRepeatedFallbackOverride(input: {
+  sessionDefinitionId: string;
+  usedFallback: boolean;
+  approvedPatientText: string;
+  recentAssistantMessages: string[];
+  lastPatientMessage: string | undefined;
+  locale: string;
+  activePromptItemId: string;
+}): string | undefined {
+  const normalizedApproved = input.approvedPatientText.replace(/\s+/g, " ").trim();
+  const repeatedFallback = input.usedFallback && input.recentAssistantMessages
+    .slice(-3)
+    .some((content) => content.replace(/\s+/g, " ").trim() === normalizedApproved);
+  if (!repeatedFallback || !input.lastPatientMessage?.trim()) return undefined;
+
+  if (input.sessionDefinitionId === "tbct-s01") {
+    return resolveS01RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
+  }
+  // P1-3: same phase-preserving exception as S01 above, for S02 (problem/goal/
+  // rating) and S03 (situation/thought/emotion/body) -- see resolveRepeatedFallbackText
+  // in each session's static-messages/s0N.ts for the full rationale. S04-S08
+  // are untouched: this branch only intercepts tbct-s02/tbct-s03.
+  if (input.sessionDefinitionId === "tbct-s02") {
+    return resolveS02RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
+  }
+  if (input.sessionDefinitionId === "tbct-s03") {
+    return resolveS03RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
+  }
+
+  const excerpt = input.lastPatientMessage.trim().slice(0, 80);
+  return input.locale.toLowerCase().startsWith("ko")
+    ? `"${excerpt}"라고 느끼고 계시는군요. 그 마음이 가장 크게 느껴졌던 구체적인 순간 하나를 말씀해 주실 수 있을까요?`
+    : `It sounds like "${excerpt}" is weighing on you. Could you share one specific moment when it felt strongest?`;
 }
 
 export type RuntimeOrchestratorInput = {
@@ -98,7 +183,16 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
   // Every other session keeps the exact prior behavior (approved static
   // text first, then personalized reflection / deterministic fallback)
   // unchanged.
-  const approvedPatientText = staticMessage?.patientMessage ?? contract.fallbackPatientText;
+  let approvedPatientText = staticMessage?.patientMessage ?? contract.fallbackPatientText;
+  // S01-only: identify-distortion's grounding text is the dynamically
+  // composed, registry-validated candidate list (never Claude-invented
+  // distortion names) rather than the generic static fallback above -- see
+  // resolveS01DistortionCandidateText and .claude/TASK_SCOPE.json's
+  // note2026_08_17d entry. No other session's prompt ids ever match this.
+  if (input.session.sessionDefinitionId === "tbct-s01" && input.sourcePromptItem.id === IDENTIFY_DISTORTION_PROMPT_ID) {
+    const candidateText = await resolveS01DistortionCandidateText({ sessionId: input.session.id, turnId: makeId("DISTORTION"), locale: input.session.locale, fields: input.session.runtimeContext.fields });
+    if (candidateText) approvedPatientText = candidateText;
+  }
   if (isDialogueAgentEnabled(input.session.sessionDefinitionId)) {
     const dynamicRequestId = makeId("REFLECT");
     // promptIndex === 0 means this is the first prompt the participant will
@@ -127,17 +221,16 @@ export async function orchestrateRuntimeAssistantTurn(input: RuntimeOrchestrator
       isFirstPromptOfSession,
       sessionToneGuidance: input.release.policies.sessionPolicies?.[input.session.sessionDefinitionId]?.toneGuidance,
     });
-    const normalizedApproved = approvedPatientText.replace(/\s+/g, " ").trim();
-    const repeatedFallback = dialogueResult.usedFallback && input.recentMessages
-      .filter((message) => message.role === "assistant")
-      .slice(-3)
-      .some((message) => message.content.replace(/\s+/g, " ").trim() === normalizedApproved);
-    if (repeatedFallback && input.session.runtimeContext.lastPatientMessage?.trim()) {
-      const excerpt = input.session.runtimeContext.lastPatientMessage.trim().slice(0, 80);
-      dialogueResult.patientMessage = input.session.locale.toLowerCase().startsWith("ko")
-        ? `“${excerpt}”라고 느끼고 계시는군요. 그 마음이 가장 크게 느껴졌던 구체적인 순간 하나를 말씀해 주실 수 있을까요?`
-        : `It sounds like “${excerpt}” is weighing on you. Could you share one specific moment when it felt strongest?`;
-    }
+    const repeatedFallbackOverride = resolveRepeatedFallbackOverride({
+      sessionDefinitionId: input.session.sessionDefinitionId,
+      usedFallback: dialogueResult.usedFallback,
+      approvedPatientText,
+      recentAssistantMessages: input.recentMessages.filter((message) => message.role === "assistant").map((message) => message.content),
+      lastPatientMessage: input.session.runtimeContext.lastPatientMessage,
+      locale: input.session.locale,
+      activePromptItemId: input.activeStep.promptItem.id,
+    });
+    if (repeatedFallbackOverride) dialogueResult.patientMessage = repeatedFallbackOverride;
     const usedClaude = !dialogueResult.usedFallback && !dialogueResult.excludedBySafety;
     const dialogueResponse = fallbackResponse({ requestId: dynamicRequestId, contract, activeStep: input.activeStep, locale: input.session.locale });
     dialogueResponse.patientMessage = dialogueResult.patientMessage;

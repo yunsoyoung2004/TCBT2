@@ -47,9 +47,13 @@ describe("canonical source-fidelity runtime", () => {
     const previousProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = "mock";
     try {
+      // P0-3 (S02 redesign): first-session-opening is a one-way welcome with
+      // no patient input required (completionEffect sets openingMode
+      // deterministically), so the session auto-advances straight to
+      // elicit-problems/problem-framing -- that is the very first prompt
+      // that actually waits on the participant, not a separate check-in.
       const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s02", locale: "ko-KR" });
       await startRuntimeSession(session.id);
-      await submitPatientInput(session.id, { kind: "text", value: "현재는 그래도 평화로워요." });
       const before = await getRuntimeSession(session.id);
       const problemPromptId = before?.session.currentPromptItemId;
 
@@ -504,6 +508,12 @@ describe("canonical source-fidelity runtime", () => {
     try {
       const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s08", locale: "en-US" });
       await startRuntimeSession(session.id);
+      // S08 now opens with the participant guide's "quick word first": the
+      // materials check and the belief-as-charge orientation, whose reaction
+      // is invited before the investigation begins. Clear those first so this
+      // test still lands on the combined situation+thought prompt.
+      await submitPatientInput(session.id, { kind: "boolean", value: true });
+      await submitPatientInput(session.id, { kind: "text", value: "That makes sense to me -- I have never really questioned that belief." });
 
       // A plain descriptive sentence like this doesn't get parsed apart
       // into "the situation part" vs. "the thought part" -- this combined

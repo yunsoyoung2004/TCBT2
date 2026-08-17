@@ -2,14 +2,19 @@ import { dialogueContractSchema, dialogueDecisionSchema, type DialogueAgentResul
 import { redactDirectIdentifiers } from "@/lib/assessment/privacy-redaction";
 import { recordModelUsage } from "@/lib/assessment/model-observability";
 
-// Anthropic's latency guide recommends Haiku 4.5 for time-sensitive apps.
-// Keep this overridable, but make the fast model the production-safe default.
-const DEFAULT_MODEL = "claude-haiku-4-5";
+// The rich per-step system prompt below (stepSpecificGuidance, the full
+// responseType/participantResponseState taxonomy, etc.) is what the
+// content-fidelity work depends on -- it needs a model that reliably
+// follows many simultaneous, sometimes-conflicting instructions, so this
+// stays the higher-capability tier rather than the latency-oriented Haiku
+// default used by the old condensed prompt.
+const DEFAULT_MODEL = "claude-sonnet-5";
 const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
-// Stable across every turn so Anthropic can reuse the prompt prefix. All
-// session-specific values live in the single user payload below instead of
-// being duplicated into both system + user messages as they were before.
+// Stable, condensed prompt used ONLY for the Groq continuity fallback below
+// (Claude unavailable / no key) -- a compact summary of the same rules the
+// full systemPrompt() spells out per-step, so the emergency path stays fast
+// and cheap without re-deriving the rich per-turn contract fields.
 const FAST_SYSTEM_PROMPT = [
   "You are the conversational voice of a protocol-bounded TBCT program.",
   "A deterministic engine owns clinical state, safety, progression, and persistence. You only phrase one patient-facing turn.",
@@ -40,6 +45,24 @@ function deterministicFallbackDecision(contract: DialogueContract): import("@/li
   };
 }
 
+const RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["responseType", "patientFacingMessage", "keepCurrentNode", "participantResponseState"],
+  properties: {
+    responseType: { type: "string", enum: ["acknowledge", "reflect_and_ask", "clarify", "repair", "request_missing_field", "explain_term", "explain_scale", "explain_rationale", "restore_context", "show_required_visual", "acknowledge_pause"] },
+    patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 },
+    keepCurrentNode: { type: "boolean", enum: [true] },
+    targetField: { type: "string" },
+    participantResponseState: { type: "string", enum: ["valid_answer", "partial_answer", "wrong_construct", "question_not_understood", "missing_visual", "missing_context", "participant_question", "duplicate_answer", "revision_request", "declines", "pause_request", "off_topic"] },
+    visualAction: { type: "string", enum: ["none", "focus_field", "show_options", "restore_worksheet", "show_scale"] },
+    clarificationReason: { type: "string" },
+    explanationDepth: { type: "string", enum: ["minimal", "standard", "expanded"] },
+    candidateFieldMention: { type: "object", additionalProperties: false, required: ["field", "value"], properties: { field: { type: "string" }, value: {} } },
+  },
+} as const;
+
+// Minimal schema for the Groq continuity fallback only -- see FAST_SYSTEM_PROMPT.
 const FAST_RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -47,6 +70,8 @@ const FAST_RESPONSE_SCHEMA = {
   properties: { patientFacingMessage: { type: "string", minLength: 1, maxLength: 700 } },
 } as const;
 
+// Fills in the required taxonomy fields the fast/minimal schema above never
+// asked Groq for, so its output still satisfies dialogueDecisionSchema.
 function normalizedDecision(input: unknown) {
   const partial = input && typeof input === "object" ? input as Record<string, unknown> : {};
   return dialogueDecisionSchema.parse({
@@ -96,6 +121,8 @@ function safeUserPayload(contract: DialogueContract) {
   };
 }
 
+// Internal continuity fallback only -- never consulted on a healthy turn.
+// Used when Claude is unavailable (no key) or a live call fails.
 async function generateGroqDecision(contract: DialogueContract, context: { sessionId: string; turnId: string }): Promise<DialogueAgentResult | null> {
   const apiKey = process.env.GROQ_API_KEY ?? "";
   if (!apiKey) return null;
@@ -153,11 +180,19 @@ function systemPrompt(contract: DialogueContract) {
     contract.scaleExplanation ? `Scale meaning if asked: ${contract.scaleExplanation}` : "",
     contract.participantOwned ? "This field's value must come from the participant, in their own words." : "",
     contract.assistantMustNotSupply ? "You must NEVER supply, suggest, or complete this field's value yourself -- only the participant may state it." : "",
+    // Step-specific conduct rules from the protocol source. These are
+    // clinical requirements for THIS step, not style preferences: where they
+    // conflict with any general phrasing guidance below (e.g. the default
+    // "reference what they just said" habit vs. the empty chair's silence
+    // rule), the step rule wins.
+    contract.stepSpecificGuidance?.length
+      ? `Protocol rules for THIS step -- these are mandatory and override any general phrasing guidance below:\n${contract.stepSpecificGuidance.map((rule) => `- ${rule}`).join("\n")}`
+      : "",
     contract.isFirstPromptOfSession
       ? "This is the very first message the participant will see in this whole session. Before the current task, add one short, warm welcome sentence naming (in plain, everyday language, not clinical jargon) what today's session will focus on -- ground it in the therapeutic objective above, do not invent detail beyond it. Then move naturally into the current task."
       : contract.isFirstPromptOfNode
         ? contract.isRoleTransitionPrompt
-          ? "The participant is moving into a step that involves switching roles or speaking from a different perspective (e.g. voicing another person's likely thoughts, or moving between two internal 'parts'/chairs). Before the current task, add one short sentence that plainly names this switch -- e.g. what role/perspective they're about to speak from or move into -- grounded in the therapeutic objective above, so they aren't caught off guard. Then give the current task."
+          ? "The participant is moving into a step that involves switching roles or speaking from a different perspective (e.g. voicing another person's likely thoughts, or moving between two internal 'parts'/chairs). Before the current task, add one short sentence that plainly names this switch -- naming both the role/chair being left and the one being entered -- grounded in the therapeutic objective above, so they aren't caught off guard. Then give the current task."
           : "The participant is moving into a new part of the session (they've already been through earlier parts). Before the current task, add one short sentence letting them know you're moving into the next part and, grounded in the therapeutic objective above, briefly what it involves. Then give the current task."
         : "",
     (contract.isFirstPromptOfSession || contract.isFirstPromptOfNode)
@@ -188,9 +223,15 @@ function systemPrompt(contract: DialogueContract) {
     "- If they gave part of what's needed (e.g. named the feeling but not its intensity), do not re-ask the whole thing. Ask only for the missing piece. Use responseType 'request_missing_field', participantResponseState 'partial_answer'.",
     "- If they answered with words instead of the expected number (e.g. 'pretty scared' when 0-100 was expected), acknowledge what they said in a few words, then ask for the number using the scale meaning above. Do not just repeat the original question verbatim.",
     "- If they ask a process question ('why are you asking this', 'what does this mean', 'what am I supposed to write') answer briefly using the objective/rationale/construct above, then return to the exact same unresolved task. Do not treat the process question as having answered the task.",
+    // Both participant guides promise this explicitly: the session stays on
+    // its one exercise, and anything else is warmly handed to their therapist
+    // rather than taken up here or brushed aside.
+    "- If they raise something outside this exercise (another problem, a life event, a question about their care), acknowledge it warmly in one clause, say plainly that it is worth bringing to their therapist, and return to the current task. Do not take the topic up, and do not ignore it either.",
+    "- If a rating feels to them like it sits between two numbers, say that either is fine and help them settle on one -- never press for precision, and never pick the number for them.",
+    "- They are never rushed. If they ask to slow down, pause, or continue another day, say plainly that this is fine and that the work is saved where it stands. Never imply the session must be finished in one sitting.",
     "- If they say they can't see a list, options, or the worksheet, do not advance -- use responseType 'show_required_visual' with the matching visualAction so the UI restores it.",
     "- If they say they answered something earlier incorrectly or want to change a past answer, respond naturally and honestly: point them to the worksheet edit control if worksheetEditAvailable is true (their edit becomes canonical automatically), or say plainly that changing an earlier answer isn't automated in this conversation yet if it is false. Never promise a branch/redo the runtime doesn't support. Use participantResponseState 'revision_request'.",
-    "- If they gave a clearly sufficient, on-construct answer, keep your response brief: a short transition (optionally one clause referencing what they just said) and the current task -- no example, no extra explanation. Use explanationDepth 'minimal'.",
+    "- If they gave a clearly sufficient, on-construct answer, keep your response brief: a short transition (optionally one clause referencing what they just said, unless a step rule above forbids reflecting) and the current task -- no example, no extra explanation. Use explanationDepth 'minimal'.",
     "- Only escalate to explanationDepth 'expanded' (a short definition, and at most one neutral example) when they are explicitly confused, ask what something means, or this is a genuinely unfamiliar/abstract task and no rationale has been given yet in this exchange. Never default to 'expanded'. Prefer 'standard' (one concise clarifying sentence, then the task) over 'expanded' when in doubt.",
     "- Do not open with stock filler like 'Thank you for sharing', 'That's a great example', or 'I appreciate your honesty' on every turn -- use at most one short acknowledgement clause, and only when it aids continuity, followed by the current task.",
     "Return your decision using the submit_dialogue_decision tool only.",
@@ -202,14 +243,27 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   const parsedContract = dialogueContractSchema.parse(contract);
   const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
+  // AI_PROVIDER=mock is how the rest of the runtime says "do not call a live
+  // model in this process" -- the simulated-patient audit sets it for exactly
+  // that reason. Checked before the API-key branch below so a developer with
+  // a key in their environment can't silently turn a deterministic audit
+  // into a live, billed, non-reproducible one. No Groq attempt either: mock
+  // mode means zero live model calls of any kind.
+  const providerDisabled = (process.env.AI_PROVIDER ?? "").trim().toLowerCase() === "mock";
+  if (providerDisabled) {
+    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Dialogue provider disabled (AI_PROVIDER=mock)", notConfigured: true };
+  }
   if (!apiKey) {
     const internalFallback = await generateGroqDecision(parsedContract, context);
     if (internalFallback) return internalFallback.failed ? internalFallback : { ...internalFallback, provider: "groq-fallback" };
-    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY" };
+    return { decision: deterministicFallbackDecision(parsedContract), provider: "none", failed: true, failureReason: "Missing ANTHROPIC_API_KEY", notConfigured: true };
   }
   // Keep foreground conversation latency bounded. The approved deterministic
   // task text below is always available when the model misses this budget.
-  const maxTokens = Math.min(220, Math.max(100, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
+  // The 20-30s floor/ceiling (rather than a tighter one) is deliberate: a
+  // shorter budget was found to abort healthy-but-slow generations before
+  // they finished, forcing an unnecessary fallback.
+  const maxTokens = Math.min(300, Math.max(80, Number(process.env.ANTHROPIC_DIALOGUE_MAX_TOKENS ?? 180)));
   const timeoutMs = Math.min(30000, Math.max(20000, Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 20000)));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -218,7 +272,11 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
   // a healthy turn; it is only an internal continuity fallback when Claude
   // is unavailable or returns an unusable structured result.
   try {
-    const userPayload = safeUserPayload(parsedContract);
+    const userPayload = {
+      ...parsedContract,
+      lastParticipantMessage: parsedContract.lastParticipantMessage ? redactDirectIdentifiers(parsedContract.lastParticipantMessage) : undefined,
+      recentContext: parsedContract.recentContext.map((message) => ({ ...message, content: redactDirectIdentifiers(message.content) })),
+    };
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal: controller.signal,
@@ -226,10 +284,9 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
-        system: [{ type: "text", text: FAST_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+        system: systemPrompt(parsedContract),
         messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify(userPayload) }] }],
-        temperature: 0.2,
-        tools: [{ name: "submit_dialogue_decision", description: "Submit the single structured dialogue decision for this turn.", input_schema: FAST_RESPONSE_SCHEMA }],
+        tools: [{ name: "submit_dialogue_decision", description: "Submit the single structured dialogue decision for this turn.", input_schema: RESPONSE_SCHEMA }],
         tool_choice: { type: "tool", name: "submit_dialogue_decision", disable_parallel_tool_use: true },
       }),
     });
@@ -237,7 +294,7 @@ export async function generateDialogueDecision(contract: DialogueContract, conte
     const json = (await response.json()) as { content?: Array<{ type?: string; name?: string; input?: unknown }>; usage?: { input_tokens?: number; output_tokens?: number } };
     const toolInput = json.content?.find((item) => item.type === "tool_use" && item.name === "submit_dialogue_decision")?.input;
     if (!toolInput) throw new Error("Anthropic omitted the structured dialogue decision");
-    const decision = normalizedDecision(toolInput);
+    const decision = dialogueDecisionSchema.parse(toolInput);
     recordModelUsage({ sessionId: context.sessionId, turnId: context.turnId, provider: "anthropic", model, purpose: "dialogue_agent", llmCalled: true, inputTokens: json.usage?.input_tokens ?? null, outputTokens: json.usage?.output_tokens ?? null, totalTokens: json.usage?.input_tokens !== undefined && json.usage.output_tokens !== undefined ? json.usage.input_tokens + json.usage.output_tokens : null, latencyMs: Math.round(performance.now() - started), retryCount: 0, cacheStatus: "none", estimatedCost: null, success: true });
     return { decision, provider: "anthropic", model, latencyMs: Math.round(performance.now() - started), failed: false };
   } catch (error) {
