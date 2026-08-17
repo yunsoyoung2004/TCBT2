@@ -254,24 +254,27 @@ body {
 
 .page-hero,
 .patient-app-header {
-  /* The 4 radial blobs are positioned/sized as fractions of this element's
-     own box (circle radius = distance to the farthest corner), so on a
-     header that's very wide relative to its height -- true on most desktop
-     widths, worse on ultra-wide monitors -- their "transparent NN%" stops
-     land well short of the right edge, leaving a flat white gap instead of
-     color reaching all the way across (reported live on both the clinician
-     PageHeader and patient-app-header, which share this rule). The
-     full-width linear-gradient below sits under the blobs as a continuous
-     low-opacity wash in the same 4 hues, so every point across the header
-     keeps at least that tint no matter how wide the box gets, instead of
-     falling back to the flat white base layer beneath it. */
+  /* A radial-gradient's "reach" is its own box's farthest-corner distance,
+     so it scales with THAT element's aspect ratio -- on a page whose hero
+     is unusually short (e.g. protocol-page.tsx's "세션 빌더" header, which
+     layers .protocol-builder-hero's padding-top/bottom:16px!important on
+     top of this at xl+, making it far shorter than patient-app-header's own
+     taller box), the same 4 blobs reach proportionally less far right,
+     which is why one page could look "fixed" while another still showed a
+     bare patch even after widening the blobs' spread once already. Making
+     the full-width linear-gradient the PRIMARY layer (same peak opacity as
+     the blobs, not a faint assist underneath them) sidesteps that
+     entirely: a linear-gradient's stops are percentages of its own 0-100%
+     span along the given angle, never the element's height/aspect ratio,
+     so this reaches literally edge to edge no matter how short the box is.
+     The radial blobs stay on top only as soft focal highlights. */
   background:
-    radial-gradient(circle at 3% 0%, rgba(255, 119, 101, 0.35), transparent 55%),
-    radial-gradient(circle at 32% -20%, rgba(255, 195, 73, 0.25), transparent 50%),
-    radial-gradient(circle at 65% -20%, rgba(26, 201, 172, 0.22), transparent 52%),
-    radial-gradient(circle at 97% 0%, rgba(148, 91, 238, 0.34), transparent 60%),
-    linear-gradient(90deg, rgba(255, 119, 101, 0.16), rgba(255, 195, 73, 0.14) 30%, rgba(26, 201, 172, 0.14) 60%, rgba(148, 91, 238, 0.18) 100%),
-    rgba(255, 255, 255, 0.7);
+    radial-gradient(circle at 3% 0%, rgba(255, 119, 101, 0.3), transparent 55%),
+    radial-gradient(circle at 32% -20%, rgba(255, 195, 73, 0.22), transparent 50%),
+    radial-gradient(circle at 65% -20%, rgba(26, 201, 172, 0.2), transparent 52%),
+    radial-gradient(circle at 97% 0%, rgba(148, 91, 238, 0.3), transparent 60%),
+    linear-gradient(90deg, rgba(255, 119, 101, 0.32) 0%, rgba(255, 195, 73, 0.28) 28%, rgba(26, 201, 172, 0.26) 55%, rgba(4, 169, 223, 0.26) 75%, rgba(148, 91, 238, 0.32) 100%),
+    rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(22px);
 }
 
