@@ -1,5 +1,7 @@
 "use client";
 
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+
 import {
   Background,
   BackgroundVariant,
@@ -30,7 +32,7 @@ function ProtocolNodeView({ data, selected }: NodeProps<FlowNode>) {
   const promptCount = step.data.promptItemIds?.length ?? 0;
 
   return (
-    <div className={cn("relative min-w-[230px] rounded-panel border bg-surface px-4 py-3", nodeTone(step.data.status), selected && "ring-2 ring-clinical-blue-light")}>
+    <div className={cn("relative w-[280px] max-w-[280px] rounded-panel border bg-surface px-4 py-3", nodeTone(step.data.status), selected && "ring-2 ring-clinical-blue-light")}>
       <Handle type="target" position={Position.Top} className="!h-4 !w-4 !border-2 !border-white !bg-clinical-blue !shadow-md" style={{ top: -8 }} />
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -80,27 +82,64 @@ interface CanvasPanelProps {
 
 export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChange, onNodeClick, onNodeDragStart, onNodeDragStop, onConnect, onEdgeDoubleClick, heightClassName, className }: CanvasPanelProps) {
   const { t } = useT();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setViewportWidth(Math.round(viewport.getBoundingClientRect().width)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
+
+  const centeredX = Math.max(20, Math.round((viewportWidth - 280) / 2));
+  const displayNodes = useMemo(
+    () => flowNodes.map((node) => ({ ...node, position: { ...node.position, x: centeredX } })),
+    [centeredX, flowNodes],
+  );
+
+  const handleNodesChange = (changes: NodeChange[]) => {
+    onNodesChange(changes.map((change) => (
+      change.type === "position" && change.position
+        ? { ...change, position: { ...change.position, x: centeredX } }
+        : change
+    )));
+  };
+
   return (
     <Card className={cn("protocol-builder-panel min-w-0 max-w-full flex-1 overflow-hidden", className)}>
       <SectionHeader title="플로우 캔버스" />
-      <div className={cn("relative w-full dot-grid", heightClassName ?? "h-[calc(100vh-272px)] min-h-[520px]")}>
+      <div ref={viewportRef} className={cn("relative w-full overflow-hidden dot-grid", heightClassName ?? "h-[calc(100vh-272px)] min-h-[520px]")}>
         <ReactFlowProvider>
           <div className="absolute inset-0 h-full w-full">
             <ReactFlow
               className="h-full w-full"
               style={{ height: "100%", width: "100%" }}
-              nodes={flowNodes}
+              nodes={displayNodes}
               edges={edges}
               nodeTypes={protocolNodeTypes}
               nodesDraggable={!immutableSourceView}
               nodesConnectable={!immutableSourceView}
-              onNodesChange={(changes: NodeChange[]) => onNodesChange(changes)}
+              onNodesChange={handleNodesChange}
               onNodeClick={(_, node) => onNodeClick(node.id)}
               onNodeDragStart={(_, node) => onNodeDragStart(node.id)}
               onNodeDragStop={(_, node) => onNodeDragStop(node.id, node.position)}
               onConnect={(connection: Connection) => onConnect(connection)}
               onEdgeDoubleClick={(_, edge) => onEdgeDoubleClick(edge.id)}
-              fitView
+              defaultViewport={{ x: 0, y: 12, zoom: 1 }}
+              minZoom={0.55}
+              maxZoom={1.25}
+              translateExtent={[[-40, -80], [Math.max(viewportWidth + 40, 360), 10000]]}
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
               <MiniMap className="!bg-surface" pannable zoomable />
