@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useParams, useRouter } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
@@ -89,7 +89,6 @@ export function PatientMonitoringDetailPage() {
   const { t } = useT();
   const params = useParams<{ participantId?: string | string[] }>();
   const pathname = usePathname();
-  const router = useRouter();
   const participantId =
     (Array.isArray(params?.participantId) ? params.participantId[0] : params?.participantId) ??
     pathname.split("/").filter(Boolean).at(-1) ??
@@ -438,9 +437,6 @@ export function PatientMonitoringDetailPage() {
               <Link href={`/patients/${participantId}/report/${session.id}`} target="_blank" rel="noopener noreferrer">
                 <Button variant="secondary">{t("patientDetail.actions.printReport")}</Button>
               </Link>
-              <Link href={`/runtime/sessions/${session.id}`}>
-                <Button variant="secondary">{t("patientDetail.actions.inspector")}</Button>
-              </Link>
             </>
           ) : undefined
         }
@@ -501,6 +497,7 @@ export function PatientMonitoringDetailPage() {
         )}
 
         {activeTab === "audit" ? (
+          <div className="space-y-4">
           <div className="grid gap-4 xl:grid-cols-[1.25fr_.85fr]">
             <Card>
               <SectionHeader
@@ -524,16 +521,10 @@ export function PatientMonitoringDetailPage() {
                     const isNewMessage = entry.kind === "message"
                       && historicalMessageIdsRef.current?.sessionId === effectiveSessionId
                       && !historicalMessageIdsRef.current.ids.has(entry.id);
-                    const canInspect = entry.kind === "message" && Boolean(effectiveSessionId);
-                    const openInspector = () => router.push(`/runtime/sessions/${effectiveSessionId}`);
                     return (
                       <div
                         key={entry.id}
-                        role={canInspect ? "button" : undefined}
-                        tabIndex={canInspect ? 0 : undefined}
-                        onClick={canInspect ? openInspector : undefined}
-                        onKeyDown={canInspect ? (event) => { if (event.key === "Enter") openInspector(); } : undefined}
-                        className={`rounded-panel border px-4 py-3 ${canInspect ? "cursor-pointer hover:border-clinical-blue" : ""} ${
+                        className={`rounded-panel border px-4 py-3 ${
                           entry.kind === "lifecycle"
                             ? "border-border bg-surface-subtle"
                             : entry.speaker === "patient"
@@ -554,7 +545,6 @@ export function PatientMonitoringDetailPage() {
                           active={!reducedMotion && isNewMessage}
                           className="mt-1 whitespace-pre-wrap break-words text-sm text-text-primary"
                         />
-                        {canInspect && <div className="mt-1 text-[11px] text-clinical-blue">{t("patientDetail.audit.viewInspector")}</div>}
                       </div>
                     );
                   })
@@ -587,6 +577,32 @@ export function PatientMonitoringDetailPage() {
                 </div>
               </div>
             </Card>
+          </div>
+          <Card className="overflow-hidden">
+            <SectionHeader title={t("patientDetail.audit.executionDetails")} description={t("patientDetail.audit.executionDetailsDescription")} />
+            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+              <ExecutionLogGroup
+                title={t("patientDetail.audit.runtimeLogs")}
+                empty={t("patientDetail.audit.noRuntimeLogs")}
+                items={(sessionViewQuery.data?.logs ?? []).map((item) => ({ id: item.id, label: `${item.stage} · ${item.status}`, value: item.summary }))}
+              />
+              <ExecutionLogGroup
+                title={t("patientDetail.audit.providerEvents")}
+                empty={t("patientDetail.audit.noProviderEvents")}
+                items={(sessionViewQuery.data?.providerEvents ?? []).map((item) => ({ id: item.id, label: item.provider, value: `${item.model} · ${item.latencyMs ?? 0}ms` }))}
+              />
+              <ExecutionLogGroup
+                title={t("patientDetail.audit.validationEvents")}
+                empty={t("patientDetail.audit.noValidationEvents")}
+                items={(sessionViewQuery.data?.validationEvents ?? []).map((item) => ({ id: item.id, label: item.accepted ? t("patientDetail.audit.accepted") : t("patientDetail.audit.fallback"), value: item.issues.join(", ") || t("patientDetail.audit.clean") }))}
+              />
+              <ExecutionLogGroup
+                title={t("patientDetail.audit.safetyEvents")}
+                empty={t("patientDetail.audit.noSafetyEvents")}
+                items={(sessionViewQuery.data?.escalations ?? []).map((item) => ({ id: item.id, label: item.severity, value: item.triggerSummary }))}
+              />
+            </div>
+          </Card>
           </div>
         ) : activeTab === "worksheet" ? (
           <div>
@@ -806,5 +822,21 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <span className="text-text-secondary">{label}</span>
       <span className="min-w-0 break-words font-semibold text-text-primary">{value}</span>
     </div>
+  );
+}
+
+function ExecutionLogGroup({ title, empty, items }: { title: string; empty: string; items: Array<{ id: string; label: string; value: string }> }) {
+  return (
+    <section className="min-w-0 rounded-panel border border-border bg-surface-subtle/40 p-3">
+      <div className="text-xs font-semibold text-text-primary">{title}</div>
+      <div className="mt-2 max-h-64 space-y-2 overflow-auto">
+        {items.length ? items.map((item) => (
+          <div key={item.id} className="rounded-xl border border-border bg-surface px-3 py-2">
+            <div className="truncate text-[11px] font-semibold text-text-muted">{item.label}</div>
+            <div className="mt-1 break-words text-xs text-text-primary">{item.value}</div>
+          </div>
+        )) : <div className="py-4 text-center text-xs text-text-muted">{empty}</div>}
+      </div>
+    </section>
   );
 }
