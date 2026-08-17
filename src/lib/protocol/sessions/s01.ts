@@ -31,14 +31,19 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([53, 65])],
       prompts: [
         { slug: "warm-acknowledgement", type: "opening", source: [53, 65], marker: "That sounds like a lot to be carrying", completionEffect: { type: "record_opening_acknowledgement" } },
-        // §4.7 [신규 B-8]: source frames this as "here and now we are
-        // experiencing a situation" -- a Socratic check using the current
-        // session moment as material, not a collection point for the
-        // participant's own life situation (that comes later, after the
-        // three-person example, per the S01 manual). situationThoughtDistinction
-        // is a learning-check field only; do not bind a participant's
-        // personal situation to it (worksheet binding fix is Phase 2).
-        { slug: "telegraphic-situation", type: "question", source: [66, 74], marker: "How would you describe what is happening right now", patientText: "How would you describe what is happening right now, quite telegraphically?", outputFields: ["situationThoughtDistinction"], validation: { kind: "participant_articulated_distinction" } },
+        // Reworded per this task's Opening redesign brief (Phase 1B
+        // "Personal Situation Seed"): a plain, low-effort invitation to
+        // recall one recent moment, rather than the source's more abstract
+        // "quite telegraphically" framing. Still writes
+        // situationThoughtDistinction and is still immediately followed by
+        // the situation-or-thought Socratic check below -- an older comment
+        // here previously argued this field should NOT hold the
+        // participant's real personal situation, but the worksheet binding
+        // (box-situation, "My situation") and both regression tests in
+        // runtime-source-fidelity.test.ts already treat it as exactly that;
+        // this redesign builds on that actual behavior rather than the
+        // stale comment.
+        { slug: "telegraphic-situation", type: "question", source: [66, 74], patientText: "Was there a recent moment that felt a little uncomfortable or stuck with you? It doesn't have to be a big thing.", outputFields: ["situationThoughtDistinction"], validation: { kind: "participant_articulated_distinction" } },
       ],
     },
     {
@@ -46,9 +51,9 @@ export const spec: SessionSpec = {
       title: "Step 1 - Distinguish Situation from Thoughts and Emotions",
       type: "question",
       source: [66, 74],
-      requiredFields: ["situationThoughtDistinction"],
+      requiredFields: ["situationThoughtDistinction", "openingInitialThought"],
       restrictions: [sourceText([66, 74])],
-      participantRationale: "This helps separate what actually happened from the thought your mind added about it — that difference is the foundation the rest of this program builds on.",
+      participantRationale: "This helps separate what actually happened from the thought your mind added about it — that difference is the foundation the rest of this program builds on. We're asking about the thought a little earlier than you might expect; a quick example in a moment will make it clear why that matters just as much as what actually happened.",
       prompts: [
         // NOT outputFields: ["situationThoughtDistinction"] -- source
         // (tbct-source-text.generated.ts:71-76) is explicit that this
@@ -66,7 +71,18 @@ export const spec: SessionSpec = {
         // think it's a situation"), discarding their real answer.
         // 세션로그 §9-1 [P1] 잔여 커버리지: verbatim 복원.
         { slug: "situation-or-thought", type: "clarification", source: [66, 74], marker: "That's interesting", patientText: "That's interesting — is that the situation, or could that be a thought?" },
-        { slug: "personal-example-redirect", type: "transition", source: [73, 74], marker: "That's a great example", patientText: "That's a great example — let's hold on to it for a moment. We will come back to your personal example in a minute. But before we come back to your situation, I'd like to show you something that will make it even clearer. Would that be okay? Can you give me just a few minutes?", completionEffect: { type: "redirect_to_three_person_example" } },
+        // Phase 1C "Initial Thought Probe" (Opening redesign brief §19-21):
+        // a first-pass, uncertainty-tolerant look at the automatic thought
+        // -- not a full automaticThought-style extraction. Left without a
+        // validation.kind so it only goes through the generic
+        // meaningful-text check, never the stricter semantic-assessment
+        // path; a plain "I don't know" is stored and the session moves on
+        // rather than looping (see runtime-context.ts's NON_ANSWER_TEXT fix).
+        { slug: "initial-thought-probe", type: "question", source: [66, 74], patientText: "When that happened, what's the first thought that comes to mind? It doesn't have to be exact — whatever comes up is fine.", outputFields: ["openingInitialThought"] },
+        // Bridges Phase 1C into the Neutral Example (redesign brief §22):
+        // names the "why did you just ask me about my thoughts" moment
+        // directly rather than leaving it unaddressed.
+        { slug: "personal-example-redirect", type: "transition", source: [73, 74], patientText: "Thanks for sharing that. Looking at your own thought this early on might feel a little unexpected — so let's make it easier with a quick example first, and then we'll come right back to what you shared.", completionEffect: { type: "redirect_to_three_person_example" } },
       ],
     },
     {
@@ -79,209 +95,71 @@ export const spec: SessionSpec = {
       participantRationale: "Three people hearing the exact same words can react in completely different ways. Walking through their reactions makes it easier to see how a thought, not just what happened, shapes how someone feels and acts.",
       prompts: [
         {
-          // §4.5, Appendix A-4: rationale restored from the S01 manual
-          // ("Why start with strangers, not you?") rather than left to the
-          // generic fallback -- this is a direct paraphrase-restore, not new
-          // clinical content.
           slug: "preview-candidates",
           type: "explanation",
           source: [75, 85],
-          marker: "I'm going to walk you through three different people",
-          patientText: "Before we look at your own situation, I'd like to walk you through three different people in the same interview. It's much easier to see the pattern clearly on a neutral example first — and then your own situation becomes far simpler, and less overwhelming.",
+          patientText: "Before we look at your own situation, I'd like to walk you through three different people in the exact same situation. It's much easier to see the pattern clearly on a neutral example first — and then your own situation becomes far simpler, and less overwhelming.",
           outputFields: ["threePersonPreviewComplete"],
         },
         {
+          // Neutral Example vignette per this task's redesign brief: a
+          // presentation scene, not the source manual's job-interview scene
+          // -- same situation for all three people, only their automatic
+          // thought differs. This departs from the source manual's literal
+          // wording (sourceFidelityStatus becomes "structured_from_source",
+          // not "exact") while keeping its Step 2 teaching point and
+          // node/field structure -- see .claude/TASK_SCOPE.json's
+          // note2026_08_17 entry for the full rationale.
           slug: "set-up-candidates",
           type: "instruction",
           source: [82, 85],
-          marker: "Let's pretend that I am not a therapist",
-          // Verbatim match to tbct-source-text.generated.ts:91 -- the prior
-          // text dropped "and from what I could see" from the compliment,
-          // which then diverged from the identical sentence quoted at
-          // generated.ts:84 for the preview step. All three prompts that
-          // repeat this compliment (this one, candidate-two-same-situation,
-          // candidate-three-same-situation) now share the exact same wording.
-          patientText: "Let's pretend that I am not a therapist but a businessperson. I have a job opening, and I will give the same compliment to three candidates: ‘I read your résumé, and from what I could see, you seem to be a capable and competent person.’",
+          patientText: "Imagine three people who each just finished giving a presentation. Afterward, someone says the exact same thing to all three of them: “That was a great presentation.”",
         },
       ],
     },
     {
+      // Each person's flow is now just Emotion + Behavior (2 prompts, down
+      // from 7-8 including a reaction/arrow cycle or a possibility-recheck
+      // clarification branch). The automatic thought is stated by the
+      // counselor in the same message that asks for the emotion, not
+      // elicited from the participant -- see this task's redesign brief §8
+      // ("생각은 상담사가 말해주고, 감정과 행동은 사용자가 스스로 생각해서
+      // 답변"). candidateOneThought is still recorded, deterministically via
+      // completionEffect, so the worksheet binding (worksheet-bindings/
+      // tbct-s01.ts, out of scope) keeps showing it.
       slug: "first-candidate",
-      title: "Step 2 - First Candidate Full Cycle",
+      title: "Step 2 - First Person",
       type: "dialogue",
       source: [86, 92],
-      requiredFields: ["candidateOneEmotion", "candidateOneThought", "candidateOneBehavior", "candidateOneReaction", "candidateOneReturningArrows"],
+      requiredFields: ["candidateOneEmotion", "candidateOneBehavior"],
       restrictions: [sourceText([86, 92])],
       prompts: [
-        { slug: "candidate-one-emotion", type: "question", source: [86, 92], marker: "Upon hearing this compliment", patientText: "Upon hearing this compliment, what emotion do you think this first candidate feels?", outputFields: ["candidateOneEmotion"] },
-        { slug: "candidate-one-thought", type: "question", source: [86, 92], marker: "For them to feel that way", patientText: "For them to feel that way, what do you think went through their mind — what was the automatic thought?", outputFields: ["candidateOneThought"] },
-        { slug: "candidate-one-behavior", type: "question", source: [86, 92], marker: "With that thought and that emotion", patientText: "With that thought and that emotion, what behavior do you think this candidate would show?", outputFields: ["candidateOneBehavior"] },
-        {
-          // §4.4: without this completionCondition, a missing/malformed
-          // answer still marks the prompt complete (the reducer's default
-          // is "complete on any input" -- see runtime-state-reducer.ts),
-          // and static-messages/s01.ts's ternary used to silently treat
-          // any non-"positive" value (undefined, typos, empty) as
-          // "negative". Requiring a genuinely valid value here re-asks
-          // instead of guessing, so an invalid/missing answer can never
-          // reach candidate-one-thought-arrow with a fabricated valence.
-          slug: "candidate-one-reaction",
-          type: "question",
-          source: [86, 92],
-          marker: "Do you think the interviewer's reaction",
-          patientText: "Do you think the interviewer's reaction to that behavior would be positive or negative?",
-          outputFields: ["candidateOneReaction"],
-          validation: { kind: "enum", values: ["positive", "negative"] },
-          completionCondition: { field: "candidateOneReaction", operator: "in", value: ["positive", "negative"] },
-        },
-        // §4.6 [신규 N-2]: all three arrows share candidateOneReturningArrows.
-        // Without validation:{kind:"array"}, the shared extraction layer
-        // treats each answer as a scalar overwrite and only the last of the
-        // three survives (runtime-context.ts's LIST_BUILDING_VALIDATION_KINDS
-        // makes "array"/"min_items" append instead -- the same mechanism
-        // problems/goals already rely on). This keeps the single field name
-        // (no runtime-side rename needed) while preserving all three answers.
-        { slug: "candidate-one-thought-arrow", type: "follow_up", source: [86, 92], marker: "And when the interviewer reacts positively", patientText: "And when the interviewer reacts positively, what happens to the candidate's original thought — does it get stronger, weaker, or stay the same?", outputFields: ["candidateOneReturningArrows"], validation: { kind: "array" } },
-        { slug: "candidate-one-emotion-arrow", type: "follow_up", source: [86, 92], marker: "And when that thought gets stronger", patientText: "And when that thought gets stronger, what happens to the emotion?", outputFields: ["candidateOneReturningArrows"], validation: { kind: "array" } },
-        { slug: "candidate-one-behavior-arrow", type: "follow_up", source: [86, 92], marker: "And when the emotion grows", patientText: "And when the emotion grows, what happens to the behavior?", outputFields: ["candidateOneReturningArrows"], validation: { kind: "array" } },
+        { slug: "candidate-one-emotion", type: "question", source: [86, 92], patientText: "The first person thought, “My presentation must have gone well.” What do you think they'd feel?", outputFields: ["candidateOneEmotion"], completionEffect: { type: "set_field", field: "candidateOneThought", value: "My presentation must have gone well." } },
+        { slug: "candidate-one-behavior", type: "question", source: [86, 92], patientText: "And how do you think they'd behave?", outputFields: ["candidateOneBehavior"] },
       ],
     },
     {
       slug: "second-candidate",
-      title: "Step 2 - Second Candidate Streamlined Cycle",
+      title: "Step 2 - Second Person",
       type: "dialogue",
       source: [93, 104],
-      requiredFields: ["candidateTwoThought", "candidateTwoEmotion", "candidateTwoBehavior", "candidateTwoReaction", "candidateTwoCycleComplete"],
+      requiredFields: ["candidateTwoEmotion", "candidateTwoBehavior"],
       restrictions: [sourceText([93, 104])],
       prompts: [
-        {
-          // Verbatim compliment restore (§Appendix A-3): the source frames
-          // candidate 2's situation as "put a second person in that chair...
-          // I'll say exactly the same thing to them" -- previously this
-          // prompt had no patientText at all, so a marker-extraction miss
-          // could drop the compliment sentence entirely.
-          slug: "candidate-two-same-situation",
-          type: "question",
-          source: [93, 104],
-          marker: "Now I'd like to put a second person",
-          patientText: "Now I'd like to put a second person in that chair, and I tell them exactly the same thing: ‘I read your résumé, and from what I could see, you seem to be a capable and competent person.’",
-          outputFields: ["candidateTwoSameSituation"],
-        },
-        { slug: "candidate-two-emotion", type: "question", source: [93, 104], marker: "Upon hearing this, do you think it's possible", patientText: "Upon hearing this, do you think it's possible that this second candidate might feel sad or discouraged?", outputFields: ["candidateTwoEmotion"], validation: { kind: "text", siblingField: "candidateOneEmotion" } },
-        {
-          // siblingField above only flags "did this repeat candidate 1's
-          // emotion" so the recheck prompt below can trigger -- the clinical
-          // task is accepting the *possibility* of a different feeling, not
-          // producing a free-form emotion distinct from candidate 1's (see
-          // v3 §4.3.4d). Mutually exclusive with the recheck prompt: this
-          // one only fires when the participant did NOT repeat the sibling
-          // emotion (i.e. they gave some other explicit refusal/doubt, e.g.
-          // "I don't see why").
-          slug: "candidate-two-possibility",
-          type: "clarification",
-          source: [93, 104],
-          marker: "I'm talking about possibility",
-          patientText: "I'm talking about possibility, not probability — can you imagine it being possible?",
-          activationCondition: { field: "candidateTwoEmotionRepeatsSibling", operator: "not_equals", value: true },
-          outputFields: ["candidateTwoPossibility"],
-        },
-        {
-          // [교체 C-1] Was a re-ask of "what do you think this candidate
-          // might feel?" -- the exact protocol violation v2 proposed and v3
-          // rejects (§4.3.2): emotion is a fixed variable the guide
-          // presents for candidates 2/3, not something the participant is
-          // asked to generate. Replaced with a possibility-acceptance check
-          // per the original three-person-example transcript ("But you can
-          // imagine this possibility, can't you?"), grounded in de Oliveira,
-          // "Distinctive Features" (not in tbct-source-text.generated.ts,
-          // which only scripts the "I don't see why" refusal branch via
-          // candidate-two-possibility above -- this repeats-sibling branch
-          // has no separate verbatim script). See §부록 A-1.
-          // P0-06 fix (정적분석 리포트): previously outputFields:
-          // ["candidateTwoEmotion"] captured whatever free text the
-          // participant gave here verbatim -- a bare "yes"/"I guess so"
-          // would land in candidateTwoEmotion as literal text, even though
-          // the code's own comment above already establishes the emotion is
-          // a fixed value the guide presents, not something to elicit
-          // freely (v3 §4.3.4d). The participant's answer here is really
-          // possibility *acceptance*, not the emotion word itself -- now
-          // captured into its own field, with candidateTwoEmotion set
-          // deterministically via completionEffect regardless of exact
-          // wording.
-          slug: "candidate-two-emotion-recheck",
-          type: "clarification",
-          source: [93, 104],
-          patientText: "That's one possibility — and it's exactly the same words the first candidate heard. But can you imagine it being possible? Can you suppose this second candidate hearing that and feeling sad or discouraged instead?",
-          activationCondition: { field: "candidateTwoEmotionRepeatsSibling", operator: "equals", value: true },
-          outputFields: ["candidateTwoPossibilityAccepted"],
-          completionEffect: { type: "set_field", field: "candidateTwoEmotion", value: "sad or discouraged" },
-        },
-        { slug: "candidate-two-thought", type: "question", source: [93, 104], marker: "For them to feel sad or discouraged", patientText: "For them to feel sad or discouraged in this situation, what do you think went through their mind?", outputFields: ["candidateTwoThought"] },
-        // Explicit patientText because quotedSourceText's marker-quote
-        // extraction doesn't cleanly isolate this line the way it does for
-        // candidate-three-behavior's near-identical sentence -- without it,
-        // the generic fallback generator produced the ungrammatical
-        // "With that thought and that sadness, what they would do?"
-        { slug: "candidate-two-behavior", type: "question", source: [93, 104], marker: "With that thought and that sadness", patientText: "With that thought and that sadness, what behavior would you expect from this candidate?", outputFields: ["candidateTwoBehavior"] },
-        {
-          // §4.4 -- same fix as candidate-one-reaction above.
-          slug: "candidate-two-reaction",
-          type: "question",
-          source: [93, 104],
-          marker: "Do you think the interviewer's reaction",
-          patientText: "Do you think the interviewer's reaction to that behavior would be positive or negative?",
-          outputFields: ["candidateTwoReaction"],
-          validation: { kind: "enum", values: ["positive", "negative"] },
-          completionCondition: { field: "candidateTwoReaction", operator: "in", value: ["positive", "negative"] },
-        },
-        { slug: "candidate-two-cycle", type: "confirmation", source: [93, 104], marker: "And when the interviewer reacts negatively", outputFields: ["candidateTwoCycleComplete"] },
+        { slug: "candidate-two-emotion", type: "question", source: [93, 104], patientText: "Now here's a second person. They thought, “That's probably just empty flattery.” What do you think they'd feel?", outputFields: ["candidateTwoEmotion"], completionEffect: { type: "set_field", field: "candidateTwoThought", value: "That's probably just empty flattery." } },
+        { slug: "candidate-two-behavior", type: "question", source: [93, 104], patientText: "And how do you think they'd behave?", outputFields: ["candidateTwoBehavior"] },
       ],
     },
     {
       slug: "third-candidate",
-      title: "Step 2 - Third Candidate Streamlined Cycle",
+      title: "Step 2 - Third Person",
       type: "dialogue",
       source: [105, 117],
-      requiredFields: ["candidateThreeThought", "candidateThreeEmotion", "candidateThreeBehavior", "candidateThreeReaction", "threePersonExampleComplete"],
+      requiredFields: ["candidateThreeEmotion", "candidateThreeBehavior"],
       restrictions: [sourceText([105, 117])],
       prompts: [
-        {
-          // Verbatim compliment restore (§Appendix A-3), same rationale as
-          // candidate-two-same-situation above.
-          slug: "candidate-three-same-situation",
-          type: "question",
-          source: [105, 117],
-          marker: "And here's the third and last one",
-          patientText: "And here's the third and last one. Same situation, same room, same chair — and I say the same thing: ‘I read your résumé, and from what I could see, you seem to be a capable and competent person.’",
-          outputFields: ["candidateThreeSameSituation"],
-        },
-        { slug: "candidate-three-emotion", type: "question", source: [105, 117], marker: "Do you think it's possible that this third candidate", patientText: "Do you think it's possible that this third candidate might feel irritated, or show some degree of hostility — even if disguised?", outputFields: ["candidateThreeEmotion"], validation: { kind: "text", siblingField: "candidateOneEmotion" } },
-        {
-          // [교체 C-1] Same fix as candidate-two-emotion-recheck above --
-          // possibility acceptance, not a re-ask of emotion. See §부록 A-2.
-          // P0-06 fix -- same rationale as candidate-two-emotion-recheck above.
-          slug: "candidate-three-emotion-recheck",
-          type: "clarification",
-          source: [105, 117],
-          patientText: "It's the same situation, the same room, the same words. Can you imagine or see this third candidate feeling irritated, and even getting angry?",
-          activationCondition: { field: "candidateThreeEmotionRepeatsSibling", operator: "equals", value: true },
-          outputFields: ["candidateThreePossibilityAccepted"],
-          completionEffect: { type: "set_field", field: "candidateThreeEmotion", value: "irritated or hostile" },
-        },
-        { slug: "candidate-three-thought", type: "question", source: [105, 117], marker: "For them to feel irritated or hostile", patientText: "For them to feel irritated or hostile in this situation, what do you think went through their mind?", outputFields: ["candidateThreeThought"] },
-        { slug: "candidate-three-behavior", type: "question", source: [105, 117], marker: "With that thought and that irritation", patientText: "With that thought and that irritation, what behavior would you expect?", outputFields: ["candidateThreeBehavior"] },
-        {
-          // §4.4 -- same fix as candidate-one-reaction above.
-          slug: "candidate-three-reaction",
-          type: "question",
-          source: [105, 117],
-          marker: "Do you think the interviewer's reaction",
-          patientText: "Do you think the interviewer's reaction to that behavior would be positive or negative?",
-          outputFields: ["candidateThreeReaction"],
-          validation: { kind: "enum", values: ["positive", "negative"] },
-          completionCondition: { field: "candidateThreeReaction", operator: "in", value: ["positive", "negative"] },
-        },
-        { slug: "candidate-three-cycle", type: "confirmation", source: [105, 117], marker: "And when the interviewer reacts negatively", outputFields: ["threePersonExampleComplete"], completionEffect: { type: "set_field", field: "threePersonExampleComplete", value: true } },
+        { slug: "candidate-three-emotion", type: "question", source: [105, 117], patientText: "And a third person. They thought, “Are they being sarcastic?” What do you think they'd feel?", outputFields: ["candidateThreeEmotion"], completionEffect: { type: "set_field", field: "candidateThreeThought", value: "Are they being sarcastic?" } },
+        { slug: "candidate-three-behavior", type: "question", source: [105, 117], patientText: "And how do you think they'd behave?", outputFields: ["candidateThreeBehavior"] },
       ],
     },
     {
@@ -292,26 +170,45 @@ export const spec: SessionSpec = {
       requiredFields: ["threePersonModelInsight"],
       restrictions: [sourceText([118, 129])],
       prompts: [
-        // §4.6: same shared-field append fix as the returning arrows above --
-        // these two questions both write threePersonModelInsight.
-        { slug: "three-person-observation", type: "question", source: [118, 129], marker: "Three different people heard exactly", patientText: "Three different people heard exactly the same compliment. What did you notice about how they thought, felt, and behaved?", outputFields: ["threePersonModelInsight"], validation: { kind: "array" } },
-        { slug: "situation-thought-emotion-link", type: "question", source: [118, 129], marker: "What does that tell you", patientText: "What does that tell you about the relationship between situations, thoughts, and emotions?", outputFields: ["threePersonModelInsight"], validation: { kind: "array" } },
-        { slug: "return-to-personal-example", type: "transition", source: [118, 129], marker: "Now, let's go back", patientText: "Now, let's go back to what you mentioned earlier about [their situation]. With what you've just seen, let's look at how this same pattern shows up in your own experience." },
+        // Merged the source's two-part observation ("what did you notice?"
+        // then "what does that tell you?") into one question -- both wrote
+        // the same field anyway, and completion is judged on whether the
+        // participant grasped the concept in their own words, not on
+        // matching either sentence verbatim (redesign brief §11).
+        { slug: "three-person-insight", type: "question", source: [118, 129], patientText: "All three people heard the exact same words, but their thoughts were different — and that changed how they felt and what they did. What do you notice from that?", outputFields: ["threePersonModelInsight"] },
+        // Now also names the thought captured in Phase 1C (openingInitialThought)
+        // alongside the situation, so the bridge into Personal Re-application
+        // doesn't need to re-ask either -- see the [their initial thought]
+        // bracket added to runtime-static-message.ts.
+        { slug: "return-to-personal-example", type: "transition", source: [118, 129], patientText: "Now, let's go back to what you mentioned earlier — [their situation], and the thought that came up: “[their initial thought]”. With what you've just seen, let's look at how that connects to your own emotion and behavior." },
       ],
     },
     {
+      // Phase 4 "Return to Your Own Experience" (Opening redesign brief
+      // §25-27): situation and thought are already captured (Phase 1B/1C
+      // above) and just reflected back by return-to-personal-example, so
+      // this node only asks for what is still genuinely missing --
+      // Emotion, Behavior, Body -- mirroring the same 2-3 prompt pattern
+      // already used for the Neutral Example candidates. Replaces the
+      // previous 5-prompt "returning arrows" cycle (thought-to-emotion /
+      // emotion-to-behavior / behavior-to-situation / situation-to-thought /
+      // outcome-gap), which re-asked about the connection in the abstract
+      // rather than asking for the participant's own emotion/behavior/body
+      // directly -- the same kind of redundant re-ask this task's Neutral
+      // Example pass already eliminated for candidates 2/3. outcome-gap's
+      // activationCondition field (fearedOutcomeDidNotMaterialize) was never
+      // set anywhere in the codebase (confirmed by repo-wide search) -- an
+      // already-dead branch, not a loss of reachable behavior.
       slug: "personal-returning-arrows",
-      title: "Step 3 - Exploring the Participant's Own Cycle",
+      title: "Step 3 - Returning to Your Own Experience",
       type: "dialogue",
       source: [130, 140],
-      requiredFields: ["personalThoughtEmotionLink", "personalEmotionBehaviorLink", "personalBehaviorSituationLink"],
+      requiredFields: ["personalEmotion", "personalBehavior"],
       restrictions: [sourceText([130, 140])],
       prompts: [
-        { slug: "thought-to-emotion", type: "question", source: [130, 140], marker: "When that thought gets stronger", patientText: "When that thought gets stronger, what happens to the emotion?", outputFields: ["personalThoughtEmotionLink"] },
-        { slug: "emotion-to-behavior", type: "question", source: [130, 140], marker: "When the emotion grows, what happens to your behavior", patientText: "When the emotion grows, what happens to your behavior?", outputFields: ["personalEmotionBehaviorLink"] },
-        { slug: "behavior-to-situation", type: "question", source: [130, 140], marker: "When you behaved that way", patientText: "When you behaved that way, what happened to the situation?", outputFields: ["personalBehaviorSituationLink"] },
-        { slug: "situation-to-thought", type: "question", source: [130, 140], marker: "And when the situation didn't change", patientText: "And when the situation didn't change, what went through your mind?", outputFields: ["personalSituationThoughtLink"] },
-        { slug: "outcome-gap", type: "follow_up", source: [130, 140], marker: "So what does it tell you that what you feared", patientText: "So what does it tell you that what you feared didn't actually happen?", activationCondition: { field: "fearedOutcomeDidNotMaterialize", operator: "equals", value: true }, outputFields: ["outcomeGapInsight"] },
+        { slug: "personal-emotion", type: "question", source: [130, 140], patientText: "When you had that thought, what emotion did you feel?", outputFields: ["personalEmotion"] },
+        { slug: "personal-behavior", type: "question", source: [130, 140], patientText: "And how did you behave, or what did you do, when you felt that?", outputFields: ["personalBehavior"] },
+        { slug: "personal-body", type: "question", source: [130, 140], patientText: "Did you notice anything in your body in that moment — like your heart racing, or tension somewhere? Even something small is fine.", outputFields: ["personalBodySensations"] },
       ],
     },
     {
@@ -325,55 +222,48 @@ export const spec: SessionSpec = {
       ],
     },
     {
+      // Registry-driven redesign (task's cognitive-distortions brief,
+      // .claude/TASK_SCOPE.json's note2026_08_17d entry): no longer asks the
+      // participant to have a physical distortions list on hand
+      // (confirm-list / distortionListAvailable removed entirely -- that
+      // gate blocked progression on an external prop this runtime has no way
+      // to actually verify). identify-distortion's candidates are now
+      // computed by runtime-orchestrator.ts from the S01-only
+      // S01_COGNITIVE_DISTORTIONS registry (src/lib/protocol/sessions/
+      // s01-cognitive-distortions.ts) -- Claude may only select ids that
+      // exist in that registry, never invent or diagnose one; final
+      // selection is left to the participant.
       slug: "cognitive-distortions",
       title: "Step 5 - Introducing Cognitive Distortions",
       type: "question",
       source: [145, 155],
-      requiredFields: ["distortionListAvailable", "participantSelectedDistortions"],
+      requiredFields: ["participantSelectedDistortions"],
       restrictions: [sourceText([145, 155])],
       participantRationale: "Automatic thoughts often follow a handful of common patterns. Naming the pattern in your own thought makes it easier to question later, rather than just having it feel automatically true.",
       prompts: [
         {
-          // §4.8.1: manual names the Annex location explicitly ("It's
-          // included at the end of this guide, see the Annex... The AI will
-          // check that you have it before that part begins"). Loops on this
-          // same prompt via completionCondition until distortionListAvailable
-          // is true instead of advancing on any answer and letting the step
-          // run without the list -- a false answer just re-asks, with the
-          // Annex pointer already in the question, so no separate gating
-          // prompt (and no mid-array insertion that would shift this node's
-          // later prompt IDs) is needed.
-          slug: "confirm-list",
-          type: "question",
-          source: [145, 155],
-          marker: "Do you have the cognitive distortions list",
-          patientText: "Do you have your cognitive distortions list with you? It's in the Annex at the end of your session guide — if you need to grab it, that's fine, just let me know once you have it in front of you.",
-          outputFields: ["distortionListAvailable"],
-          validation: { kind: "boolean" },
-          completionCondition: { field: "distortionListAvailable", operator: "equals", value: true },
-        },
-        {
-          // §4.8.2 [교체 C-2]: "read two or three of these" is a reading
-          // count, not a selection count (source: "Can you read two or
-          // three of these?" then separately "Can you find any distortions
-          // that fit..." -- often just one). Renamed away from
-          // participantSelectedDistortions so this reading-confirmation step
-          // can no longer force/pollute the participant's actual distortion
-          // choice below.
-          slug: "read-distortions",
-          type: "instruction",
+          slug: "intro-distortions",
+          type: "explanation",
           source: [145, 155],
           marker: "These negative automatic thoughts",
-          patientText: "These negative automatic thoughts we've been looking at — they sometimes have a name in cognitive therapy. We call them cognitive distortions. Not every automatic thought is a distortion, but some of them are errors or exaggerations in our thinking that are worth examining. Can you take a look at the list and read two or three of the distortions?",
-          outputFields: ["distortionsReadAloud"],
-          validation: { kind: "min_items", minItems: 2, maxItems: 3 },
+          patientText: "These negative automatic thoughts we've been looking at — they sometimes have a name in cognitive therapy. We call them cognitive distortions. Not every automatic thought is a distortion, but some of them are errors or exaggerations in our thinking that are worth examining.",
+          outputFields: ["distortionsIntroductionAcknowledged"],
         },
-        // identify-distortion is now the sole producer of
-        // participantSelectedDistortions, with no minItems floor -- one
-        // distortion is clinically sufficient (S03 system prompt: "one is
-        // usually sufficient") and the participant's own judgment decides
-        // the count, per §4.8.2.
-        { slug: "identify-distortion", type: "question", source: [145, 155], marker: "Looking at what went through your mind", patientText: "Looking at what went through your mind in that situation — do any of these distortions seem to fit?", outputFields: ["participantSelectedDistortions"] },
+        {
+          // Candidate list (4-5 registry ids, each with a short
+          // Claude-written relevanceReason) is computed dynamically by
+          // runtime-orchestrator.ts's S01-only branch from
+          // situationThoughtDistinction + openingInitialThought, and
+          // registry-id-validated before it ever reaches this patientText.
+          // The text below is only the last-resort static fallback if that
+          // computation is entirely unavailable.
+          slug: "identify-distortion",
+          type: "question",
+          source: [145, 155],
+          marker: "Looking at what went through your mind",
+          patientText: "Looking at what went through your mind in that situation — do any of these distortions seem to fit? It's fine if none of them feel like a match.",
+          outputFields: ["participantSelectedDistortions"],
+        },
         { slug: "meaning-of-distortion", type: "question", source: [145, 155], marker: "If you discovered that this thought", patientText: "If you discovered that this thought might be a cognitive distortion — a kind of error in thinking — what difference would that make?", outputFields: ["distortionMeaning"] },
       ],
     },

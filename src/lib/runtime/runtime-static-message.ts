@@ -28,7 +28,7 @@ export { firstText, ratingNumbers, reflectThenAskForNextRating } from "@/lib/run
 // number out of the ID is exactly equivalent to (but far cheaper and far
 // less entangled than) checking all 8 sessions' branches in one function.
 const SESSION_HANDLERS: Record<number, (promptItem: PromptItem, fields: Record<string, unknown>, locale: string) => string | undefined> = {
-  1: (promptItem, fields, locale) => s01.resolveStaticText(promptItem, fields, locale),
+  1: (promptItem) => s01.resolveStaticText(promptItem),
   2: (promptItem, fields, locale) => s02.resolveStaticText(promptItem, fields, locale),
   3: (promptItem, fields, locale) => s03.resolveStaticText(promptItem, fields, locale),
   4: (promptItem) => s04.resolveStaticText(promptItem),
@@ -57,6 +57,7 @@ const BRACKET_PLACEHOLDER_SOURCES: Array<{ pattern: RegExp; fieldCandidates: str
   // from session context (source-fidelity-catalog.ts's own S01/S02/S03
   // nodes name the field that holds it), not a decorative bracket.
   { pattern: /\[their situation[^\]]*\]/gi, fieldCandidates: ["situationThoughtDistinction"], naturalFallback: "that situation" },
+  { pattern: /\[their initial thought[^\]]*\]/gi, fieldCandidates: ["openingInitialThought"], naturalFallback: "the thought you mentioned" },
   { pattern: /\[situation\]/gi, fieldCandidates: [], naturalFallback: "that situation" },
   { pattern: /\[description of lower score\]/gi, fieldCandidates: [], naturalFallback: "the lower rating" },
   { pattern: /\[description of higher score\]/gi, fieldCandidates: [], naturalFallback: "the higher rating" },

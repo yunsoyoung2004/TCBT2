@@ -123,11 +123,57 @@ function detectScriptLocale(text: string) {
   return "en-US";
 }
 
+// Legacy, session-agnostic blacklist -- unchanged from before the 2026-08-17
+// S01 Opening work. "I don't know" / "\uC798 \uBAA8\uB974\uACA0\uC5B4\uC694" stay
+// here deliberately: session-fidelity-fixtures.ts's insufficientPatientInputs
+// fixture already documents these as the codebase's intended "insufficient
+// answer" examples, and every session except S01's new openingInitialThought
+// field (see FIELDS_ACCEPTING_UNCERTAINTY below) still relies on that.
 const NON_ANSWER_TEXT = new Set([
   "hi", "hello", "hey", "yo", "test", "testing", "ok", "okay", "sure", "yes", "no", "true", "false", "idk", "i don't know", "i dont know", "i do not know",
   "\uC548\uB155", "\uC548\uB155\uD558\uC138\uC694", "\uD558\uC774", "\uD14C\uC2A4\uD2B8", "\uD14C\uC2A4\uD2B8\uC785\uB2C8\uB2E4", "\uB124", "\uC608", "\uC751", "\uADF8\uB798", "\uC88B\uC544\uC694", "\uBAB0\uB77C", "\uBAA8\uB974\uACA0\uC5B4\uC694", "\uC798 \uBAA8\uB974\uACA0\uC5B4\uC694", "\uC74C",
   "oi", "ol\u00E1", "ola", "teste", "sim", "n\u00E3o", "nao", "n\u00E3o sei", "nao sei",
 ]);
+
+// Session/field-scoped exception, NOT a global constant change: S01's
+// Opening redesign (Initial Thought Probe, tbct-s01-n02-p02-initial-thought-probe)
+// and its Cognitive Distortions redesign (identify-distortion,
+// tbct-s01-n10-p02-identify-distortion -- "is any of these similar?" is
+// genuinely, often correctly answered with uncertainty or "none of these")
+// deliberately have no validation.kind, so a literal "I don't know" must be
+// stored as a genuine, expected answer instead of looping toward
+// MAX_CLARIFICATION_ATTEMPTS -- but every other prompt in every session
+// (S02-S08 included) keeps the exact legacy behavior above. See
+// .claude/TASK_SCOPE.json's note2026_08_17c/d entries for the audit that
+// scoped this down from an earlier, unscoped NON_ANSWER_TEXT edit.
+const FIELDS_ACCEPTING_UNCERTAINTY = new Set(["openingInitialThought", "participantSelectedDistortions"]);
+const UNCERTAINTY_TEXT = new Set([
+  "idk", "i don't know", "i dont know", "i do not know",
+  "\uBAB0\uB77C", "\uBAA8\uB974\uACA0\uC5B4\uC694", "\uC798 \uBAA8\uB974\uACA0\uC5B4\uC694", "\uC5C6\uB294 \uAC83 \uAC19\uC544\uC694", "\uD574\uB2F9 \uC5C6\uC74C", "\uC5C6\uC5B4\uC694",
+  "n\u00E3o sei", "nao sei",
+]);
+
+// Same scoping rationale as FIELDS_ACCEPTING_UNCERTAINTY above: without a
+// validation.kind, these fields never reach the semantic-assessment path, so
+// a literal meta-question ("why are you asking this?", "what does that
+// mean?") would otherwise be stored verbatim as if it were the participant's
+// actual answer, instead of triggering the dialogue agent's own
+// explain_rationale/explain_term handling (already generic, see
+// anthropic-dialogue-agent.ts's systemPrompt). Every other prompt in every
+// session keeps its exact legacy behavior (unconditional acceptance of any
+// non-filler text).
+const META_QUESTION_AWARE_FIELDS = new Set(["openingInitialThought", "participantSelectedDistortions"]);
+function looksLikeMetaQuestionAboutTheProcess(normalized: string) {
+  return /^why (?:are you|do you|does it) ask(?:ing)?\b.*\??$/i.test(normalized)
+    || /^why does (?:this|that|it) matter\??$/i.test(normalized)
+    || /^what (?:does (?:that|this) mean|am i supposed to (?:answer|say)|should i (?:answer|say))\??$/i.test(normalized)
+    || /^(?:can|could) you give (?:me )?an example\??$/i.test(normalized)
+    || /^\uC65C\s*(?:\uADF8\uAC78|\uADF8\uB7F0\s*\uAC78|\uADF8\uAC83\uC744)?\s*\uBB3C\uC5B4(?:\uBCF4|\uBD10)/.test(normalized)
+    || /^(?:\uADF8\uAC8C\s*)?\uBB34\uC2A8\s*(?:\uB9D0|\uB73B|\uC758\uBBF8)(?:\uC774\uC5D0\uC694|\uC608\uC694|\uC778\uAC00\uC694|\uC774\uC57C)?\??$/.test(normalized)
+    || /^\uC65C\s*\uADF8\uB7F0\s*(?:\uAC74\uAC00\uC694|\uAC70\uC608\uC694|\uAC70\uC57C)\??$/.test(normalized)
+    || /^\uC608(?:\uB97C|\uC2DC)?\s*\uB4E4\uC5B4\s*(?:\uC8FC\uC138\uC694|\uC918\uC694|\uC904\uB798\uC694)/.test(normalized)
+    || /(?:\uBB34\uC2A8\s*\uB2F5\uC744\s*\uD574\uC57C|\uC5B4\uB5BB\uAC8C\s*\uB2F5\uD574\uC57C|\uBB50\uB77C\uACE0\s*\uB2F5\uD574\uC57C)/.test(normalized);
+}
 
 /** The complete set of answers a yes/no prompt accepts -- also the set the
  * Yes/No buttons submit once typed rather than clicked. */
@@ -260,6 +306,13 @@ function isMeaningfulTextResponse(input: {
   const normalizedWithoutUiNoise = normalized.replace(/\b(?:read|read aloud)\b\s*$/i, "").trim();
   if (activeQuestion && activeQuestion.length >= 12 && (normalizedWithoutUiNoise === activeQuestion || normalizedWithoutUiNoise.includes(activeQuestion))) return false;
   const compact = compactText(rawText);
+
+  // Field-scoped exception (not session<=3, and not a global constant
+  // change): only fields explicitly opted in above get this behavior;
+  // every other field in every session falls through to the unmodified
+  // legacy checks below exactly as before.
+  if (FIELDS_ACCEPTING_UNCERTAINTY.has(input.field) && (UNCERTAINTY_TEXT.has(normalized) || UNCERTAINTY_TEXT.has(normalizedLexical))) return true;
+  if (META_QUESTION_AWARE_FIELDS.has(input.field) && looksLikeMetaQuestionAboutTheProcess(normalized)) return false;
 
   // Closed-answer prompts are decided FIRST, before the generic filler-word
   // rejection below. A yes/no question, a consent question and a two-option
