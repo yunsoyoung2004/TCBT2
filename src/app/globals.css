@@ -332,11 +332,13 @@ select:focus-visible {
   }
 
   .protocol-builder-grid {
-    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(320px, 400px);
+    grid-template-columns: 220px minmax(0, 1fr) 340px;
     width: 100%;
     max-width: 100%;
     overflow: hidden;
     align-items: stretch;
+    gap: 10px !important;
+    padding: 12px !important;
   }
 
   .protocol-builder-grid > * {
@@ -361,6 +363,12 @@ select:focus-visible {
   .protocol-builder-panel > div,
   .protocol-builder-panel form {
     max-width: 100%;
+  }
+}
+
+@media (min-width: 1536px) {
+  .protocol-builder-grid {
+    grid-template-columns: 260px minmax(0, 1fr) 380px;
   }
 }
 
