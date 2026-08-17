@@ -42,6 +42,10 @@ const ko = {
   auth: {
     clinicianTitle: "의료진 로그인",
     patientTitle: "환자 로그인",
+    patientWelcome: "환영합니다! 계정으로 로그인하여 맞춤형 치료를 시작하세요.",
+    clinicianWelcome: "환영합니다! 계정으로 로그인하여 환자 모니터링을 시작하세요.",
+    rememberMe: "로그인 상태 유지",
+    or: "또는",
     login: "로그인",
     signup: "계정 만들기",
     email: "이메일",
@@ -95,6 +99,8 @@ const ko = {
     unknown: "—",
     yes: "네",
     no: "아니요",
+    showPassword: "비밀번호 표시",
+    hidePassword: "비밀번호 숨기기",
   },
   stepLabel: {
     required: "필수",

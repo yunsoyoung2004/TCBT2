@@ -31,7 +31,7 @@ export function Button({
   // signature than the plain DOM one) -- none of this app's Button call
   // sites pass any of them, so this only narrows an unused corner of the
   // type, not real behavior.
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "violet";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "violet" | "authGradient";
   size?: "sm" | "md" | "icon";
   loading?: boolean;
 }) {
@@ -41,6 +41,11 @@ export function Button({
     ghost: "border-transparent bg-transparent text-text-secondary hover:bg-surface-hover",
     danger: "border-critical bg-critical text-white hover:bg-[#ac3340]",
     violet: "border-ai-violet bg-ai-violet text-white hover:bg-[#674cbc]",
+    // Two-tone violet->blue submit button used on the login/signup forms
+    // (auth-form.tsx) -- a deliberately calmer accent than the full
+    // rainbow-button used for every other primary action in the app, to
+    // match the auth screens' own reference design.
+    authGradient: "border-transparent bg-gradient-to-r from-ai-violet to-clinical-blue text-white hover:brightness-105 shadow-md",
   };
   const sizes = { sm: "h-8 px-3 text-xs", md: "h-9 px-3.5 text-sm", icon: "h-9 w-9" };
   const reducedMotion = useReducedMotionPreference();

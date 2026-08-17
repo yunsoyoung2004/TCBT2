@@ -42,6 +42,10 @@ const en = {
   auth: {
     clinicianTitle: "Clinician sign in",
     patientTitle: "Patient sign in",
+    patientWelcome: "Welcome! Log in to start your personalized care.",
+    clinicianWelcome: "Welcome! Log in to start monitoring your patients.",
+    rememberMe: "Keep me signed in",
+    or: "or",
     login: "Log in",
     signup: "Create account",
     email: "Email",
@@ -95,6 +99,8 @@ const en = {
     unknown: "—",
     yes: "Yes",
     no: "No",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
   },
   stepLabel: {
     required: "Required",
