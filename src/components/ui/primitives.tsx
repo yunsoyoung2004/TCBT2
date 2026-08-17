@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { X, LoaderCircle, Inbox, TriangleAlert, CircleHelp, PanelRightOpen } from "lucide-react";
+import { X, LoaderCircle, Inbox, TriangleAlert, CircleHelp, PanelRightOpen, Sparkles } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { drawerPanel, modalBackdrop, modalPanel } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
@@ -69,7 +69,7 @@ export function Button({
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("rainbow-card rounded-panel bg-surface/95 shadow-[0_14px_40px_rgba(47,69,110,0.08)] backdrop-blur", className)}>{children}</section>;
+  return <section className={cn("rainbow-card overflow-hidden rounded-panel bg-surface/95 shadow-[0_14px_40px_rgba(47,69,110,0.08)] backdrop-blur", className)}>{children}</section>;
 }
 
 export function Badge({
@@ -241,6 +241,37 @@ export function EmptyState({
       <Inbox className="mb-3 h-8 w-8 text-text-muted" />
       <p className="text-sm font-semibold text-text-primary">{title}</p>
       <p className="mt-1 max-w-md text-xs text-text-secondary">{description}</p>
+    </div>
+  );
+}
+
+/** Bigger, illustrated variant of EmptyState for a tab's primary content
+ * area (Appointments/Messages/Screening check-ins) -- a soft rainbow-tinted
+ * glow behind a circular icon badge plus a small sparkle accent, versus
+ * EmptyState's compact inline-icon treatment used for secondary lists. */
+export function IllustratedEmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
+      <div className="relative mb-4 flex h-24 w-24 shrink-0 items-center justify-center">
+        <span className="rainbow-fill absolute inset-0 rounded-full opacity-[0.14] blur-xl" aria-hidden />
+        <span className="relative flex h-[72px] w-[72px] items-center justify-center rounded-full border border-border bg-surface-subtle text-clinical-blue shadow-sm">
+          {icon}
+        </span>
+        <Sparkles className="absolute -right-0.5 -top-0.5 h-5 w-5 text-warning" aria-hidden />
+      </div>
+      <p className="text-base font-semibold text-text-primary">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-text-secondary">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }

@@ -1,14 +1,9 @@
 import { updateParticipantProfile } from "@/lib/api/participant-api";
 import { listRuntimeSessionsForParticipant, setRuntimeSessionStatus } from "@/lib/api/runtime-session-api";
 import type { RuntimeParticipant } from "@/types/longitudinal-memory";
-import type { UiLocale } from "@/lib/i18n/locales";
+import { UI_LOCALE_TO_SESSION_LOCALE, type UiLocale } from "@/lib/i18n/locales";
 
-/** The one place a UI chrome locale ("ko"/"en") maps to the long-form value
- * participant.locale/session.locale actually store ("ko-KR"/"en-US"). Only
- * these two are offered anywhere a patient can pick a language -- see the
- * comment on the locale <select> in patient-profile-page.tsx for why
- * pt-BR/fr-FR are deliberately not included. */
-export const UI_LOCALE_TO_SESSION_LOCALE: Record<UiLocale, string> = { ko: "ko-KR", en: "en-US" };
+export { UI_LOCALE_TO_SESSION_LOCALE };
 
 /**
  * The website's own UI-chrome language (LocaleToggle / useT()) and each

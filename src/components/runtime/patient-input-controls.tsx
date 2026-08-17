@@ -50,7 +50,7 @@ export function PatientInputControls({
   // outputFields[0]/[1] in that order (line ~441), matching the order
   // PairedRatingInput renders and submits its two inputs in.
   if (/^paired_ratings/.test(promptValidationKind) || promptValidationKind === "consensus_weights") {
-    return <PairedRatingInput disabled={disabled} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
+    return <PairedRatingInput disabled={disabled} min={Number(validation.min ?? 0)} max={Number(validation.max ?? 100)} fields={promptItem?.outputFields ?? []} locale={locale} onSubmit={(first, second) => onSubmit({ kind: "rating", value: `${first}, ${second}` })} />;
   }
   if (kind === "single_choice") {
     return (
@@ -62,16 +62,30 @@ export function PatientInputControls({
     );
   }
   if (kind === "multi_choice") {
-    return <MultiChoiceInput choices={choices} disabled={disabled} onSubmit={(value) => onSubmit({ kind: "multi_choice", value })} />;
+    return <MultiChoiceInput choices={choices} disabled={disabled} locale={locale} onSubmit={(value) => onSubmit({ kind: "multi_choice", value })} />;
   }
   if (kind === "rating" || promptKind === "rating" || promptValidationKind === "rating") {
-    return <RatingInput disabled={disabled} min={Number(payload?.min ?? validation.min ?? 0)} max={Number(payload?.max ?? validation.max ?? 100)} onSubmit={(value) => onSubmit({ kind: "rating", value })} />;
+    return <RatingInput disabled={disabled} min={Number(payload?.min ?? validation.min ?? 0)} max={Number(payload?.max ?? validation.max ?? 100)} locale={locale} onSubmit={(value) => onSubmit({ kind: "rating", value })} />;
   }
   if (kind === "activity_completion") {
-    return <ChoiceRow disabled={disabled} options={["not_started", "partial", "completed"]} onSelect={(value) => onSubmit({ kind: "activity_completion", value })} />;
+    return (
+      <ChoiceRow
+        disabled={disabled}
+        options={["not_started", "partial", "completed"]}
+        locale={locale}
+        onSelect={(value) => onSubmit({ kind: "activity_completion", value })}
+      />
+    );
   }
   if (kind === "homework_status") {
-    return <ChoiceRow disabled={disabled} options={["not_assigned", "pending", "completed"]} onSelect={(value) => onSubmit({ kind: "homework_status", value })} />;
+    return (
+      <ChoiceRow
+        disabled={disabled}
+        options={["not_assigned", "pending", "completed"]}
+        locale={locale}
+        onSelect={(value) => onSubmit({ kind: "homework_status", value })}
+      />
+    );
   }
   if (kind === "boolean") {
     return (
@@ -94,15 +108,16 @@ export function PatientInputControls({
   );
 }
 
-function readableFieldLabel(field: string, index: number) {
-  if (/belief/i.test(field)) return "Belief in the charge (%)";
-  if (/emotion|intensity/i.test(field)) return "Emotion intensity (%)";
-  if (/advantage/i.test(field)) return "Advantages weight (%)";
-  if (/disadvantage/i.test(field)) return "Disadvantages weight (%)";
-  return `Rating ${index + 1} (%)`;
+function readableFieldLabel(field: string, index: number, isKorean: boolean) {
+  if (/belief/i.test(field)) return isKorean ? "생각에 대한 믿음 정도 (%)" : "Belief in the charge (%)";
+  if (/emotion|intensity/i.test(field)) return isKorean ? "감정 강도 (%)" : "Emotion intensity (%)";
+  if (/advantage/i.test(field)) return isKorean ? "장점 비중 (%)" : "Advantages weight (%)";
+  if (/disadvantage/i.test(field)) return isKorean ? "단점 비중 (%)" : "Disadvantages weight (%)";
+  return isKorean ? `평가 ${index + 1} (%)` : `Rating ${index + 1} (%)`;
 }
 
-function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?: boolean; min: number; max: number; fields: string[]; onSubmit: (first: number, second: number) => void }) {
+function PairedRatingInput({ disabled, min, max, fields, locale, onSubmit }: { disabled?: boolean; min: number; max: number; fields: string[]; locale?: string; onSubmit: (first: number, second: number) => void }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   const initial = Math.round((min + max) / 2);
   const [first, setFirst] = useState(initial);
   const [second, setSecond] = useState(initial);
@@ -110,11 +125,11 @@ function PairedRatingInput({ disabled, min, max, fields, onSubmit }: { disabled?
     <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); onSubmit(first, second); }}>
       {[[first, setFirst], [second, setSecond]].map(([value, setter], index) => (
         <label key={index} className="grid gap-1 text-sm text-text-secondary">
-          {readableFieldLabel(fields[index] ?? "", index)}
+          {readableFieldLabel(fields[index] ?? "", index, isKorean)}
           <input type="number" min={min} max={max} value={value as number} disabled={disabled} onChange={(event) => (setter as (value: number) => void)(Math.max(min, Math.min(max, Number(event.target.value))))} className={inputClass} />
         </label>
       ))}
-      <Button disabled={disabled}>Submit both ratings</Button>
+      <Button disabled={disabled}>{isKorean ? "두 평가 모두 제출" : "Submit both ratings"}</Button>
     </form>
   );
 }
@@ -132,6 +147,7 @@ function TextInput({
   onBeforeMic?: () => void;
   onSubmit: (value: string) => void;
 }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   const [value, setValue] = useState("");
   const speech = useSpeechRecognition(locale ?? "en-US");
   const latestValueRef = useRef(value);
@@ -200,18 +216,19 @@ function TextInput({
           type="button"
           variant={speech.listening ? "danger" : "secondary"}
           disabled={disabled}
-          aria-label={speech.listening ? "Stop listening" : "Speak your response"}
+          aria-label={speech.listening ? (isKorean ? "듣기 중지" : "Stop listening") : (isKorean ? "말로 응답하기" : "Speak your response")}
           onClick={handleMicClick}
         >
           {speech.listening ? "⏺" : "🎤"}
         </Button>
       )}
-      <Button disabled={disabled}>Send</Button>
+      <Button disabled={disabled}>{isKorean ? "보내기" : "Send"}</Button>
     </form>
   );
 }
 
-function RatingInput({ disabled, min, max, onSubmit }: { disabled?: boolean; min: number; max: number; onSubmit: (value: number) => void }) {
+function RatingInput({ disabled, min, max, locale, onSubmit }: { disabled?: boolean; min: number; max: number; locale?: string; onSubmit: (value: number) => void }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   const initialValue = String(Math.max(min, Math.min(max, Math.round((min + max) / 2))));
   const [value, setValue] = useState(initialValue);
   return (
@@ -244,24 +261,40 @@ function RatingInput({ disabled, min, max, onSubmit }: { disabled?: boolean; min
           className={`${inputClass} w-24`}
         />
       </div>
-      <Button disabled={disabled}>Submit rating</Button>
+      <Button disabled={disabled}>{isKorean ? "평가 제출" : "Submit rating"}</Button>
     </form>
   );
 }
 
-function ChoiceRow({ disabled, options, onSelect }: { disabled?: boolean; options: string[]; onSelect: (value: string) => void }) {
+// The only two ChoiceRow call sites (activity_completion, homework_status --
+// see PatientInputControls above) between them use exactly these five fixed
+// option values, never freeform ones -- so this is a real translation map,
+// not a generic word-for-word converter. Any option outside this set (there
+// isn't one today) falls back to the same underscore->space rendering this
+// used to always do.
+const CHOICE_LABELS_KO: Record<string, string> = {
+  not_started: "시작 전",
+  partial: "일부 완료",
+  completed: "완료",
+  not_assigned: "배정되지 않음",
+  pending: "대기 중",
+};
+
+function ChoiceRow({ disabled, options, locale, onSelect }: { disabled?: boolean; options: string[]; locale?: string; onSelect: (value: string) => void }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((option) => (
         <Button key={option} variant="secondary" disabled={disabled} onClick={() => onSelect(option)}>
-          {option.replace(/_/g, " ")}
+          {isKorean ? (CHOICE_LABELS_KO[option] ?? option.replace(/_/g, " ")) : option.replace(/_/g, " ")}
         </Button>
       ))}
     </div>
   );
 }
 
-function MultiChoiceInput({ choices, disabled, onSubmit }: { choices: string[]; disabled?: boolean; onSubmit: (value: string[]) => void }) {
+function MultiChoiceInput({ choices, disabled, locale, onSubmit }: { choices: string[]; disabled?: boolean; locale?: string; onSubmit: (value: string[]) => void }) {
+  const isKorean = locale?.toLowerCase().startsWith("ko") ?? false;
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (choice: string) => {
     setSelected((current) => (current.includes(choice) ? current.filter((item) => item !== choice) : [...current, choice]));
@@ -276,7 +309,7 @@ function MultiChoiceInput({ choices, disabled, onSubmit }: { choices: string[]; 
         ))}
       </div>
       <Button disabled={disabled || !selected.length} onClick={() => onSubmit(selected)}>
-        Submit selection
+        {isKorean ? "선택 제출" : "Submit selection"}
       </Button>
     </div>
   );

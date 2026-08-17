@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeftRight, Check } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge, Button, Card, EmptyState, Field, PageHeader, inputClass, textareaClass } from "@/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, Field, Modal, PageHeader, inputClass, textareaClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 import {
   getSessionCommonRules,
   getSessionPrompts,
@@ -41,6 +43,17 @@ export function ProtocolManualReflectionPage() {
   const [tick, setTick] = useState(0);
   void tick;
   const rerender = () => setTick((value) => value + 1);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
+
+  // Nothing else re-renders this page on a schedule (session-catalog.ts is a
+  // plain local store, not a react-query cache), so the "저장됨 · N분 전"
+  // status below would otherwise freeze at whatever it said right after the
+  // last edit -- this just re-evaluates that relative time periodically.
+  useEffect(() => {
+    const id = setInterval(() => setTick((value) => value + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const sessionMeta = sessionCatalog.find((session) => session.id === selectedSessionId);
   const prompts = getSessionPrompts(selectedSessionId);
@@ -48,21 +61,31 @@ export function ProtocolManualReflectionPage() {
 
   const handleEditText = (id: string, value: string) => {
     updatePromptItem(id, { editableText: value });
+    setLastSavedAt(Date.now());
     rerender();
   };
   const handleEditGuidance = (id: string, value: string) => {
     updatePromptItem(id, { modelGuidance: value });
+    setLastSavedAt(Date.now());
     rerender();
   };
   const handleRestoreVerbatim = (id: string) => {
     restorePromptItemFromVerbatim(id);
+    setLastSavedAt(Date.now());
     rerender();
   };
   const handleEditTone = (value: string) => {
     if (!commonRules) return;
     saveSessionCommonRules(selectedSessionId, { ...commonRules, roleAndStance: value });
+    setLastSavedAt(Date.now());
     rerender();
   };
+
+  const savedStatusLabel = (() => {
+    if (lastSavedAt === null) return t("manualReflection.noChangesYet");
+    const elapsedMinutes = Math.max(0, Math.round((Date.now() - lastSavedAt) / 60_000));
+    return elapsedMinutes < 1 ? t("manualReflection.savedJustNow") : t("manualReflection.savedMinutesAgo", { minutes: elapsedMinutes });
+  })();
 
   return (
     <AppShell>
@@ -93,14 +116,23 @@ export function ProtocolManualReflectionPage() {
 
         {commonRules && (
           <Card className="p-4">
-            <Field label={t("manualReflection.toneLabel")} hint={t("manualReflection.toneHint")}>
-              <textarea
-                className={textareaClass}
-                value={commonRules.roleAndStance}
-                placeholder={t("manualReflection.tonePlaceholder")}
-                onChange={(event) => handleEditTone(event.target.value)}
-              />
-            </Field>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text-primary">{t("manualReflection.toneLabel")}</div>
+                <p className="mt-1 max-w-2xl text-[11px] text-text-secondary">{t("manualReflection.toneHint")}</p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setGuideModalOpen(true)}>{t("manualReflection.commonGuide")}</Button>
+            </div>
+            <textarea
+              className={cn(textareaClass, "mt-3 font-mono text-xs leading-6")}
+              value={commonRules.roleAndStance}
+              placeholder={t("manualReflection.tonePlaceholder")}
+              onChange={(event) => handleEditTone(event.target.value)}
+            />
+            <div className="mt-2 flex items-center justify-end gap-1.5 text-[11px] text-text-muted">
+              <Check className="h-3 w-3 text-success" />
+              <span>{t("manualReflection.autosaved")} · {savedStatusLabel}</span>
+            </div>
           </Card>
         )}
 
@@ -126,10 +158,15 @@ export function ProtocolManualReflectionPage() {
                   {t("manualReflection.sourceLabel", { section: trace.sourceSection })}
                 </div>
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
                 <Field label={t("manualReflection.originalLabel")} hint={t("manualReflection.originalHint")}>
                   <textarea className={textareaClass} value={promptItem.verbatimText} readOnly />
                 </Field>
+                <div className="hidden shrink-0 sm:flex sm:justify-center">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface-subtle text-text-muted" aria-hidden>
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </span>
+                </div>
                 <Field label={t("manualReflection.currentLabel")} hint={t("manualReflection.currentHint")}>
                   <textarea
                     className={textareaClass}
@@ -161,6 +198,31 @@ export function ProtocolManualReflectionPage() {
           </Link>
         </Card>
       </div>
+
+      <Modal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+        title={t("manualReflection.commonGuide")}
+        description={t("manualReflection.commonGuideDescription")}
+      >
+        <div className="space-y-4 p-5">
+          <GuideField label={t("manualReflection.fieldSessionObjective")} value={commonRules?.sessionObjective} />
+          <GuideField label={t("manualReflection.fieldClinicalContext")} value={commonRules?.clinicalContext} />
+          <GuideField label={t("manualReflection.fieldPreviousSessionContext")} value={commonRules?.previousSessionContext} />
+          <GuideField label={t("manualReflection.fieldLanguageRules")} value={commonRules?.languageAndTerminologyRules} />
+          <GuideField label={t("manualReflection.fieldToneRules")} value={commonRules?.toneAndInteractionRules} />
+          <GuideField label={t("manualReflection.fieldSafetyRules")} value={commonRules?.safetyAndEscalationRules} />
+        </div>
+      </Modal>
     </AppShell>
+  );
+}
+
+function GuideField({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">{label}</div>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-text-primary">{value?.trim() ? value : "—"}</p>
+    </div>
   );
 }

@@ -3,16 +3,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
-import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale } from "@/lib/api/participant-api";
 import { ClinicianMessageThread } from "@/components/pages/clinician-message-thread";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientMessagesPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { user } = useAuth();
   const userId = user?.id ?? "";
-  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUiLocale(userId, locale), enabled: Boolean(userId) });
 
   if (participantQuery.isLoading) return <PatientShell title={t("messages.title")}><PageSkeleton /></PatientShell>;
   const participant = participantQuery.data;

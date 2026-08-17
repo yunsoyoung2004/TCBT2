@@ -9,7 +9,7 @@ import { SessionProgressChart } from "@/components/runtime/session-progress-char
 import { MfaSettings } from "@/components/pages/auth/mfa-settings";
 import { DataPrivacySection } from "@/components/pages/data-privacy-section";
 import { Badge, Button, Card, EmptyState, Field, PageSkeleton, inputClass } from "@/components/ui/primitives";
-import { getOrCreateParticipantForUser, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale, getParticipantRecord, updateParticipantProfile, updateParticipantConsent, updateNotificationPreferences } from "@/lib/api/participant-api";
 import { getParticipantLongitudinalDashboard } from "@/lib/api/longitudinal-memory-api";
 import { getPatientProgressSeries } from "@/lib/worksheet/worksheet-projection";
 import { propagateLocaleToOpenSessions } from "@/lib/api/patient-locale-sync";
@@ -19,14 +19,16 @@ import { useAuth } from "@/lib/auth/auth-context";
 
 export function PatientProfilePage() {
   // Aliased: this page already has its own local `locale`/`setLocale` state
-  // for the pending profile-form edit below -- setUiLocale is the website's
-  // own chrome-language setter from useT(), a separate thing this now also
-  // updates once the locale field is actually saved (see profileMutation).
-  const { t, setLocale: setUiLocale } = useT();
+  // for the pending profile-form edit below -- uiLocale/setUiLocale is the
+  // website's own chrome-language state from useT(), a separate thing this
+  // now also updates once the locale field is actually saved (see
+  // profileMutation), and also what a brand-new participant record's
+  // initial content locale is seeded from (see getOrCreateParticipantForUiLocale).
+  const { t, locale: uiLocale, setLocale: setUiLocale } = useT();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const userId = user?.id ?? "";
-  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUiLocale(userId, uiLocale), enabled: Boolean(userId) });
   const dashboardQuery = useQuery({
     queryKey: ["patient-profile-dashboard", participantQuery.data?.id],
     queryFn: () => getParticipantLongitudinalDashboard(participantQuery.data!.id),

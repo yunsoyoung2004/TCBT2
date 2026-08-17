@@ -93,23 +93,23 @@ export function PatientSessionPage() {
         }),
       );
       try { await saveRemoteSessionAuditSnapshot(auditView); }
-      catch { toast.warning("The session continued, but its remote audit copy could not be saved."); }
+      catch { toast.warning(uiLocale === "ko" ? "세션은 계속 진행되지만, 원격 감사 기록 저장에는 실패했습니다." : "The session continued, but its remote audit copy could not be saved."); }
     }).catch(() => {});
   };
 
-  const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session started"); await refresh(); } });
-  const resumeMutation = useMutation({ mutationFn: () => resumeRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session resumed"); await refresh(); } });
+  const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success(uiLocale === "ko" ? "세션이 시작되었습니다" : "Session started"); await refresh(); } });
+  const resumeMutation = useMutation({ mutationFn: () => resumeRuntimeSession(sessionId), onSuccess: async () => { toast.success(uiLocale === "ko" ? "세션이 재개되었습니다" : "Session resumed"); await refresh(); } });
   const retryMutation = useMutation({
     mutationFn: () => retryStalledRuntimeNode(sessionId),
     onSuccess: async () => { await refresh(); },
-    onError: () => { toast.error("Still not ready -- please try again in a moment."); },
+    onError: () => { toast.error(uiLocale === "ko" ? "아직 준비되지 않았습니다 -- 잠시 후 다시 시도해 주세요." : "Still not ready -- please try again in a moment."); },
   });
   const terminateMutation = useMutation({
     mutationFn: () => terminateRuntimeSession(sessionId, "Participant ended session"),
     onSuccess: async () => {
       // Stop all recording and playback when the session ends.
       stop();
-      toast.warning("Session terminated");
+      toast.warning(uiLocale === "ko" ? "세션이 종료되었습니다" : "Session terminated");
       await refresh();
     },
   });
@@ -141,13 +141,13 @@ export function PatientSessionPage() {
     },
     onSuccess: async (result) => {
       if (result.stateExtraction?.missingFields.length) {
-        toast.info("Please share a little more so we can stay with this question.");
+        toast.info(uiLocale === "ko" ? "이 질문에 조금 더 자세히 답해 주시겠어요?" : "Please share a little more so we can stay with this question.");
       }
       await refresh();
     },
     onError: (_error, _variables, context) => {
       if (context?.previous !== undefined) queryClient.setQueryData(["patient-runtime-session", sessionId], context.previous);
-      toast.error("We could not submit that response. Please try again.");
+      toast.error(uiLocale === "ko" ? "응답을 제출하지 못했습니다. 다시 시도해 주세요." : "We could not submit that response. Please try again.");
     },
     onSettled: () => {
       submittingTurnRef.current = false;
@@ -162,7 +162,10 @@ export function PatientSessionPage() {
   const inSafetyHold = session?.status === "safety_paused" || session?.status === "escalated";
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [previousHold, setPreviousHold] = useState(inSafetyHold);
-  const resumeMessage = useMemo(() => "The safety review is complete. You can continue the session now.", []);
+  const resumeMessage = useMemo(
+    () => (uiLocale === "ko" ? "안전 검토가 완료되었습니다. 이제 세션을 계속 진행하실 수 있어요." : "The safety review is complete. You can continue the session now."),
+    [uiLocale],
+  );
 
   // Status "active" is meant to be a brief in-flight moment on the way to the
   // next real state (see executeCurrentNode's recursive chain in
@@ -254,11 +257,16 @@ export function PatientSessionPage() {
     speak(latestAssistantMessage.id, latestAssistantMessage.content);
   }, [latestAssistantMessage, speak, ttsSupported]);
 
-  if (sessionQuery.isLoading) return <PatientShell title="세션"><PageSkeleton /></PatientShell>;
+  if (sessionQuery.isLoading) return <PatientShell title={uiLocale === "ko" ? "세션" : "Session"}><PageSkeleton /></PatientShell>;
   if (!sessionQuery.data || !activeSession) {
     return (
-      <PatientShell title="세션">
-        <Card><EmptyState title="세션을 찾을 수 없습니다" description="세션 목록으로 돌아가 새 세션을 시작해 주세요." /></Card>
+      <PatientShell title={uiLocale === "ko" ? "세션" : "Session"}>
+        <Card>
+          <EmptyState
+            title={uiLocale === "ko" ? "세션을 찾을 수 없습니다" : "Session not found"}
+            description={uiLocale === "ko" ? "세션 목록으로 돌아가 새 세션을 시작해 주세요." : "Return to your session list and start a new session."}
+          />
+        </Card>
       </PatientShell>
     );
   }
@@ -295,8 +303,8 @@ export function PatientSessionPage() {
                 <div className="mt-1 text-xs text-text-secondary">{isKoreanSession ? "현재 세션 상태와 참여자에게 승인된 안내만 표시됩니다." : "The patient view shows only the current session state and approved patient-facing safety guidance."}</div>
               </div>
               <div className="flex gap-2">
-                {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>Start</Button>}
-                {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>Resume</Button>}
+                {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>{isKoreanSession ? "시작" : "Start"}</Button>}
+                {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>{isKoreanSession ? "재개" : "Resume"}</Button>}
                 <Button variant="danger" onClick={() => setEndConfirmOpen(true)}>{isKoreanSession ? "종료" : "End"}</Button>
               </div>
             </div>
@@ -341,7 +349,12 @@ export function PatientSessionPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {!messages.length && <EmptyState title="Start the session to see the first message." description="The published protocol release will drive the current node and the patient-facing flow." />}
+            {!messages.length && (
+              <EmptyState
+                title={isKoreanSession ? "세션을 시작하면 첫 메시지가 표시됩니다." : "Start the session to see the first message."}
+                description={isKoreanSession ? "발행된 프로토콜에 따라 현재 단계와 진행 흐름이 결정됩니다." : "The published protocol release will drive the current node and the patient-facing flow."}
+              />
+            )}
           </div>
           <div className="border-t border-border p-4">
             <AnimatePresence initial={false}>
@@ -378,7 +391,9 @@ export function PatientSessionPage() {
                     : "We are reviewing your response and preparing the next step."}
               </motion.div>
             ) : activeSession.status === "paused" ? (
-              <div className="text-sm text-text-secondary">This session is paused. Use Resume when you are ready to continue.</div>
+              <div className="text-sm text-text-secondary">
+                {isKoreanSession ? "이 세션은 일시중지되었습니다. 준비되시면 재개 버튼을 눌러주세요." : "This session is paused. Use Resume when you are ready to continue."}
+              </div>
             ) : inSafetyHold ? (
               <motion.div
                 variants={reducedMotion ? undefined : fadeScale}
@@ -386,24 +401,38 @@ export function PatientSessionPage() {
                 animate={reducedMotion ? undefined : "animate"}
                 className="rounded-panel border border-critical-light bg-critical-light/60 p-4 text-sm text-text-primary"
               >
-                <div className="font-semibold">This session is paused for a safety review.</div>
-                <div className="mt-2 text-text-secondary">Regular input and protocol progression are temporarily unavailable until the review is completed.</div>
+                <div className="font-semibold">{isKoreanSession ? "이 세션은 안전 검토를 위해 일시중지되었습니다." : "This session is paused for a safety review."}</div>
+                <div className="mt-2 text-text-secondary">
+                  {isKoreanSession
+                    ? "검토가 완료될 때까지 일반 입력과 세션 진행이 일시적으로 제한됩니다."
+                    : "Regular input and protocol progression are temporarily unavailable until the review is completed."}
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge tone="critical">session hold</Badge>
-                  <Badge tone="warning">waiting for review</Badge>
+                  <Badge tone="critical">{isKoreanSession ? "세션 보류" : "session hold"}</Badge>
+                  <Badge tone="warning">{isKoreanSession ? "검토 대기 중" : "waiting for review"}</Badge>
                 </div>
               </motion.div>
             ) : activeSession.status === "completed" ? (
-              <div className="text-sm text-text-secondary">This session is complete. Use Completion to review the saved result.</div>
+              <div className="text-sm text-text-secondary">
+                {isKoreanSession ? "이 세션이 완료되었습니다. 완료 내역에서 저장된 결과를 확인하세요." : "This session is complete. Use Completion to review the saved result."}
+              </div>
             ) : activeSession.status === "terminated" ? (
-              <div className="text-sm text-text-secondary">This session has ended and no new input can be submitted.</div>
+              <div className="text-sm text-text-secondary">
+                {isKoreanSession ? "이 세션은 종료되어 더 이상 응답을 제출할 수 없습니다." : "This session has ended and no new input can be submitted."}
+              </div>
             ) : activeSession.status === "active" ? (
               <div className="flex flex-wrap items-center gap-3 text-sm text-text-secondary">
-                <span>The session is being prepared{retryMutation.isPending ? "…" : "."}</span>
-                <Button variant="secondary" disabled={retryMutation.isPending} onClick={() => retryMutation.mutate()}>Try again</Button>
+                <span>
+                  {isKoreanSession
+                    ? `세션을 준비하고 있어요${retryMutation.isPending ? "…" : "."}`
+                    : `The session is being prepared${retryMutation.isPending ? "…" : "."}`}
+                </span>
+                <Button variant="secondary" disabled={retryMutation.isPending} onClick={() => retryMutation.mutate()}>
+                  {isKoreanSession ? "다시 시도" : "Try again"}
+                </Button>
               </div>
             ) : (
-              <div className="text-sm text-text-secondary">The session is being prepared.</div>
+              <div className="text-sm text-text-secondary">{isKoreanSession ? "세션을 준비하고 있어요." : "The session is being prepared."}</div>
             )}
           </div>
         </Card>

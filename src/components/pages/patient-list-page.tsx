@@ -11,7 +11,7 @@ import { UpcomingAppointmentsCard } from "@/components/pages/upcoming-appointmen
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
 import { listRuntimeSessionsForParticipant } from "@/lib/api/runtime-session-api";
-import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale } from "@/lib/api/participant-api";
 import { PATIENT_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
 import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
 import { HOMEWORK_LABEL_BY_SESSION, hasHomeworkActivity } from "@/types/homework";
@@ -27,7 +27,7 @@ export function PatientListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = user?.id ?? "";
-  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUiLocale(userId, locale), enabled: Boolean(userId) });
   const participant = participantQuery.data;
   // participant.locale drives the actual therapy session content's
   // language (see runtime-execution-api.ts) -- a distinct, clinically-

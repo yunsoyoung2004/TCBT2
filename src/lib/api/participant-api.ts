@@ -1,6 +1,7 @@
 import { appendParticipantSession, getLongitudinalRecord, getParticipant, getParticipantByAuthUserId, listParticipantConsentEvents, listParticipants, saveLongitudinalRecord, saveParticipant, saveParticipantConsentEvent, updateParticipant } from "@/lib/repositories/participant-repository";
 import { createMemoryAuditEntry } from "@/lib/memory/memory-helpers";
 import { getLocalDb } from "@/lib/db/tbct-local-db";
+import { UI_LOCALE_TO_SESSION_LOCALE, type UiLocale } from "@/lib/i18n/locales";
 import type { ParticipantConsentEvent, RuntimeParticipant } from "@/types/longitudinal-memory";
 
 function makeId(prefix: string) {
@@ -93,6 +94,19 @@ export async function getOrCreateParticipantForUser(authUserId: string, defaults
     updatedAt: now,
   });
   return participant;
+}
+
+/** Every real call site of getOrCreateParticipantForUser wants this, not the
+ * bare function -- without a locale default, a first-time login silently
+ * created an "en-US" participant (and every session run for them) no matter
+ * what language the site's own chrome (LocaleToggle, defaulting to Korean --
+ * see DEFAULT_LOCALE) was showing at the time, so a patient who never
+ * touched the language toggle still got an all-English therapy session
+ * under Korean UI chrome. Passing the site's current UI locale here means a
+ * brand-new participant's content locale actually matches what they were
+ * looking at when their account was first created. */
+export async function getOrCreateParticipantForUiLocale(authUserId: string, uiLocale: UiLocale) {
+  return getOrCreateParticipantForUser(authUserId, { locale: UI_LOCALE_TO_SESSION_LOCALE[uiLocale] });
 }
 
 export async function attachSessionToParticipant(participantId: string, runtimeSessionId: string) {

@@ -90,6 +90,33 @@
   --color-border-strong: 58 71 96;
 }
 
+@media (max-width: 639px) {
+  :root,
+  :root[data-theme="dark"],
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: light;
+    --color-background: 245 247 250;
+    --color-surface: 255 255 255;
+    --color-surface-subtle: 248 250 252;
+    --color-surface-hover: 241 245 249;
+    --color-clinical-blue: 53 102 174;
+    --color-clinical-blue-light: 234 241 251;
+    --color-ai-violet: 115 87 199;
+    --color-ai-violet-light: 240 236 251;
+    --color-success: 39 131 90;
+    --color-success-light: 234 247 240;
+    --color-warning: 185 110 24;
+    --color-warning-light: 255 245 231;
+    --color-critical: 194 62 69;
+    --color-critical-light: 253 238 239;
+    --color-text-primary: 23 32 51;
+    --color-text-secondary: 82 97 116;
+    --color-text-muted: 132 145 163;
+    --color-border: 221 228 236;
+    --color-border-strong: 200 210 222;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -100,6 +127,10 @@ body {
   min-height: 100%;
   background: rgb(var(--color-background));
   color: rgb(var(--color-text-primary));
+  /* Keeps the page's own vertical scrollbar from toggling the available
+     content width on and off (e.g. when a tab with slightly more content
+     appears/disappears) -- reserves its gutter unconditionally instead. */
+  scrollbar-gutter: stable;
 }
 
 .clinician-app,
@@ -382,6 +413,30 @@ select:focus-visible {
   .protocol-builder-grid {
     grid-template-columns: 260px minmax(0, 1fr) 380px;
   }
+}
+
+/* Same "grid columns/heights don't reflow as content changes" technique as
+   .protocol-builder-grid/.protocol-builder-panel above, applied to the
+   patient-monitoring detail page's Audit Log + Status two-column layout
+   (patient-detail-page.tsx) -- a new log entry streaming in, or a status
+   value changing length, used to resize the whole grid row and visibly
+   shift both cards. Layout containment isolates each panel's own content
+   changes from the outer grid; scrollbar-gutter keeps a scrollbar
+   appearing/disappearing from nudging the panel's width. */
+.patient-monitoring-panel {
+  contain: layout paint;
+}
+
+.patient-monitoring-panel [class*="overflow-auto"] {
+  scrollbar-gutter: stable;
+}
+
+/* Log list only: new entries append at the bottom while the patient is
+   scrolled up reading history -- overflow-anchor would otherwise "correct"
+   the scroll position to keep whatever's onscreen pinned, which reads as
+   the list jumping on its own. */
+.audit-log-scroll {
+  overflow-anchor: none;
 }
 
 @keyframes shimmer {

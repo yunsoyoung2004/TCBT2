@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Search } from "lucide-react";
+import { Activity, ArrowUpDown, CheckCircle2, ChevronRight, PauseCircle, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Button, Card, EmptyState, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
@@ -182,12 +182,42 @@ export function PatientListPage() {
             </div>
           </Card>
         )}
-        {/* Desktop/tablet (>=640px): unchanged 4-card grid. */}
+        {/* Desktop/tablet (>=640px): 4-card grid. Clicking a card toggles the
+            status filter to that status (and back to "all" on a second
+            click), so the chevron affordance actually does something. */}
         <div className="hidden grid-cols-2 gap-3 sm:grid lg:grid-cols-4">
-          <SummaryStat label={t("patientMonitoring.summary.inProgress")} value={summaryCounts.inProgress} tone="primary" />
-          <SummaryStat label={t("patientMonitoring.summary.paused")} value={summaryCounts.paused} tone="warning" />
-          <SummaryStat label={t("patientMonitoring.summary.needsReview")} value={summaryCounts.needsReview} tone="critical" />
-          <SummaryStat label={t("patientMonitoring.summary.completed")} value={summaryCounts.completed} tone="success" />
+          <SummaryStat
+            icon={<Activity className="h-4 w-4" />}
+            label={t("patientMonitoring.summary.inProgress")}
+            value={summaryCounts.inProgress}
+            tone="primary"
+            active={statusFilter === "inProgress"}
+            onClick={() => setStatusFilter((value) => (value === "inProgress" ? "all" : "inProgress"))}
+          />
+          <SummaryStat
+            icon={<PauseCircle className="h-4 w-4" />}
+            label={t("patientMonitoring.summary.paused")}
+            value={summaryCounts.paused}
+            tone="warning"
+            active={statusFilter === "paused"}
+            onClick={() => setStatusFilter((value) => (value === "paused" ? "all" : "paused"))}
+          />
+          <SummaryStat
+            icon={<TriangleAlert className="h-4 w-4" />}
+            label={t("patientMonitoring.summary.needsReview")}
+            value={summaryCounts.needsReview}
+            tone="critical"
+            active={statusFilter === "needsReview"}
+            onClick={() => setStatusFilter((value) => (value === "needsReview" ? "all" : "needsReview"))}
+          />
+          <SummaryStat
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            label={t("patientMonitoring.summary.completed")}
+            value={summaryCounts.completed}
+            tone="success"
+            active={statusFilter === "completed"}
+            onClick={() => setStatusFilter((value) => (value === "completed" ? "all" : "completed"))}
+          />
         </div>
         {/* Mobile (<640px): same counts/labels, one compact row instead of 4 large cards (brief §9). */}
         <Card className="flex items-center gap-3 overflow-x-auto p-3 text-xs sm:hidden">
@@ -361,11 +391,47 @@ export function PatientListPage() {
   );
 }
 
-function SummaryStat({ label, value, tone }: { label: string; value: number; tone: "primary" | "warning" | "critical" | "success" }) {
+const STAT_TONE_STYLES: Record<"primary" | "warning" | "critical" | "success", { iconWrap: string; bar: string }> = {
+  primary: { iconWrap: "bg-clinical-blue-light text-clinical-blue", bar: "bg-clinical-blue" },
+  warning: { iconWrap: "bg-warning-light text-warning", bar: "bg-warning" },
+  critical: { iconWrap: "bg-critical-light text-critical", bar: "bg-critical" },
+  success: { iconWrap: "bg-success-light text-success", bar: "bg-success" },
+};
+
+function SummaryStat({
+  icon,
+  label,
+  value,
+  tone,
+  active,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  tone: "primary" | "warning" | "critical" | "success";
+  active: boolean;
+  onClick: () => void;
+}) {
+  const styles = STAT_TONE_STYLES[tone];
   return (
-    <Card className="p-4">
-      <Badge tone={tone}>{label}</Badge>
-      <div className="mt-3 text-2xl font-semibold text-text-primary">{value}</div>
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className={cn("flex w-full flex-col gap-3 p-4 text-left transition hover:bg-surface-hover", active && "bg-surface-hover")}
+      >
+        <div className="flex items-center justify-between">
+          <span className={cn("flex h-9 w-9 items-center justify-center rounded-full", styles.iconWrap)}>{icon}</span>
+          <ChevronRight className="h-4 w-4 text-text-muted" />
+        </div>
+        <div>
+          <div className="text-xs font-medium text-text-secondary">{label}</div>
+          <div className="mt-1 text-2xl font-semibold text-text-primary">{value}</div>
+        </div>
+        <div className={cn("h-1 w-full rounded-full", styles.bar)} />
+      </button>
     </Card>
   );
 }

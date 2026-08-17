@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Badge, Button, Card, EmptyState, PageSkeleton } from "@/components/ui/primitives";
-import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale } from "@/lib/api/participant-api";
 import { submitStandardizedAssessment, listStandardizedAssessments } from "@/lib/api/standardized-assessment-api";
 import { INSTRUMENTS, responseOptionLabel } from "@/lib/standardized-assessments/instruments";
 import { useT } from "@/lib/i18n/context";
@@ -33,7 +33,7 @@ export function PatientCheckinPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const userId = user?.id ?? "";
-  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUiLocale(userId, locale), enabled: Boolean(userId) });
   const participantId = participantQuery.data?.id ?? "";
   const historyQuery = useQuery({
     queryKey: ["standardized-assessments", participantId],

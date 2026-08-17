@@ -13,7 +13,7 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
-import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale } from "@/lib/api/participant-api";
 import { applyPatientLocaleChange } from "@/lib/api/patient-locale-sync";
 import { fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
@@ -40,7 +40,7 @@ export function PatientShell({
   children: ReactNode;
   actions?: ReactNode;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const reducedMotion = useReducedMotionPreference();
@@ -55,7 +55,7 @@ export function PatientShell({
   // only the website's own UI chrome text.
   const participantQuery = useQuery({
     queryKey: ["runtime-participant", user?.id ?? ""],
-    queryFn: () => getOrCreateParticipantForUser(user!.id),
+    queryFn: () => getOrCreateParticipantForUiLocale(user!.id, locale),
     enabled: Boolean(user?.id),
   });
   const handleLogout = async () => {
@@ -131,7 +131,7 @@ export function PatientShell({
           <div className="flex flex-wrap items-center gap-2">
             {user?.email && <span className="hidden max-w-[160px] truncate text-xs text-text-secondary sm:inline">{user.email}</span>}
             <LocaleToggle onChange={(next) => void handleLocaleChange(next)} />
-            <span data-tour-id="theme-toggle"><ThemeToggle /></span>
+            <span data-tour-id="theme-toggle" className="hidden sm:inline-flex"><ThemeToggle /></span>
             {/* Replays the onboarding tour -- it only ever mounts on the
                 session-list page (see patient-list-page.tsx), so this
                 button (present on every patient page via this shared shell)

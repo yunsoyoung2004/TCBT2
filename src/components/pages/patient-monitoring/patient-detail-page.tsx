@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ClipboardList } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { StreamingText } from "@/components/runtime/streaming-text";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
@@ -15,6 +16,7 @@ import {
   ConfirmActionDialog,
   EmptyState,
   Field,
+  IllustratedEmptyState,
   Modal,
   PageHeader,
   PageSkeleton,
@@ -42,6 +44,7 @@ import {
   type MonitoringStatus,
 } from "@/components/pages/patient-monitoring/patient-monitoring-utils";
 import { HomeworkPanel } from "@/components/pages/patient-monitoring/homework-panel";
+import { ClinicianCheckinModal } from "@/components/pages/patient-monitoring/clinician-checkin-modal";
 import { SessionProgressPanel, sessionSupportsProgressTab } from "@/components/pages/patient-monitoring/session-progress-panel";
 import { WorksheetPane } from "@/components/runtime/worksheet-pane";
 import { hasWorksheetBindings } from "@/lib/worksheet/worksheet-binding-registry";
@@ -103,6 +106,7 @@ export function PatientMonitoringDetailPage() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
+  const [checkinModalOpen, setCheckinModalOpen] = useState(false);
 
   const participantQuery = useQuery({
     queryKey: ["patient-monitoring-participant", participantId],
@@ -498,8 +502,12 @@ export function PatientMonitoringDetailPage() {
 
         {activeTab === "audit" ? (
           <div className="space-y-4">
-          <div className="grid gap-4 xl:grid-cols-[1.25fr_.85fr]">
-            <Card>
+            {/* Fixed second column (420px, not a fraction) so the status
+                panel's width never shifts with the left column's content --
+                see .patient-monitoring-panel in globals.css for the matching
+                height-stability half of this fix. */}
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <Card className="patient-monitoring-panel min-w-0">
               <SectionHeader
                 title={t("patientDetail.tabs.auditLog")}
                 action={
@@ -511,7 +519,17 @@ export function PatientMonitoringDetailPage() {
                   </select>
                 }
               />
-              <div className="max-h-[560px] space-y-3 overflow-auto p-4">
+              {/* max-height (not height) capped to the viewport, same
+                  approach as session-panel.tsx/canvas-panel.tsx's own
+                  calc(100vh-...) panels -- new entries streaming in grow
+                  *this* div's scroll content, never the card itself. The
+                  272px header estimate quietly used elsewhere on this exact
+                  page (see canvas-panel.tsx) doesn't apply here: this page's
+                  own PageHeader + tab strip is taller, hence the larger
+                  subtracted constant -- generous rather than exact, since a
+                  little unused space is far safer than the card overflowing
+                  the viewport. */}
+              <div className="audit-log-scroll max-h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
                 {sessionViewQuery.isLoading ? (
                   <PageSkeleton />
                 ) : filteredTimeline.length === 0 ? (
@@ -552,16 +570,24 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="patient-monitoring-panel min-w-0">
               <SectionHeader title={t("patientDetail.summary.status")} />
-              <div className="space-y-3 p-4">
+              {/* Same calc(100vh-...) cap as the log panel's own scroll area
+                  (not just a visual match -- this is what makes the two
+                  cards line up at the same height instead of each one
+                  auto-sizing to its own content). */}
+              <div className="max-h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
                 <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.currentStep")} value={currentNode?.title ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.status")} value={t(`patientMonitoring.status.${status}`)} />
                 <SummaryRow label={t("patientDetail.summary.progress")} value={String(session?.completedPromptItemIds?.length ?? 0)} />
                 <SummaryRow label={t("patientDetail.summary.startedAt")} value={formatTimestamp(session?.startedAt)} />
                 <SummaryRow label={t("patientDetail.summary.lastActivity")} value={formatTimestamp(session?.updatedAt ?? participant.updatedAt)} />
-                <div className="flex flex-col gap-2 pt-2">
+                {/* All four actions always render (only `disabled` toggles
+                    with status), so this group's height is already constant
+                    -- the explicit min-height is just a guarantee against
+                    that ever changing, per the layout-stability brief. */}
+                <div className="flex min-h-[176px] flex-col gap-2 pt-2">
                   <Button variant="secondary" disabled={!canPause || pauseMutation.isPending} onClick={() => pauseMutation.mutate()}>
                     {t("patientDetail.actions.pause")}
                   </Button>
@@ -578,9 +604,9 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
           </div>
-          <Card className="overflow-hidden">
+          <Card className="min-w-0 overflow-hidden">
             <SectionHeader title={t("patientDetail.audit.executionDetails")} description={t("patientDetail.audit.executionDetailsDescription")} />
-            <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid min-w-0 gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
               <ExecutionLogGroup
                 title={t("patientDetail.audit.runtimeLogs")}
                 empty={t("patientDetail.audit.noRuntimeLogs")}
@@ -603,9 +629,9 @@ export function PatientMonitoringDetailPage() {
               />
             </div>
           </Card>
-          </div>
+            </div>
         ) : activeTab === "worksheet" ? (
-          <div>
+          <div className="min-w-0">
             {session && hasWorksheetBindings(session.sessionDefinitionId) ? (
               <WorksheetPane
                 runtimeSessionId={effectiveSessionId}
@@ -622,7 +648,7 @@ export function PatientMonitoringDetailPage() {
             )}
           </div>
         ) : activeTab === "progress" ? (
-          <div>
+          <div className="min-w-0">
             {session ? (
               <SessionProgressPanel runtimeSessionId={effectiveSessionId} sessionDefinitionId={session.sessionDefinitionId} />
             ) : (
@@ -632,17 +658,19 @@ export function PatientMonitoringDetailPage() {
             )}
           </div>
         ) : activeTab === "messages" ? (
-          <Card>
+          <Card className="min-w-0">
             <SectionHeader title={t("patientDetail.tabs.messages")} />
             <div className="p-4">
               <ClinicianMessageThread participantId={participantId} />
             </div>
           </Card>
         ) : activeTab === "appointments" ? (
-          <AppointmentPanel participantId={participantId} />
+          <div className="min-w-0">
+            <AppointmentPanel participantId={participantId} />
+          </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[1fr_.85fr]">
-            <Card>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,.85fr)]">
+            <Card className="min-w-0">
               <SectionHeader title={t("patientDetail.tabs.profile")} />
               <div className="space-y-3 p-4">
                 <SummaryRow label={t("patientDetail.profile.participantId")} value={participant.id} />
@@ -717,11 +745,18 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <HomeworkPanel participantId={participantId} />
 
-              <Card>
-                <SectionHeader title={t("patientDetail.assessments.title")} />
+              <Card className="min-w-0">
+                <SectionHeader
+                  title={t("patientDetail.assessments.title")}
+                  action={
+                    assessmentsQuery.data && assessmentsQuery.data.length > 0 ? (
+                      <Button size="sm" onClick={() => setCheckinModalOpen(true)}>{t("patientDetail.assessments.addCheckin")}</Button>
+                    ) : undefined
+                  }
+                />
                 <div className="space-y-2 p-4">
                   {assessmentsQuery.data && assessmentsQuery.data.length > 0 ? (
                     assessmentsQuery.data.slice(0, 6).map((response) => (
@@ -735,12 +770,17 @@ export function PatientMonitoringDetailPage() {
                       </div>
                     ))
                   ) : (
-                    <EmptyState title={t("patientDetail.assessments.noneYet")} />
+                    <IllustratedEmptyState
+                      icon={<ClipboardList className="h-8 w-8" />}
+                      title={t("patientDetail.assessments.noneYet")}
+                      description={t("patientDetail.assessments.emptyDescription")}
+                      action={<Button size="sm" onClick={() => setCheckinModalOpen(true)}>{t("patientDetail.assessments.addCheckin")}</Button>}
+                    />
                   )}
                 </div>
               </Card>
 
-              <Card>
+              <Card className="min-w-0">
                 <SectionHeader
                   title={t("patientDetail.profile.notesHeading")}
                   action={
@@ -806,6 +846,15 @@ export function PatientMonitoringDetailPage() {
         description={noteToDelete?.content ?? ""}
         confirmLabel={t("patientDetail.note.delete")}
         confirmDisabled={deleteNoteMutation.isPending}
+      />
+
+      <ClinicianCheckinModal
+        open={checkinModalOpen}
+        onClose={() => setCheckinModalOpen(false)}
+        participantId={participantId}
+        participantAlias={participant.alias}
+        assignedClinicianUserId={participant.assignedClinician}
+        participantLocale={participant.locale}
       />
     </AppShell>
   );

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card } from "@/components/ui/primitives";
 import { createCanonicalTestRuntimeSession, listCanonicalTestSessions } from "@/lib/api/runtime-session-api";
-import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
+import { getOrCreateParticipantForUiLocale } from "@/lib/api/participant-api";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 // session can start). This page only lets the patient pick which of the
 // program's fixed session numbers (S01-S08) to begin or resume next.
 export function PatientNewSessionPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id ?? "";
@@ -26,7 +26,7 @@ export function PatientNewSessionPage() {
   // which shows that same participant.locale next to the patient's name),
   // so changing it there had no visible effect on anything actually started
   // afterward. New sessions now inherit the participant's current locale.
-  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUser(userId), enabled: Boolean(userId) });
+  const participantQuery = useQuery({ queryKey: ["runtime-participant", userId], queryFn: () => getOrCreateParticipantForUiLocale(userId, locale), enabled: Boolean(userId) });
   const sessions = sessionsQuery.data ?? [];
   const [startingSessionId, setStartingSessionId] = useState<string | null>(null);
 

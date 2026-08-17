@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button, EmptyState, textareaClass } from "@/components/ui/primitives";
+import { MessageSquare, Paperclip, Send } from "lucide-react";
+import { Button, IllustratedEmptyState, textareaClass } from "@/components/ui/primitives";
 import { sendMessage, listMessages } from "@/lib/api/clinician-message-api";
 import { useRealtimeInvalidate } from "@/lib/supabase/use-realtime-invalidate";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -48,27 +49,36 @@ export function ClinicianMessageThread({ participantId }: { participantId: strin
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-panel border border-border bg-surface-subtle p-3">
-        {messages.length === 0 ? (
-          <EmptyState title={t("messages.empty")} />
-        ) : (
-          messages.map((message) => {
+      {messages.length === 0 ? (
+        <IllustratedEmptyState icon={<MessageSquare className="h-8 w-8" />} title={t("messages.empty")} description={t("messages.emptyDescription")} />
+      ) : (
+        <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-panel border border-border bg-surface-subtle p-3">
+          {messages.map((message) => {
             const mine = message.senderUserId === user?.id;
             return (
               <div key={message.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
                 <div className={cn("max-w-[80%] rounded-panel px-3 py-2 text-sm", mine ? "bg-clinical-blue text-white" : "border border-border bg-surface text-text-primary")}>
-                  <div className="whitespace-pre-wrap">{message.body}</div>
+                  <div className="whitespace-pre-wrap break-words">{message.body}</div>
                   <div className={cn("mt-1 text-[10px]", mine ? "text-white/70" : "text-text-muted")}>{formatTimestamp(message.createdAt)}</div>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
-      <div className="flex gap-2">
+          })}
+        </div>
+      )}
+      <div className="flex items-end gap-2">
+        <button
+          type="button"
+          disabled
+          title={t("messages.attach")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Paperclip className="h-4 w-4" />
+        </button>
         <textarea
-          className={cn(textareaClass, "min-h-[60px] flex-1")}
+          className={cn(textareaClass, "min-h-[44px] flex-1 resize-none rounded-full py-2.5")}
           placeholder={t("messages.placeholder")}
+          rows={1}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -78,7 +88,8 @@ export function ClinicianMessageThread({ participantId }: { participantId: strin
             }
           }}
         />
-        <Button loading={sendMutation.isPending} disabled={!draft.trim()} onClick={() => sendMutation.mutate(draft.trim())}>
+        <Button className="shrink-0" loading={sendMutation.isPending} disabled={!draft.trim()} onClick={() => sendMutation.mutate(draft.trim())}>
+          <Send className="h-4 w-4" />
           {t("messages.send")}
         </Button>
       </div>
