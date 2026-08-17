@@ -15,9 +15,11 @@ import { fadeScale, fadeUp } from "@/lib/motion/motion-variants";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
+import { computeSessionProgressPercent } from "@/lib/runtime/session-progress-estimate";
 import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
+import { useT } from "@/lib/i18n/context";
 
 function makeClientTurnId() {
   if (typeof globalThis.crypto?.randomUUID === "function") return `TURN-${globalThis.crypto.randomUUID()}`;
@@ -25,6 +27,7 @@ function makeClientTurnId() {
 }
 
 export function PatientSessionPage() {
+  const { locale: uiLocale } = useT();
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -33,15 +36,33 @@ export function PatientSessionPage() {
   const sessionQuery = useQuery({ queryKey: ["patient-runtime-session", sessionId], queryFn: () => getPatientRuntimeSession(sessionId), enabled: Boolean(sessionId) });
   const submittingTurnRef = useRef(false);
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
+  // Populated from the same getRuntimeSession call refresh() already makes
+  // for the audit snapshot below -- no extra fetch needed, just no longer
+  // discarding the result. See session-progress-estimate.ts for why this
+  // is an estimate, capped short of 100% until the session actually
+  // completes.
+  const [progressPercent, setProgressPercent] = useState<number | undefined>(undefined);
   const lastAutoReadMessageIdRef = useRef<string | null>(null);
   // Messages already present the first time the session loads are shown in full;
   // only messages that arrive afterwards stream in, so history never replays.
   const historicalMessageIdsRef = useRef<Set<string> | null>(null);
+  // One server turn can deliver several new Program messages at once (e.g.
+  // a few auto-advanced steps chained before the next one that actually
+  // needs a patient answer) -- without this, every one of those bubbles
+  // used to mount and start streaming simultaneously the instant they
+  // arrived, reading as several replies dumping out in a row instead of a
+  // conversation. Tracks which new (post-mount) assistant messages have
+  // finished their own reveal; only that many, plus the one currently
+  // streaming, are ever rendered -- see displayMessages below.
+  const [revealedNewMessageIds, setRevealedNewMessageIds] = useState<Set<string>>(new Set());
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] });
-    await queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] });
-    await queryClient.invalidateQueries({ queryKey: ["safety-events"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["patient-runtime-session", sessionId] }),
+      queryClient.invalidateQueries({ queryKey: ["runtime-sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["safety-events"] }),
+      queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] }),
+    ]);
     // WorksheetPane (see worksheet-pane.tsx) polls on its own 4s timer,
     // independent of the chat turn that actually fills its fields -- with
     // nothing here, a long conversation could sit up to 4s (or, before the
@@ -49,12 +70,21 @@ export function PatientSessionPage() {
     // patient just answered. Invalidating its exact query key right after
     // every turn makes it refetch immediately instead of waiting on its own
     // poll.
-    await queryClient.invalidateQueries({ queryKey: ["worksheet-view", sessionId] });
-    const auditView = await getRuntimeSession(sessionId);
-    if (auditView) {
+    void getRuntimeSession(sessionId).then(async (auditView) => {
+      if (!auditView) return;
+      setProgressPercent(
+        computeSessionProgressPercent({
+          sessionDefinitionId: auditView.session.sessionDefinitionId,
+          nodes: auditView.nodes,
+          promptItems: auditView.promptItems,
+          completedPromptItemIds: auditView.session.completedPromptItemIds ?? [],
+          skippedPromptItemIds: auditView.session.skippedPromptItemIds ?? [],
+          sessionStatus: auditView.session.status,
+        }),
+      );
       try { await saveRemoteSessionAuditSnapshot(auditView); }
       catch { toast.warning("The session continued, but its remote audit copy could not be saved."); }
-    }
+    }).catch(() => {});
   };
 
   const startMutation = useMutation({ mutationFn: () => startRuntimeSession(sessionId), onSuccess: async () => { toast.success("Session started"); await refresh(); } });
@@ -74,7 +104,7 @@ export function PatientSessionPage() {
     },
   });
   const inputMutation = useMutation({
-    mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion }),
+    mutationFn: ({ currentSessionId, patientInput, clientTurnId, expectedSessionVersion }: { currentSessionId: string; patientInput: PatientInput; clientTurnId: string; expectedSessionVersion: number }) => submitPatientInput(currentSessionId, patientInput, { clientTurnId, expectedSessionVersion, locale: uiLocale === "ko" ? "ko-KR" : "en-US" }),
     onSuccess: async (result) => {
       if (result.stateExtraction?.missingFields.length) {
         toast.info("Please share a little more so we can stay with this question.");
@@ -133,10 +163,47 @@ export function PatientSessionPage() {
 
   const messages = sessionData?.messages ?? [];
   const activeSession = sessionData?.session;
+  const isKoreanSession = uiLocale === "ko";
+  // A freshly-created session sits in "created" status until something
+  // calls startRuntimeSession -- patient-new-session-page.tsx used to
+  // await that itself (the first AI turn's full generation, sometimes
+  // chained through several auto-delivered nodes before the first one
+  // that actually needs a patient answer) before ever navigating here,
+  // so the "새 세션" button just sat there spinning with no feedback for
+  // however long that took. It now navigates immediately once the
+  // session row exists; this effect picks up the actual start from here
+  // instead, where the existing "처리 중" (processing) state below already
+  // gives the patient something to look at while it runs. autoStartedRef
+  // guards against re-firing on every refetch/re-render -- if the mutation
+  // itself fails, the still-present manual "Start" button (further down)
+  // is the fallback, not an automatic retry loop.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (activeSession?.status === "created" && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startMutation.mutate();
+    }
+  }, [activeSession?.status, startMutation]);
   const tts = useBrowserTts(activeSession?.locale ?? "en-US");
   const { supported: ttsSupported, speak, stop } = tts;
   const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
   const latestAssistantMessage = [...patientVisibleMessages].reverse().find((message) => message.role === "assistant");
+
+  // Walks patientVisibleMessages in order, including every historical
+  // message and every new patient/system message immediately (nothing to
+  // gate -- there's no streaming reveal for those), but stopping right
+  // after the first new assistant message that hasn't finished revealing
+  // yet -- so a batch of several new Program messages still appears one at
+  // a time, in order, each one only mounting once the last one is done.
+  const displayMessages = useMemo(() => {
+    const result: typeof patientVisibleMessages = [];
+    for (const message of patientVisibleMessages) {
+      const isHistorical = historicalMessageIdsRef.current?.has(message.id) ?? true;
+      result.push(message);
+      if (!isHistorical && message.role === "assistant" && !revealedNewMessageIds.has(message.id)) break;
+    }
+    return result;
+  }, [patientVisibleMessages, revealedNewMessageIds]);
 
   useEffect(() => {
     if (historicalMessageIdsRef.current === null && messages.length) {
@@ -151,11 +218,11 @@ export function PatientSessionPage() {
     speak(latestAssistantMessage.id, latestAssistantMessage.content);
   }, [latestAssistantMessage, speak, ttsSupported]);
 
-  if (sessionQuery.isLoading) return <PatientShell title="Session"><PageSkeleton /></PatientShell>;
+  if (sessionQuery.isLoading) return <PatientShell title="세션"><PageSkeleton /></PatientShell>;
   if (!sessionQuery.data || !activeSession) {
     return (
-      <PatientShell title="Session">
-        <Card><EmptyState title="Session not found" description="Return to the session list and start a new runtime session." /></Card>
+      <PatientShell title="세션">
+        <Card><EmptyState title="세션을 찾을 수 없습니다" description="세션 목록으로 돌아가 새 세션을 시작해 주세요." /></Card>
       </PatientShell>
     );
   }
@@ -174,12 +241,13 @@ export function PatientSessionPage() {
 
   return (
     <PatientShell
-      title={activeSession.patientAlias}
-      sessionLabel={activeSession.sessionDefinitionId}
-      progressLabel={activeSession.status}
-      saveState={`Saved ${new Date(activeSession.updatedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
+      title={isKoreanSession && activeSession.patientAlias === "Test Patient" ? "참여자" : activeSession.patientAlias}
+      sessionLabel={isKoreanSession ? `${Number(activeSession.sessionDefinitionId.match(/s(\d+)/i)?.[1] ?? 0)}회기` : activeSession.sessionDefinitionId}
+      progressLabel={isKoreanSession ? ({ waiting_for_input: "응답 대기", processing: "처리 중", preparing: "준비 중", active: "진행 중", paused: "일시 중지", completed: "완료", created: "생성됨", terminated: "종료됨", safety_paused: "안전 확인 중", escalated: "검토 요청됨", failed: "오류" }[activeSession.status] ?? activeSession.status) : activeSession.status}
+      progressPercent={progressPercent}
+      saveState={`${isKoreanSession ? "저장됨" : "Saved"} ${new Date(activeSession.updatedAt).toLocaleString(isKoreanSession ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} KST`}
       actions={
-        <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>Completion</Button>
+        <Button variant="secondary" onClick={() => router.push(`/projects/demo/patient/sessions/${activeSession.id}/complete`)} disabled={activeSession.status !== "completed"}>{isKoreanSession ? "완료 내역" : "Completion"}</Button>
       }
     >
       <div className={hasWorksheetBindings(activeSession.sessionDefinitionId) ? "mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1.1fr_1fr]" : "mx-auto max-w-3xl"}>
@@ -187,19 +255,19 @@ export function PatientSessionPage() {
           <div className="border-b border-border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold text-text-primary">Session</div>
-                <div className="mt-1 text-xs text-text-secondary">The patient view shows only the current session state and approved patient-facing safety guidance.</div>
+                <div className="text-sm font-semibold text-text-primary">{isKoreanSession ? "세션" : "Session"}</div>
+                <div className="mt-1 text-xs text-text-secondary">{isKoreanSession ? "현재 세션 상태와 참여자에게 승인된 안내만 표시됩니다." : "The patient view shows only the current session state and approved patient-facing safety guidance."}</div>
               </div>
               <div className="flex gap-2">
                 {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>Start</Button>}
                 {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>Resume</Button>}
-                <Button variant="danger" onClick={() => terminateMutation.mutate()}>End</Button>
+                <Button variant="danger" onClick={() => terminateMutation.mutate()}>{isKoreanSession ? "종료" : "End"}</Button>
               </div>
             </div>
           </div>
           <div className="space-y-3 p-4">
             <AnimatePresence initial={false}>
-              {patientVisibleMessages.map((message) => {
+              {displayMessages.map((message) => {
                 const isNewAssistantTurn = message.role === "assistant" && historicalMessageIdsRef.current !== null && !historicalMessageIdsRef.current.has(message.id);
                 return (
                   <motion.div
@@ -211,11 +279,13 @@ export function PatientSessionPage() {
                     layout={reducedMotion ? undefined : true}
                     className={`max-w-[85%] rounded-panel border px-4 py-3 text-sm ${message.role === "patient" ? "ml-auto border-clinical-blue-light bg-clinical-blue-light/60" : message.role === "system" ? "border-warning-light bg-warning-light/60" : "border-border bg-surface-subtle"}`}
                   >
-                    <div className="mb-1 text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? "Program" : message.role === "patient" ? "You" : message.role}</div>
+                    <div className="mb-1 text-[11px] font-semibold text-text-muted">{message.role === "assistant" ? (isKoreanSession ? "프로그램" : "Program") : message.role === "patient" ? (isKoreanSession ? "나" : "You") : message.role}</div>
                     <StreamingText
                       streamKey={message.id}
                       text={message.content}
-                      active={!reducedMotion && isNewAssistantTurn}
+                      active={isNewAssistantTurn}
+                      speedMs={8}
+                      onDone={() => { if (isNewAssistantTurn) setRevealedNewMessageIds((prev) => (prev.has(message.id) ? prev : new Set(prev).add(message.id))); }}
                       className="whitespace-pre-wrap break-words text-text-primary"
                     />
                   </motion.div>
@@ -230,7 +300,7 @@ export function PatientSessionPage() {
                   exit={reducedMotion ? undefined : "exit"}
                   className="max-w-[85%] rounded-panel border border-border bg-surface-subtle px-4 py-3 text-sm"
                 >
-                  <div className="mb-1 text-[11px] font-semibold text-text-muted">Program</div>
+                  <div className="mb-1 text-[11px] font-semibold text-text-muted">{isKoreanSession ? "프로그램" : "Program"}</div>
                   <TypingIndicator />
                 </motion.div>
               )}
@@ -263,7 +333,7 @@ export function PatientSessionPage() {
               />
             ) : activeSession.status === "processing" || isSubmittingTurn ? (
               <motion.div variants={reducedMotion ? undefined : fadeScale} initial={reducedMotion ? false : "initial"} animate={reducedMotion ? undefined : "animate"} className="text-sm text-text-secondary">
-                We are reviewing your response and preparing the next step.
+                {isKoreanSession ? "응답을 확인하고 다음 단계를 준비하고 있습니다." : "We are reviewing your response and preparing the next step."}
               </motion.div>
             ) : activeSession.status === "paused" ? (
               <div className="text-sm text-text-secondary">This session is paused. Use Resume when you are ready to continue.</div>

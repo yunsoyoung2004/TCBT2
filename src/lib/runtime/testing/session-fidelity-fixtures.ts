@@ -223,6 +223,17 @@ export function syntheticPatientInput(prompt: PromptItem): PatientInput {
     choiceFormatCounter += 1;
     return choiceFormatCounter % 2 === 0 ? { kind: "boolean", value: true } : { kind: "text", value: "yes" };
   }
+  // Phase 1 (runtime orchestration simplification): private_placeholder_labels
+  // is now a closed-form kind like boolean/enum above -- it requires an
+  // explicit decline or a nameable letter, so a generic free-text reply
+  // (this prompt's outputField-derived nextReply() fallback below) no longer
+  // parses and the audit would see a clarification turn instead of the
+  // normal path. Alternates decline/accept like the boolean/enum branches
+  // above, exercising both real paths.
+  if (validation.kind === "private_placeholder_labels") {
+    choiceFormatCounter += 1;
+    return choiceFormatCounter % 2 === 0 ? { kind: "text", value: "no" } : { kind: "text", value: "X" };
+  }
   if (validation.kind === "enum" && validation.values?.length) {
     const canonical = PROMPT_ANSWER_OVERRIDES[prompt.id] ?? String(validation.values[0]);
     choiceFormatCounter += 1;

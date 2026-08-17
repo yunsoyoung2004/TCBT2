@@ -85,6 +85,17 @@ export const dialogueContractSchema = z.object({
   // combined with isFirstPromptOfNode, tells Claude to explicitly name the
   // role/perspective switch instead of a generic "next part" framing.
   isRoleTransitionPrompt: z.boolean(),
+  // Clinician-authored guidance for THIS specific prompt (PromptItem.modelGuidance,
+  // via RuntimePromptItem.modelGuidance -- the same field the Protocol Editor's
+  // "Clinician guide" field, and the manual-reflection page's matching field,
+  // already let a clinician edit). Additional phrasing instruction for how to
+  // handle this one turn, layered on top of -- never replacing -- the fixed
+  // safety/behavior rules in anthropic-dialogue-agent.ts's systemPrompt.
+  clinicianGuidance: z.string().optional(),
+  // Clinician-authored, session-wide tone/role framing (SessionCommonRules.
+  // roleAndStance, e.g. "speak warmly, use short sentences, avoid clinical
+  // jargon"). Same additive-only guarantee as clinicianGuidance above.
+  sessionToneGuidance: z.string().optional(),
 });
 export type DialogueContract = z.infer<typeof dialogueContractSchema>;
 

@@ -46,6 +46,6 @@ export async function getAuthenticatedCaller() {
   return {
     userId: data.user.id,
     email: data.user.email ?? null,
-    role: role === "clinician" || role === "patient" ? role : null,
+    role: role === "clinician" || role === "patient" || role === "admin" ? role : null,
   };
 }

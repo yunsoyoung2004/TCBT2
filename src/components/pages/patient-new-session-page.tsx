@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { PatientShell } from "@/components/runtime/patient-shell";
 import { Button, Card } from "@/components/ui/primitives";
 import { createCanonicalTestRuntimeSession, listCanonicalTestSessions } from "@/lib/api/runtime-session-api";
-import { startRuntimeSession } from "@/lib/api/runtime-execution-api";
 import { getOrCreateParticipantForUser } from "@/lib/api/participant-api";
 import { useT } from "@/lib/i18n/context";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -34,8 +33,17 @@ export function PatientNewSessionPage() {
   const handleStartSession = async (sessionDefinitionId: string) => {
     setStartingSessionId(sessionDefinitionId);
     try {
-      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale, participantId: participantQuery.data?.id });
-      await startRuntimeSession(session.id);
+      // Used to also await startRuntimeSession(session.id) here -- the
+      // first AI turn's full generation, sometimes chained through
+      // several auto-delivered nodes before the first one that actually
+      // needs a patient answer -- before ever navigating away. That left
+      // this button spinning with no real feedback for however long that
+      // took. Navigating as soon as the session row itself exists (fast,
+      // no LLM involved) and letting patient-session-page.tsx trigger the
+      // actual start once it lands there instead means the patient sees
+      // the session's own "처리 중" (processing) state immediately, rather
+      // than a spinner glued to a button that hasn't gone anywhere yet.
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, locale: participantQuery.data?.locale, participantId: participantQuery.data?.id, patientAlias: participantQuery.data?.alias });
       router.push(`/projects/demo/patient/sessions/${session.id}`);
     } catch (error) {
       console.error("Session start failed:", error);

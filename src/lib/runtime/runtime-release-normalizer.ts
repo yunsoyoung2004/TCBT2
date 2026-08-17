@@ -371,9 +371,39 @@ const PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS = new Set([
  * patient answer, even if their prompt happens to declare outputFields. */
 const IMMEDIATE_COMPLETION_EFFECTS = new Set(["pause_session", "complete_session"]);
 
+// Exact-ID exceptions to the type-based rules below, for a prompt whose
+// TYPE would normally force requiresPatientInput=true (or the generic
+// outputFields.length > 0 fallback would) but is actually a passive
+// acknowledgment of something the PREVIOUS turn already recorded, not a new
+// question. tbct-s02-n11-p02-recorded-summary was the original case
+// (calculated_*_totals kinds cover it via validationKind instead, but the
+// same reasoning applies); tbct-s02-n02-p06-problem-confirmation is the
+// same defect for type "confirmation": "Got it -- I'll add that to your
+// list." has no question in it, but "confirmation" is unconditionally
+// forced true below regardless of outputFields (unlike the passive types),
+// so a real S02 run had the participant's "네" rejected as filler and
+// re-asked with the generic "give a short concrete example" clarification.
+// Scoped by exact id, not by loosening the type rule for every
+// "confirmation"-typed prompt session-wide -- several other confirmations
+// (S03's redirection-contract, confirm-working-thought) ARE real yes/no
+// questions that must keep waiting for an answer.
+// tbct-s02-n03-p02-acknowledge-private-placeholder is the identical defect:
+// "Thank you for letting me know it's there..." has no question either, and
+// blocked the task's own required final-verification scenario (add one X
+// placeholder, then answer the rating-card question) at this exact step.
+// tbct-s02-n07-p07-goal-confirmation ("That's a wonderful goal -- I'll add
+// that.") is the same pattern on the goals side, checked and fixed
+// alongside problem-confirmation per an explicit follow-up request.
+const PASSIVE_ACKNOWLEDGMENT_PROMPT_IDS = new Set([
+  "tbct-s02-n11-p02-recorded-summary",
+  "tbct-s02-n02-p06-problem-confirmation",
+  "tbct-s02-n03-p02-acknowledge-private-placeholder",
+  "tbct-s02-n07-p07-goal-confirmation",
+]);
+
 export function promptRequiresPatientInput(promptItem: PromptItem) {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
-  if (["calculated_problem_totals", "calculated_goal_totals"].includes(validationKind) || promptItem.id === "tbct-s02-n11-p02-recorded-summary") return false;
+  if (["calculated_problem_totals", "calculated_goal_totals"].includes(validationKind) || PASSIVE_ACKNOWLEDGMENT_PROMPT_IDS.has(promptItem.id)) return false;
   if (["question", "clarification", "follow_up", "confirmation", "reflection", "rating"].includes(promptItem.type)) return true;
   if (PASSIVE_PROMPT_TYPES.has(promptItem.type)) {
     const completionEffectType = (promptItem as { completionEffect?: { type?: unknown } | null }).completionEffect?.type;
@@ -517,6 +547,7 @@ function normalizePolicies(snapshot: SourceFidelityReleaseSnapshot): PolicyBundl
         ...(rules.sessionWideRequiredActions ?? []),
         ...(rules.sessionWideRestrictions ?? []),
       ],
+      toneGuidance: rules.roleAndStance?.trim() || undefined,
     },
   ]));
   return {

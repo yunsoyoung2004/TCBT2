@@ -258,6 +258,11 @@ export function compileDialogueContract(input: {
    * correct there since a clarification's grounding is still "the original
    * question," not the clarification wording itself. */
   currentTaskTextOverride?: string;
+  /** From release.policies.sessionPolicies[session.sessionDefinitionId]?.toneGuidance
+   * (see runtime-orchestrator.ts's call site) -- omitted entirely when a
+   * session has no tone guidance configured, same as every other optional
+   * contract field here. */
+  sessionToneGuidance?: string;
 }): DialogueContract {
   const { session, node, sourcePromptItem, runtimePromptItem } = input;
   const targetField = sourcePromptItem.outputFields[0];
@@ -333,6 +338,20 @@ export function compileDialogueContract(input: {
     isFirstPromptOfSession: input.isFirstPromptOfSession,
     isFirstPromptOfNode: input.isFirstPromptOfNode,
     isRoleTransitionPrompt: sourcePromptItem.type === "role_transition",
+    // Deliberately sourcePromptItem.modelGuidance (the raw, optional source
+    // field -- undefined for anything no clinician has ever edited), NOT
+    // runtimePromptItem.modelGuidance (which the release compiler already
+    // defaults to the manual's own quoted text -- see
+    // runtime-release-normalizer.ts -- whenever a clinician hasn't set one).
+    // Reading the runtime-defaulted value here meant this line was, for
+    // every still-unedited prompt (the overwhelming majority right now),
+    // restating the same manual text already sent above as currentTaskText
+    // -- a second, redundant "instruction" pointing at identical content,
+    // which nudged Claude toward longer, more elaborate replies trying to
+    // honor both. Only ever surface real guidance once a clinician has
+    // actually written one.
+    clinicianGuidance: sourcePromptItem.modelGuidance?.trim() || undefined,
+    sessionToneGuidance: input.sessionToneGuidance?.trim() || undefined,
   };
 
   return dialogueContractSchema.parse(contract);

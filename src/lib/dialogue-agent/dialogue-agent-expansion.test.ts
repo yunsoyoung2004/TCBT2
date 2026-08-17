@@ -58,9 +58,14 @@ function minimalRuntimePromptItem(overrides: Partial<RuntimePromptItem> = {}): R
 }
 
 describe("dialogue contract compiler: generic classification (S01/S02 fields)", () => {
-  it("marks a real content field (candidateOneThought) as participant-owned and assistantMustNotSupply", () => {
-    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
-    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;
+  it("marks a real content field (candidateOneEmotion) as participant-owned and assistantMustNotSupply", () => {
+    // S01's Neutral Example was simplified so the automatic thought is
+    // stated by the counselor (recorded deterministically via
+    // completionEffect) rather than elicited from the participant -- see
+    // .claude/TASK_SCOPE.json's note2026_08_17 entry. candidateOneEmotion is
+    // now the first genuinely participant-owned field in this node.
+    const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Person"))!;
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-emotion"))!;
     expect(node).toBeDefined();
     expect(promptItem).toBeDefined();
 
@@ -75,20 +80,23 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
       isFirstPromptOfSession: false,
     });
 
-    expect(contract.targetField).toBe("candidateOneThought");
+    expect(contract.targetField).toBe("candidateOneEmotion");
     expect(contract.participantOwned).toBe(true);
     expect(contract.assistantMustNotSupply).toBe(true);
     // S01 now has a reviewed worksheet-binding registry entry (tbct-s01.ts).
     expect(contract.worksheetEditAvailable).toBe(true);
-    // Pattern-based terminology should recognize "Thought" in the field name
-    // even though this exact field name never appears in S03's map.
-    expect(contract.expectedConstruct).toContain("thought");
+    // Pattern-based terminology should recognize "Emotion" in the field name.
+    expect(contract.expectedConstruct).toContain("feeling");
   });
 
-  it("marks an administrative gate field (distortionListAvailable) as not participant-owned", () => {
+  it("marks an administrative gate field (distortionsIntroductionAcknowledged) as not participant-owned", () => {
+    // S01's cognitive-distortions node no longer gates on a physical list
+    // (distortionListAvailable/confirm-list removed -- see
+    // .claude/TASK_SCOPE.json's note2026_08_17d entry); its remaining
+    // administrative field is the intro-distortions delivery marker.
     const node = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("Cognitive Distortions"))!;
-    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("confirm-list"))!;
-    expect(promptItem.outputFields).toContain("distortionListAvailable");
+    const promptItem = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("intro-distortions"))!;
+    expect(promptItem.outputFields).toContain("distortionsIntroductionAcknowledged");
 
     const contract = compileDialogueContract({
       session: minimalSession(),
@@ -103,7 +111,6 @@ describe("dialogue contract compiler: generic classification (S01/S02 fields)", 
 
     expect(contract.participantOwned).toBe(false);
     expect(contract.assistantMustNotSupply).toBe(false);
-    expect(contract.expectedInputType).toBe("yes_no");
   });
 
   it("derives a 0-5 scale from a S02 rating validation kind (max 5), not the S03 percentage scale -- and not the binding's aggregate text_list storage shape either", () => {
@@ -288,8 +295,8 @@ describe("transition framing signals (isFirstPromptOfSession / isFirstPromptOfNo
     expect(roleTransitionContract.isRoleTransitionPrompt).toBe(true);
 
     // An ordinary S01 prompt (not a role transition) must not be flagged.
-    const ordinaryNode = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Candidate Full Cycle"))!;
-    const ordinaryPrompt = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-thought"))!;
+    const ordinaryNode = CANONICAL_STAGE_NODES.find((item) => item.sessionId === "tbct-s01" && item.title.includes("First Person"))!;
+    const ordinaryPrompt = CANONICAL_PROMPT_ITEMS.find((item) => item.id.includes("candidate-one-emotion"))!;
     const ordinaryContract = compileDialogueContract({
       session: minimalSession(),
       node: ordinaryNode,

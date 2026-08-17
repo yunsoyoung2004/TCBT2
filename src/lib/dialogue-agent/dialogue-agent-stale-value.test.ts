@@ -25,11 +25,19 @@ describe("case 8: worksheet edit is reflected in the next dialogue contract", ()
     await startRuntimeSession(session.id);
 
     // Walk through the safety pre-check and intro-node turns (S03 opens with
-    // both before Q1) until the situation prompt is actually active, then
-    // answer it with the original text.
+    // both before Q1, plus the redirection-contract confirmation -- §6.3)
+    // until the situation prompt is actually active, then answer it with the
+    // original text. The pre-situation turns aren't all the same shape: the
+    // redirection-contract prompt needs a real boolean answer, or it keeps
+    // re-asking itself instead of advancing.
     let view = await getRuntimeSession(session.id);
-    for (let guard = 0; guard < 5 && !view!.currentPromptItem?.outputFields.includes("situation"); guard += 1) {
-      await submitPatientInput(session.id, { kind: "text", value: "No, nothing urgent. Please continue." }, { clientTurnId: `t-pre-${guard}`, expectedSessionVersion: view!.session.version ?? 0 });
+    for (let guard = 0; guard < 6 && !view!.currentPromptItem?.outputFields.includes("situation"); guard += 1) {
+      const isBooleanPrompt = (view!.currentPromptItem as { validation?: { kind?: string } } | undefined)?.validation?.kind === "boolean";
+      // parseBooleanInput (runtime-deterministic-input.ts) only matches an
+      // exact "yes"/"no" (plus a short fixed-word allowlist), not a full
+      // sentence -- a bare "Yes" is required here.
+      const patientInput = isBooleanPrompt ? { kind: "boolean" as const, value: true } : { kind: "text" as const, value: "No, nothing urgent. Please continue." };
+      await submitPatientInput(session.id, patientInput, { clientTurnId: `t-pre-${guard}`, expectedSessionVersion: view!.session.version ?? 0 });
       view = await getRuntimeSession(session.id);
     }
     expect(view?.currentPromptItem?.outputFields).toContain("situation");

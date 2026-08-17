@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   Boxes,
   CheckCircle2,
   ChevronLeft,
   ClipboardCheck,
   FileStack,
-  FlaskConical,
   Globe,
   HelpCircle,
   Menu,
@@ -22,15 +22,23 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { Button, Modal, inputClass } from "@/components/ui/primitives";
+import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
+import { fadeUp } from "@/lib/motion/motion-variants";
+import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
+import { CLINICIAN_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
+import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
 import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio-store";
 
-type Audience = "clinician" | "internal";
+type Audience = "clinician" | "internal" | "admin";
 
 interface NavItem {
   labelKey: string;
@@ -40,9 +48,21 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // Clinician-facing primary navigation — keep to exactly these two.
+  // Clinician-facing primary navigation.
   { labelKey: "nav.protocolEditor", href: "/projects/demo/protocols/tbct-br-001/canvas", icon: Boxes, audience: "clinician" },
+  { labelKey: "nav.manualReflection", href: "/projects/demo/protocols/tbct-br-001/manual-reflection", icon: BookOpen, audience: "clinician" },
   { labelKey: "nav.patientMonitoring", href: "/patients", icon: Users, audience: "clinician" },
+  // Admin-only -- filtered by the real logged-in user's auth role
+  // (see visibleNavItems below), independent of the legacy
+  // isClinicianAudience/showFullNav toggle above, which is about the old
+  // demo-actor picker, not real Supabase Auth roles.
+  { labelKey: "nav.adminUsers", href: "/admin/users", icon: ShieldCheck, audience: "admin" },
+  { labelKey: "nav.adminDeletionRequests", href: "/admin/deletion-requests", icon: ClipboardCheck, audience: "admin" },
+  // Reuses the existing /audit page as-is (Protocol Studio content-change
+  // history) -- just makes it discoverable for admin specifically, on top
+  // of the direct-URL access clinicians already have via its default
+  // "clinician" audience below.
+  { labelKey: "nav.auditLog", href: "/audit", icon: ClipboardCheck, audience: "admin" },
   // Internal/engineering routes: still implemented and reachable by direct URL,
   // just hidden from the standard clinician sidebar and command palette.
   // The old "Overview" dashboard was removed entirely (studio-app.tsx now
@@ -70,6 +90,16 @@ function isActive(pathname: string, href: string) {
   return pathname.startsWith(href);
 }
 
+// data-tour-id anchors for CLINICIAN_TOUR_STEPS (tour-steps.ts) -- only the
+// two primary nav items are part of the tour, everything else gets no
+// attribute (querySelector on it just never matches).
+function tourIdForNavItem(item: NavItem): string | undefined {
+  if (item.href.includes("/canvas")) return "nav-protocol-editor";
+  if (item.href.includes("/manual-reflection")) return "nav-manual-reflection";
+  if (item.href === "/patients") return "nav-patient-monitoring";
+  return undefined;
+}
+
 function buildBreadcrumb(pathname: string) {
   const tokens = pathname.split("/").filter(Boolean);
   if (!tokens.length) return ["Protocol Editor"];
@@ -89,7 +119,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeActorRole = useStudioStore((state) => state.activeActorRole);
   const setActiveActor = useStudioStore((state) => state.setActiveActor);
   const { locale, setLocale, t } = useT();
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
+  const tour = useOnboardingTour("clinician");
+  const reducedMotion = useReducedMotionPreference();
   const handleLogout = async () => {
     await signOut();
     router.push("/login");
@@ -116,8 +148,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarWidth = collapsed ? "lg:pl-[92px]" : "lg:pl-[248px]";
   const showFullNav = !isClinicianAudience(activeActorRole);
   const visibleNavItems = useMemo(
-    () => NAV_ITEMS.filter((item) => showFullNav || item.audience === "clinician"),
-    [showFullNav],
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (item.audience === "admin") return role === "admin";
+        return showFullNav || item.audience === "clinician";
+      }),
+    [showFullNav, role],
   );
   const navLabel = (item: NavItem) => (item.labelKey.startsWith("nav.") ? t(item.labelKey) : item.labelKey);
   const clinicianNavItems = useMemo(() => NAV_ITEMS.filter((item) => item.audience === "clinician"), []);
@@ -134,9 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex w-full flex-col">
           <div className="flex h-[68px] items-center justify-between gap-2 border-b border-white/10 px-4">
             <Link href="/projects/demo/protocols/tbct-br-001/canvas" className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-panel bg-white text-navy-900">
-                <FlaskConical className="h-5 w-5" />
-              </span>
+              <Logo className="h-10 w-10 shrink-0" />
               {!collapsed && (
                 <span className="min-w-0 overflow-hidden whitespace-nowrap">
                   <span className="block truncate whitespace-nowrap text-sm font-semibold">TBCT Studio</span>
@@ -185,6 +219,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    data-tour-id={tourIdForNavItem(item)}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       "group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm transition",
@@ -230,6 +265,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Globe className="h-4 w-4" />
               </button>
             )}
+            {!collapsed && (
+              <Link href="/account" className="block px-1 text-xs text-blue-100 hover:underline">
+                {t("nav.account")}
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => void handleLogout()}
@@ -269,6 +309,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <button
+            data-tour-id="command-search"
             onClick={() => setCommandOpen(true)}
             className="mx-auto flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-panel border border-border bg-surface-subtle px-3 text-sm text-text-secondary hover:bg-surface md:max-w-[560px] [&>span:last-child]:hidden"
           >
@@ -289,7 +330,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
           <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><HelpCircle className="h-4 w-4" /></Button>
+          <Button
+            data-tour-id="help-button"
+            size="icon"
+            variant="ghost"
+            title={t("onboarding.replayTour")}
+            className="hidden shrink-0 sm:inline-flex"
+            onClick={() => tour.replay()}
+          >
+            <HelpCircle className="h-4 w-4" />
+          </Button>
+          <span data-tour-id="theme-toggle" className="hidden shrink-0 sm:flex">
+            <ThemeToggle />
+          </span>
           <button
             type="button"
             title={t("auth.logout")}
@@ -304,7 +357,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Extra bottom clearance for the fixed mobile nav below, plus the
             iOS home-indicator safe area on top of that. Unchanged >=640px
             (no bottom nav there). */}
-        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">{children}</main>
+        <main className="pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
+          {/* Every clinician page wraps itself in its own <AppShell> (see
+              studio-app.tsx's routing), so this is the one shared place that
+              gives every one of them the same subtle enter transition
+              instead of popping in instantly -- no per-page edits needed.
+              `key={pathname}` re-triggers it on navigation even though in
+              practice the whole AppShell instance already remounts too. */}
+          <motion.div
+            key={pathname}
+            initial={reducedMotion ? false : "initial"}
+            animate={reducedMotion ? undefined : "animate"}
+            variants={reducedMotion ? undefined : fadeUp}
+          >
+            {children}
+          </motion.div>
+        </main>
       </div>
 
       {/* Compact bottom navigation for mobile — mirrors the two clinician-facing sidebar entries. */}
@@ -316,6 +384,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour-id={tourIdForNavItem(item)}
                 className={cn(
                   "flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px]",
                   active ? "text-clinical-blue" : "text-text-secondary",
@@ -345,6 +414,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </Modal>
+
+      <OnboardingTour steps={CLINICIAN_TOUR_STEPS} active={tour.active} onDone={tour.finish} />
     </div>
   );
 }

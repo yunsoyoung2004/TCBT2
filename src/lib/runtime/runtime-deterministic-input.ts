@@ -35,11 +35,34 @@ export function matchEnumChoice(rawValue: unknown, choices: unknown[], aliases?:
 
 export function parseMultipleChoiceInput(input: PatientInput, choices: unknown[], aliases?: Record<string, unknown> | null) { return matchEnumChoice(input.value, choices, aliases); }
 
+/**
+ * S02's X/Y/Z private-placeholder offer ("would you like to add a private
+ * problem?") is a closed-form answer, same family as boolean/enum: the
+ * participant either declines, or names one or more of the allowed letters
+ * -- they never describe the problem itself. Distinguishes "declined" from
+ * "couldn't parse" so an answer that is neither an explicit decline nor a
+ * nameable letter (e.g. random off-topic text, or "네" with no letter named)
+ * surfaces as invalid/needs-clarification instead of being silently folded
+ * into "declined". Returns null only for that genuine parse-failure case.
+ */
+export function parsePrivatePlaceholderLabelsInput(input: PatientInput, allowedLabels: string[] = ["X", "Y", "Z"]) {
+  const text = Array.isArray(input.value) ? input.value.join(" ") : String(input.value);
+  if (!text.trim()) return null;
+  if (parseBooleanInput(input) === false) return { decline: true as const, labels: [] as string[] };
+  const labels = [...new Set((text.match(/[A-Za-z]/g) ?? []).map((letter) => letter.toUpperCase()))].filter((letter) => allowedLabels.includes(letter));
+  return labels.length > 0 ? { decline: false as const, labels } : null;
+}
+
 export function parseDeterministicPromptInput(input: PatientInput, validation: Record<string, unknown> | null | undefined) {
   const empty = parseEmptyOrWhitespaceInput(input); if (empty) return { handled: true as const, valid: false as const, reason: empty.reason };
   if (validation?.kind === "rating") { const value = parseRatingInput(input, Number(validation.min ?? 0), Number(validation.max ?? 100)); return { handled: true as const, valid: value !== null, value, reason: value === null ? "invalid_rating" : undefined }; }
   if (validation?.kind === "boolean") { const value = parseBooleanInput(input); return { handled: true as const, valid: value !== null, value, reason: value === null ? "invalid_boolean" : undefined }; }
   if (validation?.kind === "enum" && Array.isArray(validation.values)) { const value = parseMultipleChoiceInput(input, validation.values, validation.aliases as Record<string, unknown> | null | undefined); return { handled: true as const, valid: value !== null, value, reason: value === null ? "invalid_choice" : undefined }; }
   if (validation?.kind === "numeric") { const value = parseNumericInput(input); return { handled: true as const, valid: value !== null, value, reason: value === null ? "invalid_number" : undefined }; }
+  if (validation?.kind === "private_placeholder_labels") {
+    const allowedLabels = Array.isArray(validation.allowed) ? (validation.allowed as unknown[]).map((label) => String(label).toUpperCase()) : ["X", "Y", "Z"];
+    const parsed = parsePrivatePlaceholderLabelsInput(input, allowedLabels);
+    return { handled: true as const, valid: parsed !== null, value: parsed ? parsed.labels : undefined, reason: parsed === null ? "invalid_private_placeholder_label" : undefined };
+  }
   return { handled: false as const };
 }

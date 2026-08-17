@@ -234,6 +234,37 @@ export async function getRuntimeSession(sessionId: string): Promise<RuntimeSessi
   } satisfies RuntimeSessionView;
 }
 
+/** Minimal read model for the latency-sensitive patient turn path. */
+export async function getRuntimeSessionForTurn(sessionId: string): Promise<RuntimeSessionView | null> {
+  const session = await getRuntimeSessionRecord(sessionId);
+  if (!session) return null;
+  // The canonical demo release is compiled into the application. Prefer it
+  // directly so the server turn executor never tries to open browser-only
+  // IndexedDB through protocol-repository.
+  const storedRelease = session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId)
+    ? null
+    : await getProtocolRelease(session.releaseId);
+  const release: ProtocolReleaseVersion | null = storedRelease
+    ?? (session.releaseId === "demo-release" && isCanonicalProtocolId(session.protocolId) ? createCanonicalDemoRelease() : null);
+  if (!release || !hasRuntimeSourceSnapshot(release)) throw new Error(`Runtime session ${session.id} references an unavailable immutable release.`);
+  const runtimeRelease = loadRuntimeRelease(release);
+  const hydratedSession = session.runtimeState?.releaseId === release.id
+    ? session
+    : { ...session, runtimeState: normalizeRuntimeSessionState(session, runtimeRelease) };
+  const sourceFidelity = getRuntimeReleaseSourceSnapshot(release);
+  const messages = await listRuntimeMessages(sessionId);
+  return {
+    session: hydratedSession,
+    release,
+    nodes: sourceFidelity.clinicalStageNodes,
+    edges: sourceFidelity.sourceFidelityEdges,
+    promptItems: sourceFidelity.promptItems,
+    currentPromptItem: sourceFidelity.promptItems.find((item) => item.id === hydratedSession.currentPromptItemId),
+    messages,
+    logs: [], checkpoints: [], escalations: [], providerEvents: [], validationEvents: [], memoryRetrievalRuns: [], memoryUsageLogs: [],
+  } satisfies RuntimeSessionView;
+}
+
 export async function getPatientRuntimeSession(sessionId: string): Promise<PatientRuntimeSessionView | null> {
   const session = await getRuntimeSessionRecord(sessionId);
   if (!session) return null;

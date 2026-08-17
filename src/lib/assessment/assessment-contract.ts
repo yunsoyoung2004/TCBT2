@@ -7,12 +7,37 @@ export const assessmentRequestSchema = z.object({
   locale: z.string().min(1), inputType: z.string().min(1), patientInput: z.string(), nodeGoal: z.string().min(1),
   expectedAnswerDescription: z.string().optional(), allowedFields: z.array(z.string()), allowedTransitions: z.array(z.string()), safetyCategories: z.array(z.string()),
 });
+// Phase 2 (runtime orchestration simplification): an OPTIONAL disposition,
+// alongside the existing `intent`, for prompts that collect an open-ended
+// list (S02's problems/goals today; any future open-list collection prompt
+// could reuse it). `intent` alone can't express "the participant says the
+// list is complete" (collection_stop) -- that's a different dimension from
+// "what kind of speech act is this relative to the active question", which
+// is what `intent` already captures. Optional so providers/callers that
+// don't need list-collection semantics are unaffected; when a provider
+// (including the deterministic fallback) doesn't populate it, callers fall
+// back to deriving an equivalent from `intent`/`inputValid` -- see
+// runtime-input-assessment.ts's deriveS02CollectionTurnAction.
+// Phase 3 (runtime orchestration simplification): "current_item_correction"
+// extends the same disposition for a different prompt shape -- rating a
+// list one item at a time (S02's problemRatings/goalRatings today). The
+// participant isn't answering the rating question; they're asserting the
+// item currently being rated isn't a valid problem/goal at all (wrong
+// construct, duplicate, or was never meant as an item -- the runtime action
+// is the same in every case: remove it, don't record a rating). Deliberately
+// NOT split into reject/duplicate/wrong-construct sub-actions -- see
+// runtime-context.ts's applyCurrentRatingItemCorrection, which only ever
+// does one thing regardless of the participant's stated reason.
+export const turnActionSchema = z.enum(["accept_answer", "clarification_request", "collection_stop", "unresolved", "current_item_correction"]);
+export type TurnAction = z.infer<typeof turnActionSchema>;
+
 export const assessmentResultSchema = z.object({
   inputValid: z.boolean(), relevance: z.enum(["relevant", "partially_relevant", "irrelevant", "unclear"]),
   intent: z.enum(["answer", "clarification_request", "refusal", "topic_shift", "distress_disclosure", "other"]),
   extractedFields: z.record(z.unknown()), completionStatus: z.enum(["complete", "incomplete", "needs_clarification"]),
   safetyLevel: z.enum(["none", "low", "moderate", "high", "critical"]), safetySignals: z.array(z.string()),
   recommendedTransition: z.string().nullable(), internalSummary: z.string().nullable(),
+  turnAction: turnActionSchema.optional(),
 }).strict();
 export type AssessmentRequest = z.infer<typeof assessmentRequestSchema>;
 export type AssessmentResult = z.infer<typeof assessmentResultSchema>;

@@ -30,6 +30,13 @@ export function StreamingText({
     if (!active) {
       setShown(text);
       streamedKeyRef.current = streamKey;
+      // Callers that sequence multiple messages (only reveal the next one
+      // once the current one's onDone fires -- see patient-session-page.tsx)
+      // need this to fire even when there's no actual animation to play
+      // (reduced motion, or a message that was never "new" to begin with),
+      // or their reveal queue would stall forever waiting for a callback
+      // that only the animated branch below used to call.
+      onDone?.();
       return undefined;
     }
     if (streamedKeyRef.current === streamKey) return undefined;
