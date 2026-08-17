@@ -133,6 +133,23 @@ body {
   scrollbar-gutter: stable;
 }
 
+/* Global fix, not per-component: any independently-scrollable box
+   (Tailwind's overflow-auto/overflow-y-auto) used to let a wheel/trackpad
+   gesture "chain" past its own top/bottom edge into whatever scrolls next
+   -- usually the whole page. Reported live as scrolling inside the Manual
+   Reflection / Protocol Editor / Patient Monitoring panels suddenly
+   yanking the entire page (and the panel with it) up past where it should
+   stop. Confirmed with an isolated repro of a scrollable list inside a
+   normally-scrolling page: without this, wheeling past the list's own
+   limit measurably scrolled the outer page too (scrollY 0 -> 795); with
+   it, the outer page never moves. overscroll-behavior: contain stops the
+   chain at whichever element hit its own scroll limit, which is what a
+   self-contained scroll box should do. */
+[class*="overflow-auto"],
+[class*="overflow-y-auto"] {
+  overscroll-behavior: contain;
+}
+
 .clinician-app,
 body:has(.patient-app) {
   background-color: #dfe7f5;
@@ -161,6 +178,24 @@ body:has(.patient-app) {
 
   .app-sidebar { position: fixed; }
   .app-workspace-shell { z-index: 1; }
+
+  /* .app-workspace's own Tailwind classes include overflow-hidden
+     (unconditional -- needed so its content clips to the lg:rounded-r-[32px]
+     right corners instead of poking out past them). That also makes it a
+     "scroll container" for CSS purposes -- but the page actually scrolls on
+     <body>/<html>, not on this element, so .app-topbar's position:sticky
+     ends up anchored to the wrong ancestor and just scrolls away with the
+     page instead of staying pinned at the top. Confirmed with an isolated
+     repro of this exact structure: the topbar's own top position drifted to
+     -576px instead of staying at 0 as the page scrolled. clip-path clips to
+     the identical rounded shape without establishing that scroll-container
+     context, so sticky positioning resolves against the real scrolling
+     ancestor again. Scoped to lg: (this block) to match where the rounding
+     itself only ever applied -- mobile's overflow-hidden is untouched. */
+  .app-workspace {
+    overflow: visible !important;
+    clip-path: inset(0 round 0 32px 32px 0);
+  }
 }
 
 .app-workspace {
