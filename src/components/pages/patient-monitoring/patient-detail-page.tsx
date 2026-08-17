@@ -107,6 +107,12 @@ export function PatientMonitoringDetailPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; content: string } | null>(null);
   const [checkinModalOpen, setCheckinModalOpen] = useState(false);
+  // Purely visual: a hairline shadow appears under the "기록 로그" header
+  // once its list has actually been scrolled, so the (now always-visible,
+  // never-sticky-in-the-old-sense) header reads as "docked above scrolling
+  // content" rather than looking like a flat divider that happens to sit
+  // there. Off at scrollTop 0 -- there's nothing to separate from yet.
+  const [logScrolled, setLogScrolled] = useState(false);
 
   const participantQuery = useQuery({
     queryKey: ["patient-monitoring-participant", participantId],
@@ -429,7 +435,7 @@ export function PatientMonitoringDetailPage() {
         eyebrow={t("nav.patientMonitoring")}
         meta={
           <>
-            <Badge tone={STATUS_TONE[status]}>{t(`patientMonitoring.status.${status}`)}</Badge>
+            <Badge dot tone={STATUS_TONE[status]}>{t(`patientMonitoring.status.${status}`)}</Badge>
             <Badge tone="neutral">
               {t("patientDetail.summary.lastActivity")}: {formatTimestamp(session?.updatedAt ?? participant.updatedAt)}
             </Badge>
@@ -526,6 +532,7 @@ export function PatientMonitoringDetailPage() {
             <Card className="patient-monitoring-panel flex h-[calc(100vh-430px)] min-w-0 flex-col overflow-hidden">
               <SectionHeader
                 title={t("patientDetail.tabs.auditLog")}
+                className={logScrolled ? "border-b-border-strong shadow-[0_1px_0_0_rgba(15,23,42,0.06)]" : undefined}
                 action={
                   <select className={inputClass} value={auditFilter} onChange={(event) => setAuditFilter(event.target.value as AuditFilter)}>
                     <option value="all">{t("patientDetail.audit.filters.all")}</option>
@@ -535,7 +542,10 @@ export function PatientMonitoringDetailPage() {
                   </select>
                 }
               />
-              <div className="audit-log-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              <div
+                className="audit-log-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
+                onScroll={(event) => setLogScrolled(event.currentTarget.scrollTop > 4)}
+              >
                 {sessionViewQuery.isLoading ? (
                   <PageSkeleton />
                 ) : filteredTimeline.length === 0 ? (

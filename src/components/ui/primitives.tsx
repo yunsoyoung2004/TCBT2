@@ -2,8 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X, LoaderCircle, Inbox, TriangleAlert, CircleHelp, PanelRightOpen, Sparkles } from "lucide-react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { drawerPanel, modalBackdrop, modalPanel } from "@/lib/motion/motion-variants";
+import { useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { drawerPanel, modalBackdrop, modalPanel, tooltipEnter } from "@/lib/motion/motion-variants";
+import { motionDuration, motionEase } from "@/lib/motion/motion-tokens";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { cn, reviewStatusMap, severityMap, versionStatusMap } from "@/lib/utils";
 
@@ -49,17 +50,21 @@ export function Button({
   };
   const sizes = { sm: "h-8 px-3 text-xs", md: "h-9 px-3.5 text-sm", icon: "h-9 w-9" };
   const reducedMotion = useReducedMotionPreference();
+  const interactive = !(loading || props.disabled);
   return (
     <motion.button
       // A satisfying little "press" on every button in the app, from one
-      // shared component -- whileTap only ever plays while the button is
-      // actually held down (auto-reverses on release, no separate cleanup
-      // needed), so it can't get stuck mid-animation like a manual
-      // active-class toggle could.
-      whileTap={reducedMotion || loading || props.disabled ? undefined : { scale: 0.96 }}
-      transition={{ duration: 0.1 }}
+      // shared component -- whileTap/whileHover only ever play while the
+      // button is actually held/hovered (auto-reverse on release, no
+      // separate cleanup needed), so neither can get stuck mid-animation
+      // like a manual active-class toggle could. Hover lift is a hair off
+      // (-1px), press settles slightly below rest (0.98) rather than a full
+      // "squish" -- both within the brief's asked-for ranges.
+      whileHover={reducedMotion || !interactive ? undefined : { y: -1 }}
+      whileTap={reducedMotion || !interactive ? undefined : { scale: 0.98 }}
+      transition={{ duration: motionDuration.instant, ease: motionEase.ui }}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border font-semibold shadow-sm transition disabled:pointer-events-none disabled:opacity-50",
+        "transition-ui inline-flex items-center justify-center gap-2 rounded-full border font-semibold shadow-sm disabled:pointer-events-none disabled:opacity-50",
         styles[variant],
         sizes[size],
         className,
@@ -70,6 +75,57 @@ export function Button({
       {loading && <LoaderCircle className="h-4 w-4 animate-spin" />}
       {children}
     </motion.button>
+  );
+}
+
+/** Hover-only label for icon-only buttons (topbar bell/help/theme toggle,
+ * collapsed sidebar items) where the action isn't otherwise labeled --
+ * appears after a short delay (avoids flashing one on every incidental
+ * mouse-pass), one line, no motion beyond a small fade + 3px settle. */
+export function Tooltip({ label, children, side = "bottom" }: { label: string; children: ReactNode; side?: "top" | "bottom" }) {
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const reducedMotion = useReducedMotionPreference();
+  const tooltipId = useId();
+
+  const show = () => {
+    window.clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setOpen(true), 300);
+  };
+  const hide = () => {
+    window.clearTimeout(timerRef.current);
+    setOpen(false);
+  };
+
+  return (
+    <span
+      className="relative inline-flex"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      aria-describedby={open ? tooltipId : undefined}
+    >
+      {children}
+      <AnimatePresence>
+        {open && (
+          <motion.span
+            id={tooltipId}
+            role="tooltip"
+            initial={reducedMotion ? false : "initial"}
+            animate="animate"
+            exit={reducedMotion ? undefined : "exit"}
+            variants={reducedMotion ? undefined : tooltipEnter}
+            className={cn(
+              "pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-md bg-navy-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg",
+              side === "bottom" ? "top-[calc(100%+6px)]" : "bottom-[calc(100%+6px)]",
+            )}
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -88,6 +144,13 @@ export function Badge({
   dot?: boolean;
   className?: string;
 }) {
+  // Semantic motion, not decoration: an in-progress dot pulses very
+  // faintly (slow, low-contrast -- never "attention grabbing"); a
+  // completed dot plays its check-mark scale-in once on mount and settles,
+  // it never repeats. Every other tone (including dot=true elsewhere, e.g.
+  // StatusBadge/SaveStatus) stays a plain static dot, unchanged.
+  const isInProgressDot = dot && tone === "primary";
+  const isCompletedDot = dot && tone === "success";
   return (
     <span
       className={cn(
@@ -96,7 +159,15 @@ export function Badge({
         className,
       )}
     >
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {dot && (
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full bg-current",
+            isInProgressDot && "badge-dot-pulse",
+            isCompletedDot && "badge-dot-complete",
+          )}
+        />
+      )}
       {children}
     </span>
   );
@@ -214,13 +285,15 @@ export function SectionHeader({
   title,
   description,
   action,
+  className,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
+    <div className={cn("transition-ui flex items-start justify-between gap-4 border-b border-border px-4 py-3", className)}>
       <div>
         <h2 className="text-[16px] font-semibold text-text-primary">{title}</h2>
         {description && <p className="mt-1 text-xs text-text-secondary">{description}</p>}
@@ -462,9 +535,9 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 export const inputClass =
-  "h-9 w-full rounded-panel border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-muted focus:border-clinical-blue focus:outline-none focus:ring-2 focus:ring-clinical-blue-light";
+  "transition-ui h-9 w-full rounded-panel border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-muted focus:border-clinical-blue focus:outline-none focus:ring-2 focus:ring-clinical-blue-light";
 export const textareaClass =
-  "min-h-24 w-full resize-y rounded-panel border border-border bg-surface px-3 py-2 text-sm leading-6 text-text-primary placeholder:text-text-muted focus:border-clinical-blue focus:outline-none focus:ring-2 focus:ring-clinical-blue-light";
+  "transition-ui min-h-24 w-full resize-y rounded-panel border border-border bg-surface px-3 py-2 text-sm leading-6 text-text-primary placeholder:text-text-muted focus:border-clinical-blue focus:outline-none focus:ring-2 focus:ring-clinical-blue-light";
 
 export function PageSkeleton() {
   return <LoadingSkeleton />;

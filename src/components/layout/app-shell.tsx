@@ -22,8 +22,8 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { motion } from "framer-motion";
-import { Button, ConfirmActionDialog, Modal, inputClass } from "@/components/ui/primitives";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button, ConfirmActionDialog, Modal, Tooltip, inputClass } from "@/components/ui/primitives";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
@@ -31,7 +31,8 @@ import { getCurrentDemoActor } from "@/lib/demo-actor";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useT } from "@/lib/i18n/context";
 import type { UiLocale } from "@/lib/i18n/locales";
-import { fadeUp } from "@/lib/motion/motion-variants";
+import { pageEnter } from "@/lib/motion/motion-variants";
+import { motionDuration } from "@/lib/motion/motion-tokens";
 import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-preference";
 import { CLINICIAN_TOUR_STEPS } from "@/lib/onboarding/tour-steps";
 import { useOnboardingTour } from "@/lib/onboarding/use-onboarding-tour";
@@ -231,14 +232,25 @@ export function AppShell({ children }: { children: ReactNode }) {
                     data-tour-id={tourIdForNavItem(item)}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm transition",
+                      "transition-ui group relative flex h-10 items-center gap-3 rounded-panel px-3 text-sm",
                       active ? "bg-clinical-blue-light text-clinical-blue" : "text-blue-100 hover:bg-white/8 hover:text-white",
                       collapsed && "justify-center px-0",
                     )}
                   >
-                    {active && <span className="rainbow-fill absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r" />}
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{navLabel(item)}</span>}
+                    {/* Always mounted (not conditionally rendered) so the
+                        active indicator transitions in/out via opacity+scale
+                        when the current route changes, instead of just
+                        popping -- origin-center keeps the scaleY looking
+                        like it grows from the middle, not top-anchored. */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "transition-ui rainbow-fill absolute left-0 top-1/2 h-6 w-[3px] origin-center -translate-y-1/2 rounded-r",
+                        active ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0",
+                      )}
+                    />
+                    <item.icon className="transition-ui h-4 w-4 shrink-0 group-hover:scale-[1.04]" />
+                    {!collapsed && <span className="transition-ui translate-x-0 truncate group-hover:translate-x-0.5">{navLabel(item)}</span>}
                   </Link>
                 );
               })}
@@ -334,9 +346,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             data-tour-id="command-search"
             onClick={() => setCommandOpen(true)}
-            className="mx-auto flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-panel border border-border bg-surface-subtle px-3 text-sm text-text-secondary hover:bg-surface md:max-w-[560px] [&>span:last-child]:hidden"
+            className="transition-ui group mx-auto flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-panel border border-border bg-surface-subtle px-3 text-sm text-text-secondary hover:border-border-strong hover:bg-surface focus-visible:border-clinical-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-blue-light md:max-w-[560px] [&>span:last-child]:hidden"
           >
-            <Search className="h-4 w-4" />
+            <Search className="transition-ui h-4 w-4 group-hover:text-clinical-blue group-focus-visible:text-clinical-blue" />
             {/* Same search entry point/scope at every width -- only the label
                 text is shorter below 640px so it doesn't clip. */}
             <span className="flex-1 truncate text-left">
@@ -351,18 +363,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="whitespace-nowrap rounded-md border border-success-light bg-success-light px-2 py-1 text-[11px] text-success">Pilot ready</span>
           </div>
 
-          <div className="hidden shrink-0 whitespace-nowrap text-xs text-text-secondary 2xl:block">{unsaved ? "Unsaved changes" : "Synced 09:14"}</div>
-          <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
-          <Button
-            data-tour-id="help-button"
-            size="icon"
-            variant="ghost"
-            title={t("onboarding.replayTour")}
-            className="hidden shrink-0 sm:inline-flex"
-            onClick={() => tour.replay()}
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
+          <SyncStatus unsaved={unsaved} locale={locale} />
+          <Tooltip label={locale === "ko" ? "알림" : "Notifications"}>
+            <Button size="icon" variant="ghost" className="hidden shrink-0 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
+          </Tooltip>
+          <Tooltip label={t("onboarding.replayTour")}>
+            <Button
+              data-tour-id="help-button"
+              size="icon"
+              variant="ghost"
+              className="hidden shrink-0 sm:inline-flex"
+              onClick={() => tour.replay()}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+          </Tooltip>
           <span data-tour-id="theme-toggle" className="hidden shrink-0 sm:flex">
             <ThemeToggle />
           </span>
@@ -396,7 +411,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             key={pathname}
             initial={reducedMotion ? false : "initial"}
             animate={reducedMotion ? undefined : "animate"}
-            variants={reducedMotion ? undefined : fadeUp}
+            variants={reducedMotion ? undefined : pageEnter}
           >
             {children}
           </motion.div>
@@ -453,6 +468,37 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Modal>
 
       <OnboardingTour steps={CLINICIAN_TOUR_STEPS} active={tour.active} onDone={tour.finish} />
+    </div>
+  );
+}
+
+/** Topbar's "Synced .../Unsaved changes" indicator -- a one-shot crossfade
+ * between the two states instead of a hard swap, no continuous animation
+ * (there's no real in-flight "syncing" state tracked yet, just this
+ * boolean, so there's nothing to spin/pulse in between). */
+function SyncStatus({ unsaved, locale }: { unsaved: boolean; locale: string }) {
+  const reducedMotion = useReducedMotionPreference();
+  return (
+    <div className="relative hidden h-4 shrink-0 2xl:block">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={unsaved ? "unsaved" : "synced"}
+          initial={reducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reducedMotion ? undefined : { opacity: 0 }}
+          transition={{ duration: motionDuration.fast }}
+          className={cn("flex items-center gap-1 whitespace-nowrap text-xs", unsaved ? "text-warning" : "text-text-secondary")}
+        >
+          {unsaved ? (
+            locale === "ko" ? "저장되지 않은 변경사항" : "Unsaved changes"
+          ) : (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+              {locale === "ko" ? "동기화됨 09:14" : "Synced 09:14"}
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

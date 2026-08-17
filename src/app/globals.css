@@ -33,7 +33,57 @@
   --color-text-muted: 132 145 163;
   --color-border: 221 228 236;
   --color-border-strong: 200 210 222;
+
+  /* Motion scale shared by every hover/focus/press CSS transition in the
+     app -- mirrors motionDuration/motionEase in motion-tokens.ts (the
+     Framer Motion side of the same system; keep both in sync). Same values
+     regardless of theme, so this isn't inside the light/dark blocks. */
+  --motion-fast: 140ms; /* hover, tooltip */
+  --motion-base: 180ms; /* button press, dropdown */
+  --motion-medium: 220ms; /* page transition, modal/drawer */
+  --motion-slow: 280ms; /* success transitions */
+  --ease-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
+/* Any plain-CSS transition/animation built on the --motion-* custom
+   properties above collapses to near-instant automatically, everywhere,
+   the moment this is redefined here -- no per-element opt-in class needed,
+   since every consumer reads the same custom property. Decorative-only
+   (hover/focus/press/pulse); a genuinely informative transition (e.g. a
+   skeleton fading into loaded content) still gets this same near-zero
+   duration rather than popping, which is what brief §18 asks for
+   ("필요한 opacity transition만 매우 짧게 유지"). Framer Motion's own
+   animations are gated separately per-component via
+   useReducedMotionPreference (see use-reduced-motion-preference.ts) since
+   those need conditional variants (e.g. skip a translateX entirely), not
+   just a duration override. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0.01ms;
+    --motion-base: 0.01ms;
+    --motion-medium: 0.01ms;
+    --motion-slow: 0.01ms;
+  }
+}
+
+/* Reusable interaction-timing utilities -- drop-in replacements for
+   Tailwind's bare `transition` wherever a hover/focus/press color, border,
+   shadow, or transform change should follow the shared motion scale
+   precisely instead (Tailwind's own default transition-duration is a fixed
+   150ms with no reduced-motion awareness). transition-property is the same
+   safe whitelist Tailwind's own `transition` utility uses -- deliberately
+   NOT `all`, so a height/width/margin/padding change from something else
+   entirely (a sibling mounting, content reflowing) can never get swept
+   into an unintended animation and read as layout jank. */
+.transition-ui,
+.transition-ui-base,
+.transition-ui-medium {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-timing-function: var(--ease-ui);
+}
+.transition-ui { transition-duration: var(--motion-fast); }
+.transition-ui-base { transition-duration: var(--motion-base); }
+.transition-ui-medium { transition-duration: var(--motion-medium); }
 
 /* OS-level dark preference -- :not([data-theme="light"]) lets an explicit
    light choice below win over it; :where() keeps this at the same
@@ -517,6 +567,38 @@ select:focus-visible {
   transform: translateX(-100%);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
   animation: shimmer 1.25s infinite;
+}
+
+/* Status Badge (Badge's dot=true): "in progress" gets a slow, low-contrast
+   opacity pulse -- deliberately not scale/size, and not the whole badge,
+   per the brief's "attention grabbing effect 금지". "completed" plays its
+   scale-in exactly once (iteration-count 1) the moment it mounts and
+   settles at rest; it never repeats on its own. */
+@keyframes badge-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.badge-dot-pulse {
+  animation: badge-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes badge-dot-complete {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.badge-dot-complete {
+  animation: badge-dot-complete var(--motion-slow) var(--ease-ui) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+  .badge-dot-pulse {
+    animation: none;
+  }
+  /* badge-dot-complete already resolves to ~0.01ms via --motion-slow's
+     reduced-motion override above -- no separate rule needed. */
 }
 
 @media print {

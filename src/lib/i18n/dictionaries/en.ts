@@ -239,6 +239,7 @@ const en = {
       status: "Status",
       lastActivity: "Last Activity",
     },
+    view: "View",
     status: {
       inProgress: "In progress",
       paused: "Paused",

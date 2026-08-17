@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Card, SectionHeader } from "@/components/ui/primitives";
 import { fadeUp } from "@/lib/motion/motion-variants";
+import { motionDuration, motionEase } from "@/lib/motion/motion-tokens";
 import { useT } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { getClinicianStepLabels, type FlowNode } from "./types";
@@ -71,10 +72,15 @@ export function SessionPanel({ sessionTitle: _sessionTitle, nodes, selectedStepI
               variants={reducedMotion ? undefined : fadeUp}
               initial={reducedMotion ? false : "initial"}
               animate={reducedMotion ? undefined : "animate"}
+              whileHover={reducedMotion || selectedStepId === step.id ? undefined : { y: -1 }}
+              whileTap={reducedMotion ? undefined : { scale: 0.998 }}
+              transition={{ duration: motionDuration.instant, ease: motionEase.ui }}
               onClick={() => onSelect(step.id)}
               className={cn(
-                "w-full rounded-[12px] border p-3 text-left",
-                selectedStepId === step.id ? "border-clinical-blue bg-clinical-blue-light" : "border-border hover:bg-surface-subtle",
+                "transition-ui w-full rounded-[12px] border p-3 text-left",
+                selectedStepId === step.id
+                  ? "border-clinical-blue bg-clinical-blue-light"
+                  : "border-border hover:border-border-strong hover:bg-surface-subtle hover:shadow-sm",
               )}
             >
               <div className="flex items-start gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${selectedStepId === step.id ? "bg-ai-violet-light text-ai-violet" : "bg-surface-subtle text-text-secondary"}`}>{String(index + 1).padStart(2, "0")}</span><div className="min-w-0"><div className="text-sm font-semibold text-text-primary">{step.data.title}</div>

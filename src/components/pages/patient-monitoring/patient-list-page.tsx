@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ArrowUpDown, CheckCircle2, ChevronRight, PauseCircle, Search, TriangleAlert } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpDown, CheckCircle2, ChevronRight, PauseCircle, Search, TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge, Button, Card, EmptyState, PageHeader, PageSkeleton, inputClass } from "@/components/ui/primitives";
 import { useT } from "@/lib/i18n/context";
@@ -371,11 +372,11 @@ export function PatientListPage() {
                 never push this card past the viewport (brief §17). */}
             <div className="grid gap-3 lg:hidden">
               {filteredRows.map(({ participant, summary }) => (
-                <Link key={participant.id} href={`/patients/${participant.id}`}>
+                <Link key={participant.id} href={`/patients/${participant.id}`} className="transition-ui block active:scale-[0.998]">
                   <Card className="min-w-0 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0 truncate text-sm font-semibold text-text-primary">{participant.alias}</div>
-                      <Badge className="shrink-0" tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
+                      <Badge dot className="shrink-0" tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
                     </div>
                     <div className="mt-2 truncate text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</div>
                     <div className="mt-1 truncate text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</div>
@@ -482,18 +483,39 @@ function ParticipantRow({
   summary: ParticipantMonitoringSummary;
   t: ReturnType<typeof useT>["t"];
 }) {
+  const router = useRouter();
+  const href = `/patients/${participant.id}`;
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-surface-subtle">
+    // group + relative: the "View ->" affordance below is absolutely
+    // positioned over this row's own trailing padding (not a 6th column),
+    // so revealing it on hover never shifts the Last Activity text or any
+    // column width. Row-level onClick mirrors the alias <Link> below (kept
+    // for accessibility/open-in-new-tab) so hovering/clicking anywhere in
+    // the row -- not just the alias text -- does what the hover feedback
+    // implies it will.
+    <tr
+      onClick={() => router.push(href)}
+      className="transition-ui group relative cursor-pointer border-b border-border last:border-0 hover:-translate-y-px hover:bg-surface-hover hover:shadow-sm active:scale-[0.998]"
+    >
       <td className="px-4 py-3">
-        <Link href={`/patients/${participant.id}`} className="font-medium text-clinical-blue hover:underline">
+        <Link href={href} onClick={(event) => event.stopPropagation()} className="transition-ui font-medium text-clinical-blue group-hover:text-clinical-blue/80 hover:underline">
           {participant.alias}
         </Link>
         <div className="text-[11px] text-text-muted">{participant.id}</div>
       </td>
       <td className="px-4 py-3 text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</td>
       <td className="px-4 py-3 text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</td>
-      <td className="px-4 py-3"><Badge tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge></td>
-      <td className="px-4 py-3 text-text-secondary">{formatTimestamp(summary.lastActivity)}</td>
+      <td className="px-4 py-3"><Badge dot tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge></td>
+      <td className="relative px-4 py-3 text-text-secondary">
+        {formatTimestamp(summary.lastActivity)}
+        <span
+          aria-hidden
+          className="transition-ui pointer-events-none absolute inset-y-0 right-4 flex -translate-x-1 items-center gap-1 bg-surface-hover pl-3 text-xs font-semibold text-clinical-blue opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+        >
+          {t("patientMonitoring.view")}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+      </td>
     </tr>
   );
 }

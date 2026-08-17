@@ -239,6 +239,7 @@ const ko = {
       status: "상태",
       lastActivity: "최근 활동",
     },
+    view: "보기",
     status: {
       inProgress: "진행 중",
       paused: "일시중지",

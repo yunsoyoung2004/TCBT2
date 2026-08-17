@@ -3,31 +3,31 @@ import { motionDuration, motionEase } from "@/lib/motion/motion-tokens";
 
 export const fadeIn: Variants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: motionDuration.normal, ease: motionEase.enter } },
+  animate: { opacity: 1, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
   exit: { opacity: 0, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
 
 export const fadeUp: Variants = {
   initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.normal, ease: motionEase.enter } },
+  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
   exit: { opacity: 0, y: 4, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
 
 export const fadeScale: Variants = {
   initial: { opacity: 0, scale: 0.98 },
-  animate: { opacity: 1, scale: 1, transition: { duration: motionDuration.normal, ease: motionEase.enter } },
+  animate: { opacity: 1, scale: 1, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
   exit: { opacity: 0, scale: 0.98, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
 
 export const slideFromRight: Variants = {
-  initial: { opacity: 0, x: 12 },
-  animate: { opacity: 1, x: 0, transition: { duration: motionDuration.normal, ease: motionEase.enter } },
+  initial: { opacity: 0, x: 18 },
+  animate: { opacity: 1, x: 0, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
   exit: { opacity: 0, x: 8, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
 
 export const slideFromBottom: Variants = {
   initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.normal, ease: motionEase.enter } },
+  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
   exit: { opacity: 0, y: 8, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
 
@@ -72,4 +72,29 @@ export const questComplete: Variants = {
     y: 0,
     transition: { duration: 1.3, times: [0, 0.25, 0.75, 1], ease: motionEase.standard },
   },
+};
+
+// Page content mount (AppShell's <main>) -- deliberately its own variant
+// rather than reusing fadeUp: fadeUp's 8px offset is tuned for chat
+// messages/log entries elsewhere, motion brief calls for a subtler 4-6px
+// specifically for whole-page transitions. Sidebar/topbar never animate,
+// only the content area does (see app-shell.tsx).
+export const pageEnter: Variants = {
+  initial: { opacity: 0, y: 5 },
+  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.medium, ease: motionEase.enter } },
+};
+
+// Search/command palette results, select-style dropdowns.
+export const dropdownEnter: Variants = {
+  initial: { opacity: 0, y: -4 },
+  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.base, ease: motionEase.ui } },
+  exit: { opacity: 0, y: -4, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
+};
+
+// Tooltip -- the hover delay itself lives on the trigger (see Tooltip in
+// primitives.tsx), this only covers the reveal once it decides to show.
+export const tooltipEnter: Variants = {
+  initial: { opacity: 0, y: 3 },
+  animate: { opacity: 1, y: 0, transition: { duration: motionDuration.fast, ease: motionEase.ui } },
+  exit: { opacity: 0, transition: { duration: motionDuration.fast, ease: motionEase.exit } },
 };
