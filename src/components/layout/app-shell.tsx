@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const clinicianNavItems = useMemo(() => NAV_ITEMS.filter((item) => item.audience === "clinician"), []);
 
   return (
-    <div className="clinician-app min-h-screen bg-background">
+    <div className="clinician-app h-dvh overflow-hidden bg-background">
       <aside
         className={cn(
           "app-sidebar fixed inset-y-0 left-0 z-50 flex border-r border-border bg-surface text-text-primary shadow-xl transition-all duration-200 lg:bottom-6 lg:left-6 lg:top-6 lg:translate-x-0 lg:rounded-l-[32px] lg:shadow-none",
@@ -300,9 +300,22 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {mobileOpen && <button className="fixed inset-0 z-40 bg-[#132A4A]/24 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
 
-      <div className={cn("app-workspace-shell transition-all lg:mr-6 lg:py-6", sidebarWidth)}>
-        <div className="app-workspace min-h-screen overflow-hidden bg-background lg:min-h-[calc(100vh-48px)] lg:rounded-r-[32px]">
-        <header className="app-topbar sticky top-0 z-30 flex h-[64px] items-center gap-3 border-b border-border/70 bg-surface/90 px-4 backdrop-blur-xl lg:px-7">
+      <div className={cn("app-workspace-shell h-full transition-all lg:mr-6 lg:py-6", sidebarWidth)}>
+        {/* flex flex-col + a real height (not min-height) on this element is
+            what makes the topbar+main split below actually work: the topbar
+            is a shrink-0 flex item and <main> is flex-1 -- <main> gets
+            "whatever's left after the topbar" and scrolls internally
+            (overflow-y-auto below), instead of this whole shell growing
+            past the viewport and leaving the browser page itself to scroll.
+            That's also why .app-topbar no longer needs position:sticky: it
+            was only ever "sticky" because the page used to scroll around
+            it; now nothing outside <main> scrolls at all, so the topbar
+            just sits above <main> and never needs to react to a scroll
+            position in the first place. See globals.css's
+            body:has(.clinician-app) for the matching page-level half of
+            this (stops the browser's own scrollbar from ever appearing). */}
+        <div className="app-workspace flex h-full min-h-0 flex-col overflow-hidden bg-background lg:h-[calc(100vh-48px)] lg:rounded-r-[32px]">
+        <header className="app-topbar shrink-0 flex h-[64px] items-center gap-3 border-b border-border/70 bg-surface/90 px-4 backdrop-blur-xl lg:px-7">
           {/* Mobile (<640px) drops the hamburger entirely -- bottom nav is the
               top-level mobile navigation (see the "sm:hidden" nav below).
               Tablet (640-1024px) keeps today's drawer trigger unchanged, and
@@ -364,10 +377,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        {/* Extra bottom clearance for the fixed mobile nav below, plus the
-            iOS home-indicator safe area on top of that. Unchanged >=640px
-            (no bottom nav there). */}
-        <main className="app-content pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
+        {/* flex-1 min-h-0 overflow-y-auto: this is now THE ONE scroll
+            container for every clinician page's content -- the browser
+            page itself never scrolls (see .clinician-app/body above), so a
+            page whose content runs long just scrolls inside here, still
+            fully contained within the rounded shell. Extra bottom
+            clearance for the fixed mobile nav below, plus the iOS
+            home-indicator safe area on top of that. Unchanged >=640px (no
+            bottom nav there). */}
+        <main className="app-content min-h-0 flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
           {/* Every clinician page wraps itself in its own <AppShell> (see
               studio-app.tsx's routing), so this is the one shared place that
               gives every one of them the same subtle enter transition

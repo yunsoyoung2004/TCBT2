@@ -150,6 +150,19 @@ body {
   overscroll-behavior: contain;
 }
 
+/* Clinician pages only (:has() scoping -- the patient-facing shell, auth/
+   login pages, etc. keep normal document scroll, untouched). .clinician-app
+   itself is a fixed h-dvh box with its own overflow-hidden, so its content
+   is already fully contained without this; this is the defensive second
+   half in case anything (a toast root, a modal portal) ever renders as a
+   sibling of .clinician-app directly under <body> and would otherwise be
+   able to stretch <body> taller than the viewport. The actual scrolling
+   for every clinician page now happens on .app-content (<main>) alone --
+   see app-shell.tsx's own comment on that element. */
+body:has(.clinician-app) {
+  overflow: hidden;
+}
+
 .clinician-app,
 body:has(.patient-app) {
   background-color: #dfe7f5;
@@ -178,32 +191,10 @@ body:has(.patient-app) {
 
   .app-sidebar { position: fixed; }
   .app-workspace-shell { z-index: 1; }
-
-  /* .app-workspace's own Tailwind classes include overflow-hidden
-     (unconditional -- needed so its content clips to the lg:rounded-r-[32px]
-     right corners instead of poking out past them). That also makes it a
-     "scroll container" for CSS purposes -- but the page actually scrolls on
-     <body>/<html>, not on this element, so .app-topbar's position:sticky
-     ends up anchored to the wrong ancestor and just scrolls away with the
-     page instead of staying pinned at the top. Confirmed with an isolated
-     repro of this exact structure: the topbar's own top position drifted to
-     -576px instead of staying at 0 as the page scrolled. clip-path clips to
-     the identical rounded shape without establishing that scroll-container
-     context, so sticky positioning resolves against the real scrolling
-     ancestor again. Scoped to lg: (this block) to match where the rounding
-     itself only ever applied -- mobile's overflow-hidden is untouched. */
-  .app-workspace {
-    overflow: visible !important;
-    clip-path: inset(0 round 0 32px 32px 0);
-  }
 }
 
 .app-workspace {
   background-color: rgb(var(--color-background));
-}
-
-.app-content {
-  min-height: calc(100vh - 112px);
 }
 
 .app-sidebar .text-blue-100,
@@ -231,9 +222,6 @@ body:has(.patient-app) {
 @media (min-width: 1024px) {
   .app-sidebar {
     border-right: 0;
-  }
-  .app-content {
-    min-height: calc(100vh - 112px);
   }
 }
 
