@@ -507,7 +507,23 @@ export function PatientMonitoringDetailPage() {
                 see .patient-monitoring-panel in globals.css for the matching
                 height-stability half of this fix. */}
             <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-            <Card className="patient-monitoring-panel min-w-0">
+            {/* flex flex-col + a height on the CARD itself (not just its
+                scroll area) is the structural piece the earlier fix was
+                still missing: the header and scroll body were two plain
+                stacked block children with no shared flex parent to
+                actually divide the card's height between them, so nothing
+                stopped the scroll body's own `height` from making the
+                *card* taller than intended -- overflow-hidden on the card
+                only clips what doesn't fit its own (unconstrained) height,
+                it doesn't cap that height. With the card itself height-
+                capped and flex-col, the header (SectionHeader) keeps its
+                natural content height as a shrink-0 flex item and the
+                scroll body's flex-1 + min-h-0 gets exactly whatever's left
+                -- min-h-0 specifically because a flex item's default
+                min-height is `auto` (its content size), which silently
+                defeats overflow-y-auto by refusing to shrink below the
+                content it's supposed to be scrolling. */}
+            <Card className="patient-monitoring-panel flex h-[calc(100vh-430px)] min-w-0 flex-col overflow-hidden">
               <SectionHeader
                 title={t("patientDetail.tabs.auditLog")}
                 action={
@@ -519,22 +535,7 @@ export function PatientMonitoringDetailPage() {
                   </select>
                 }
               />
-              {/* A genuine fixed height, not max-height -- max-height only
-                  ever caps the ceiling, it still lets the box grow/shrink
-                  freely underneath that ceiling, so every new log entry
-                  streaming in was still visibly resizing (and re-jittering)
-                  this card right up until it happened to hit the cap.
-                  Confirmed live in an isolated Playwright repro before this
-                  fix and after: with a real `height`, the card's own box
-                  never changes size no matter how many entries are inside;
-                  only this div's own scroll position changes. The 272px
-                  header estimate quietly used elsewhere on this exact page
-                  (see canvas-panel.tsx) doesn't apply here: this page's own
-                  PageHeader + tab strip is taller, hence the larger
-                  subtracted constant -- generous rather than exact, since a
-                  little unused space is far safer than the card overflowing
-                  the viewport. */}
-              <div className="audit-log-scroll h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
+              <div className="audit-log-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 {sessionViewQuery.isLoading ? (
                   <PageSkeleton />
                 ) : filteredTimeline.length === 0 ? (
@@ -575,14 +576,12 @@ export function PatientMonitoringDetailPage() {
               </div>
             </Card>
 
-            <Card className="patient-monitoring-panel min-w-0">
+            <Card className="patient-monitoring-panel flex h-[calc(100vh-430px)] min-w-0 flex-col overflow-hidden">
               <SectionHeader title={t("patientDetail.summary.status")} />
-              {/* Same fixed height as the log panel's own scroll area (see
-                  its comment for why this must be `height`, not
-                  `max-height`) -- this is also what makes the two cards
-                  line up at the same height instead of each one
-                  auto-sizing to its own content. */}
-              <div className="h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
+              {/* Same flex-col/min-h-0 structure as the log panel (see its
+                  comment) -- also what keeps the two cards the same height,
+                  since both cards use the identical calc(). */}
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.currentStep")} value={currentNode?.title ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.status")} value={t(`patientMonitoring.status.${status}`)} />
