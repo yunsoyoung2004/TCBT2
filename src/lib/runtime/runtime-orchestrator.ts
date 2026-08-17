@@ -11,6 +11,8 @@ import { recordModelUsage } from "@/lib/assessment/model-observability";
 import type { PatientRendererRequest } from "@/lib/patient-renderer/patient-renderer-contract";
 import { isDialogueAgentEnabled, resolveDialogueAgentMessage } from "@/lib/dialogue-agent/dialogue-agent-orchestrator";
 import { resolveRepeatedFallbackText as resolveS01RepeatedFallbackText } from "@/lib/runtime/static-messages/s01";
+import { resolveRepeatedFallbackText as resolveS02RepeatedFallbackText } from "@/lib/runtime/static-messages/s02";
+import { resolveRepeatedFallbackText as resolveS03RepeatedFallbackText } from "@/lib/runtime/static-messages/s03";
 import { composeDistortionCandidateText, selectDistortionCandidatesDeterministically, type DistortionCandidate } from "@/lib/protocol/sessions/s01-distortion-candidates";
 
 async function callPatientRenderer(request: PatientRendererRequest, context: { sessionId: string; turnId: string }) {
@@ -104,6 +106,16 @@ export function resolveRepeatedFallbackOverride(input: {
 
   if (input.sessionDefinitionId === "tbct-s01") {
     return resolveS01RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
+  }
+  // P1-3: same phase-preserving exception as S01 above, for S02 (problem/goal/
+  // rating) and S03 (situation/thought/emotion/body) -- see resolveRepeatedFallbackText
+  // in each session's static-messages/s0N.ts for the full rationale. S04-S08
+  // are untouched: this branch only intercepts tbct-s02/tbct-s03.
+  if (input.sessionDefinitionId === "tbct-s02") {
+    return resolveS02RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
+  }
+  if (input.sessionDefinitionId === "tbct-s03") {
+    return resolveS03RepeatedFallbackText({ promptItemId: input.activePromptItemId, approvedPatientText: input.approvedPatientText, locale: input.locale });
   }
 
   const excerpt = input.lastPatientMessage.trim().slice(0, 80);

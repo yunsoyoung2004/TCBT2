@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractRuntimeState, isExplicitPatientRefusal } from "@/lib/runtime/runtime-context";
+import { extractRuntimeState, isExplicitPatientRefusal, isNonCurrentRiskMention, looksLikeMeaningClarificationRequest, looksLikeMetaQuestionAboutTheProcess, looksLikeS02ExplanationRequest, normalizeText } from "@/lib/runtime/runtime-context";
 import type { ClinicalStageNode, PromptItem } from "@/lib/protocol/source-fidelity-types";
 
 function makeNode(field: string, kind: string = "text"): ClinicalStageNode {
@@ -62,7 +62,14 @@ describe("runtime context extraction", () => {
   it("recognizes an explicit refusal stated in Korean", () => {
     expect(isExplicitPatientRefusal("세션을 진행하고 싶지 않아요")).toBe(true);
     expect(isExplicitPatientRefusal("세션을 진행하고 싶지 않아요?")).toBe(true);
-    expect(isExplicitPatientRefusal("세시 시험을 진행하고 싶지 않아요")).toBe(true);
+    // P0-1 (TBCT S01-S03 fidelity pass): this used to be `true` because the
+    // refusal regex matched on a bare "진행" substring regardless of what was
+    // being proceeded with -- "세시 시험을 진행하고 싶지 않아요" (not wanting to sit a
+    // 3 o'clock EXAM) is not a refusal of the counseling session at all, the
+    // same class of false positive as "프로젝트 진행을 하기 싫어요" (see the
+    // dedicated false-positive corpus test below). A refusal must now name
+    // the session/counseling/therapy itself as what's being stopped.
+    expect(isExplicitPatientRefusal("세시 시험을 진행하고 싶지 않아요")).toBe(false);
     expect(isExplicitPatientRefusal("그만하고 싶어요")).toBe(true);
     expect(isExplicitPatientRefusal("치료받고 싶지 않아요")).toBe(true);
     expect(isExplicitPatientRefusal("나 좀 내버려 둬")).toBe(true);
@@ -345,5 +352,216 @@ describe("runtime context extraction", () => {
     const result = await extractRuntimeState({ patientInput: { kind: "boolean", value: true }, currentNode: makeNode("automaticThought"), currentPromptItem: promptItem, currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" } });
 
     expect(result.fields.automaticThoughtIsFactual).toBe(true);
+  });
+
+  // TBCT S01-S03 정상 발화 오인 수정 (2026-08-17 fidelity pass): P0-1/P0-2/P0-5/P0-6/P1-1 corpora.
+  describe("P0-1: refusal false-positive corpus", () => {
+    it.each([
+      ["이 행동을 그만하고 싶어요", false],
+      ["머리카락 만지는 걸 그만하고 싶어요", false],
+      ["회피하는 습관을 그만하고 싶어요", false],
+      ["회사를 그만두고 싶어요", false],
+      ["이 생각을 멈추고 싶어요", false],
+      ["프로젝트 진행을 하기 싫어요", false],
+      ["상담을 그만하고 싶어요", true],
+      ["이 세션을 중단하고 싶어요", true],
+      ["치료를 더 진행하고 싶지 않아요", true],
+      ["오늘은 여기서 그만할래요", true],
+    ])("%s -> refusal=%s", (text, expected) => {
+      expect(isExplicitPatientRefusal(text)).toBe(expected);
+    });
+  });
+
+  describe("P0-2: noMore false-positive corpus", () => {
+    function evidenceForResult(rawText: string) {
+      return extractRuntimeState({
+        patientInput: { kind: "text", value: rawText },
+        currentNode: makeNode("evidenceFor"),
+        currentContext: { fields: { evidenceFor: ["기존 증거 하나"] }, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      });
+    }
+
+    it.each([
+      ["의욕이 없어요", false],
+      ["친구가 없어요", false],
+      ["돈이 없어요", false],
+      ["자신감이 없어요", false],
+      ["에너지가 없어요", false],
+      ["없어요", true],
+      ["더 없어요", true],
+      ["더는 없어요", true],
+      ["추가로는 없어요", true],
+      ["더 생각나는 건 없어요", true],
+    ])("%s -> evidenceForNoMore=%s", async (text, expectedNoMore) => {
+      const result = await evidenceForResult(text);
+      expect(result.fields.evidenceForNoMore).toBe(expectedNoMore);
+      if (!expectedNoMore) {
+        // Real clinical content must still be recorded as a new list entry,
+        // not silently dropped just because it wasn't treated as "no more".
+        expect(result.fields.evidenceFor).toContain(text);
+      }
+    });
+  });
+
+  describe("P0-5: process-clarification request corpus", () => {
+    it.each([
+      ["뭘요?", true],
+      ["뭐를 말하면 되나요?", true],
+      ["뭘 말하면 되나요?", true],
+      ["질문이 이해가 안 돼요", true],
+      ["다시 설명해 주세요", true],
+      ["쉽게 말해 주세요", true],
+      ["네", false],
+      ["네, 알겠습니다", false],
+      ["회의에서 발표 순서가 왔어요", false],
+    ])("%s -> looksLikeMeaningClarificationRequest=%s", (text, expected) => {
+      expect(looksLikeMeaningClarificationRequest(normalizeText(text))).toBe(expected);
+    });
+
+    // English quality parity: this detector is shared across S01/S02/S03 via
+    // detectProcessClarificationRequest, so an English-only gap here silently
+    // degraded process-clarification handling in every one of those sessions.
+    it.each([
+      ["Huh?", true],
+      ["What?", true],
+      ["Sorry, what?", true],
+      ["What should I say?", true],
+      ["I don't understand the question.", true],
+      ["Please explain that again.", true],
+      ["Explain this again", true],
+      ["Can you say that more simply?", true],
+      ["Could you say this more simply?", true],
+      ["Yes", false],
+      ["Yes, I understand.", false],
+      ["It was my turn to present at the meeting.", false],
+    ])("%s -> looksLikeMeaningClarificationRequest=%s", (text, expected) => {
+      expect(looksLikeMeaningClarificationRequest(normalizeText(text))).toBe(expected);
+    });
+
+    it.each([
+      ["왜 이걸 물어봐요?", true],
+      ["왜 물어보세요?", true],
+      ["그게 무슨 말이에요?", true],
+      ["회의에서 발표 순서가 왔어요", false],
+    ])("%s -> looksLikeMetaQuestionAboutTheProcess=%s", (text, expected) => {
+      expect(looksLikeMetaQuestionAboutTheProcess(normalizeText(text))).toBe(expected);
+    });
+
+    // S02's rating-card-check/goal-rating-card-check explanation-request
+    // detector (exported for runtime-execution-api.ts's deliverClarificationTurn).
+    it.each([
+      ["설명해주세요", true],
+      ["설명해 주시겠어요", true],
+      ["잘 모르겠는데", true],
+      ["이해가 안 돼요", true],
+      ["앞에서 말했잖아요", true],
+      ["please explain", true],
+      ["Please explain", true],
+      ["Can you explain?", true],
+      ["I'm not sure", true],
+      ["Not sure", true],
+      ["I don't get it", true],
+      ["I don't understand it", true],
+      ["I already said that before", true],
+      ["Yes I have the card", false],
+      ["네, 카드 있어요", false],
+    ])("%s -> looksLikeS02ExplanationRequest=%s", (text, expected) => {
+      expect(looksLikeS02ExplanationRequest(text)).toBe(expected);
+    });
+  });
+
+  describe("P0-6: safety false-positive corpus (negated/historical/third-party)", () => {
+    it.each([
+      ["지금 죽고 싶어요", false],
+      ["지금 자해하고 싶어요", false],
+      ["목숨을 끊고 싶어요", false],
+      ["죽고 싶은 건 아니에요. 그냥 너무 지쳤어요.", true],
+      ["예전에는 죽고 싶었지만 지금은 아니에요.", true],
+      ["친구가 죽고 싶다고 해서 걱정돼요.", true],
+    ])("%s -> isNonCurrentRiskMention=%s", (text, expected) => {
+      expect(isNonCurrentRiskMention(text)).toBe(expected);
+    });
+
+    it("a negated mention routes to ambiguous_safety_language with low risk, not an immediate high-risk crisis route", async () => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: "죽고 싶은 건 아니에요. 그냥 너무 지쳤어요." },
+        currentNode: makeNode("automaticThought"),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      });
+      expect(result.riskLevel).toBe("low");
+      expect(result.riskSignals).toContain("ambiguous_safety_language");
+      expect(result.fields.crisisSignal).toBeUndefined();
+    });
+
+    it("an unqualified current disclosure is unaffected and still escalates immediately", async () => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: "지금 너무 힘들어서 죽고 싶어요" },
+        currentNode: makeNode("automaticThought"),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+      });
+      expect(result.riskLevel).toBe("high");
+      expect(result.fields.crisisSignal).toBe(true);
+    });
+  });
+
+  describe("P1-1: S02 color-coded rating parsing and between-two-scores uncertainty", () => {
+    function ratingPrompt() {
+      return {
+        ...makePrompt("problemRatings", { kind: "rating", min: 0, max: 5, includeColor: true }),
+        id: "tbct-s02-n05-p01-reflect-problem-score",
+        outputFields: ["problemRatings"],
+      } satisfies PromptItem;
+    }
+
+    it.each([
+      ["4", 4],
+      ["4점", 4],
+      ["노란색", 4],
+      ["노란색이요", 4],
+      ["빨간색 같아요", 5],
+      ["진한 초록색 정도요", 3],
+    ])("%s -> stored rating %s", async (text, expected) => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: text },
+        currentNode: makeNode("problemRatings"),
+        currentPromptItem: ratingPrompt(),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      expect(result.fields.problemRatings).toEqual([expected]);
+    });
+
+    it.each(["2랑 3 사이 같아요", "2인지 3인지 모르겠어요"])("%s -> not immediately recorded, flags uncertainty instead", async (text) => {
+      const result = await extractRuntimeState({
+        patientInput: { kind: "text", value: text },
+        currentNode: makeNode("problemRatings"),
+        currentPromptItem: ratingPrompt(),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      expect(result.fields.problemRatings).toBeUndefined();
+      expect(result.fields.currentProblemScoreUncertain).toBe(true);
+    });
+
+    it("a resolved rating after uncertainty clears the uncertain flag", async () => {
+      const uncertainTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "2와 3 사이 같아요" },
+        currentNode: makeNode("problemRatings"),
+        currentPromptItem: ratingPrompt(),
+        currentContext: { fields: {}, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      expect(uncertainTurn.fields.currentProblemScoreUncertain).toBe(true);
+
+      const resolvedTurn = await extractRuntimeState({
+        patientInput: { kind: "text", value: "3이요" },
+        currentNode: makeNode("problemRatings"),
+        currentPromptItem: ratingPrompt(),
+        currentContext: { fields: uncertainTurn.fields, riskSignals: [], iterationCounts: {}, riskLevel: "low" },
+        locale: "ko-KR",
+      });
+      expect(resolvedTurn.fields.problemRatings).toEqual([3]);
+      expect(resolvedTurn.fields.currentProblemScoreUncertain).toBe(false);
+    });
   });
 });

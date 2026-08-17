@@ -158,3 +158,47 @@ export const koreanText: Record<string, string> = {
   "tbct-s03-n09-p03-behavior-cons": "그렇게 행동하는 것의 단점이나 대가는 무엇일까요?",
   "tbct-s03-n10-p04-evidence-against-direction": "최근 며칠이나 몇 주를 떠올려 보세요 — 이 생각과 어긋나는 행동을 하신 적이 있나요, 부분적으로라도요? 도움이 될 만한 방향들: 전반적인 건강 상태, 최근의 행동들, 이전에 대처했던 경험, 다른 사람들의 피드백, 또는 객관적인 사실들.",
 };
+
+// P1-3: same phase-preserving fallback pattern as static-messages/s01.ts's
+// resolveRepeatedFallbackText (see that file for the full rationale).
+// Without this, runtime-orchestrator.ts's generic repeatedFallback override
+// could replace an Intra-TR construct question (situation/thought/emotion/
+// body) with an unrelated "share one specific moment" personal-example
+// prompt, which is exactly the situation-vs-thought-vs-emotion construct
+// bleed this session's 14-question structure must never allow. The core
+// construct prompts get a hand-tuned, construct-preserving rephrase; every
+// other S03 prompt falls back to the same "let's try that more simply"
+// prefix in front of its OWN already-approved text.
+const REPEATED_FALLBACK_REPHRASE: Record<string, { en: string; ko: string }> = {
+  "tbct-s03-n03-p01-describe-situation": {
+    en: "Just the situation itself for now -- what actually happened, as plainly as you can put it.",
+    ko: "지금은 실제로 있었던 상황만요 -- 무슨 일이 있었는지 담백하게 말씀해 주시면 돼요.",
+  },
+  "tbct-s03-n04-p01-automatic-thought": {
+    en: "Just the thought that went through your mind at that moment -- not the feeling, just what you were thinking.",
+    ko: "그 순간 머릿속에 스쳐 지나간 생각만요 -- 감정 말고, 그때 어떤 생각을 하셨는지요.",
+  },
+  "tbct-s03-n07-p01-primary-emotion": {
+    en: "Just the emotion itself -- one word for how you felt is enough.",
+    ko: "감정 하나만요 -- 그때 느끼신 감정을 한 단어로 말씀해 주셔도 괜찮아요.",
+  },
+  "tbct-s03-n07-p03-emotion-intensity": {
+    en: "Just a number from 0 to 100% for how strong that emotion was.",
+    ko: "그 감정이 얼마나 강했는지, 0에서 100% 사이의 숫자로만 답해 주세요.",
+  },
+  "tbct-s03-n08-p01-behavior": {
+    en: "Just the behavior -- what you actually did, or wanted to do.",
+    ko: "행동만요 -- 실제로 무엇을 하셨는지, 또는 하고 싶으셨는지요.",
+  },
+  "tbct-s03-n08-p02-body-sensations": {
+    en: "Just what you noticed in your body in that moment -- anything at all, even something small.",
+    ko: "그 순간 몸에서 느껴진 것만요 -- 아주 작은 것이라도 괜찮아요.",
+  },
+};
+
+export function resolveRepeatedFallbackText(input: { promptItemId: string; approvedPatientText: string; locale?: string }): string {
+  const isKorean = (input.locale ?? "").toLowerCase().startsWith("ko");
+  const specific = REPEATED_FALLBACK_REPHRASE[input.promptItemId];
+  if (specific) return isKorean ? specific.ko : specific.en;
+  return isKorean ? `조금 더 간단하게 다시 여쭤볼게요. ${input.approvedPatientText}` : `Let's take that a little more simply. ${input.approvedPatientText}`;
+}

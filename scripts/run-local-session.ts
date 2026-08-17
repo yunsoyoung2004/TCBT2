@@ -37,7 +37,7 @@ try {
 }
 
 import "fake-indexeddb/auto";
-import { createInterface } from "node:readline/promises";
+import { createInterface } from "node:readline";
 import { RUNTIME_STORE_ENDPOINT } from "../src/lib/runtime/runtime-store-ops";
 import { PARTICIPANT_STORE_ENDPOINT } from "../src/lib/runtime/participant-store-ops";
 import { SAFETY_STORE_ENDPOINT } from "../src/lib/runtime/safety-store-ops";
@@ -105,13 +105,41 @@ function printMessages(messages: Array<{ role: string; content: string }>, from:
   return messages.length;
 }
 
+// node:readline's Interface auto-closes once its input stream hits EOF --
+// fine for a live terminal (never reaches EOF until the user quits), but a
+// piped/redirected stdin (`printf '...' | npx tsx run-local-session.ts
+// tbct-s02 --interactive`, exactly how this script gets driven in CI/local
+// verification without a real terminal) delivers all its bytes instantly.
+// This script does real async work (session creation, store round-trips)
+// before the loop's first `rl.question()` call, which is enough time for
+// the interface to see EOF and close itself before anything ever asks it a
+// question -- every subsequent `.question()` then throws
+// ERR_USE_AFTER_CLOSE (or, via the equivalent node:readline/promises API,
+// silently resolves with undefined instead of throwing). Piped input has no
+// "live typing" pacing to preserve anyway, so when stdin isn't a real TTY
+// this reads every line up front into a plain queue and hands them out one
+// at a time -- immune to the interface's own EOF/close timing entirely.
+// A real terminal (`process.stdin.isTTY`) keeps the original live
+// question-per-turn behavior.
+async function readAllStdinLines(): Promise<string[]> {
+  return new Promise((resolve) => {
+    const lines: string[] = [];
+    const rl = createInterface({ input: process.stdin, terminal: false });
+    rl.on("line", (line) => lines.push(line));
+    rl.on("close", () => resolve(lines));
+  });
+}
+
 async function main() {
   const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId, patientAlias: "Local Test Patient", locale });
   console.log(`=== ${sessionDefinitionId} 세션 시작 (runtimeSessionId=${session.id}, locale=${locale}) ===`);
   await startRuntimeSession(session.id);
 
   let printed = 0;
-  const rl = interactive ? createInterface({ input: process.stdin, output: process.stdout }) : null;
+  const isRealTerminal = Boolean(process.stdin.isTTY);
+  const rl = interactive && isRealTerminal ? createInterface({ input: process.stdin, output: process.stdout }) : null;
+  const pipedAnswers = interactive && !isRealTerminal ? await readAllStdinLines() : null;
+  let pipedAnswerIndex = 0;
 
   for (let turn = 0; turn < 200; turn += 1) {
     const view = await getRuntimeSession(session.id);
@@ -135,8 +163,18 @@ async function main() {
     if (!prompt) throw new Error("현재 활성화된 PromptItem이 없습니다.");
 
     let patientInput: PatientInput;
-    if (interactive) {
-      const answer = await rl!.question("\n[환자] ");
+    if (interactive && pipedAnswers) {
+      if (pipedAnswerIndex >= pipedAnswers.length) {
+        console.log("\n=== 입력된 답변을 모두 사용했습니다 (piped stdin 소진) ===");
+        break;
+      }
+      const answer = pipedAnswers[pipedAnswerIndex];
+      pipedAnswerIndex += 1;
+      console.log(`\n[환자] ${answer}`);
+      if (["exit", "quit", "종료"].includes(answer.trim().toLowerCase())) break;
+      patientInput = { kind: "text", value: answer };
+    } else if (interactive) {
+      const answer = await new Promise<string>((resolve) => rl!.question("\n[환자] ", resolve));
       if (["exit", "quit", "종료"].includes(answer.trim().toLowerCase())) break;
       patientInput = { kind: "text", value: answer };
     } else {

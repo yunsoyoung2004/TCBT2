@@ -60,15 +60,32 @@ function scoreDistortion(id: string, text: string): number {
   return pattern && pattern.test(text) ? 1 : 0;
 }
 
-export function selectDistortionCandidatesDeterministically(input: { situation: string; automaticThought: string; emotion?: string }): DistortionCandidate[] {
+export function selectDistortionCandidatesDeterministically(input: { situation: string; automaticThought: string; emotion?: string; locale?: string }): DistortionCandidate[] {
   const text = [input.situation, input.automaticThought, input.emotion ?? ""].join(" \n ");
   const scored = S01_COGNITIVE_DISTORTIONS.map((distortion) => ({ distortion, score: scoreDistortion(distortion.id, text) }));
   const matched = scored.filter((item) => item.score > 0);
   const unmatched = scored.filter((item) => item.score === 0);
   const ordered = [...matched, ...unmatched].slice(0, Math.max(MIN_CANDIDATES, Math.min(MAX_CANDIDATES, matched.length || MIN_CANDIDATES)));
+  // English quality parity: previously hardcoded to Korean regardless of
+  // locale, so an English-speaking participant on this deterministic
+  // (offline) fallback path saw an English distortion name followed by a
+  // Korean explanation sentence -- see CognitiveDistortion's doc comment.
+  //
+  // English drops the quoted example that the Korean line keeps: composing
+  // up to MAX_CANDIDATES (5) reasons with both a quote and a description
+  // pushed the total patient-facing message past dialogue-output-validator's
+  // 700-character limit (Korean fits comfortably -- Hangul syllable blocks
+  // convey the same meaning in noticeably fewer characters than English
+  // words do), which was silently downgrading every English identify-
+  // distortion turn to fallbackUsed even though the text itself was valid.
+  // Found via the 8-session simulated-patient audit (en-US) after this pass;
+  // descriptionEn was rewritten tersely for the same reason.
+  const isKorean = (input.locale ?? "ko-KR").toLowerCase().startsWith("ko");
   return ordered.map(({ distortion }) => ({
     id: distortion.id,
-    relevanceReason: `"${distortion.exampleKo[0]}"처럼, ${distortion.descriptionKo}`,
+    relevanceReason: isKorean
+      ? `"${distortion.exampleKo[0]}"처럼, ${distortion.descriptionKo}`
+      : distortion.descriptionEn,
   }));
 }
 
@@ -127,9 +144,9 @@ export async function selectDistortionCandidates(request: DistortionCandidateReq
 }
 
 const FALLBACK_INTRO_KO = "아까 말씀하신 생각과 비교해보기 쉬운 몇 가지 생각 패턴을 골라봤어요.";
-const FALLBACK_INTRO_EN = "Here are a few thinking patterns that might be worth comparing with the thought you shared.";
+const FALLBACK_INTRO_EN = "Here are a few thinking patterns worth comparing with what you shared.";
 const FALLBACK_OUTRO_KO = "이 중에서 본인의 생각과 비슷하다고 느껴지는 것이 있나요? 꼭 하나를 고르지 않아도 괜찮고, 없다고 느끼셔도 괜찮습니다.";
-const FALLBACK_OUTRO_EN = "Does any of these feel similar to your own thinking? You don't have to pick one, and it's fine if none of them feel like a match.";
+const FALLBACK_OUTRO_EN = "Does any of these feel familiar? It's fine if none of them match, or if you're unsure.";
 
 /** Composes the deterministic patient-facing text from validated candidates
  * -- distortion NAMES always come from the registry (never from the model's

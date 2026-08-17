@@ -63,7 +63,17 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([483, 494]), "If a patient gives a very brief answer, invite elaboration once (\"Can you tell me a little more about that?\"), then accept whatever they offer next without further pressing."],
       prompts: [
         // 세션로그 §12-2 [P0]: verbatim, system prompt에 그대로 있음.
-        { slug: "fourteen-question-introduction", type: "opening", source: [483, 494], marker: "Today we are going to work with something called", patientText: "Today we are going to work with something called the Intrapersonal Thought Record, or Intra-TR. It is a structured set of 14 questions that will help you examine a thought that is causing you distress. We'll go step by step together. There are no right or wrong answers — your honest responses are what matter most.", outputFields: ["intraTrIntroductionComplete"] },
+        // P0-3 (same class of bug as S02's first-session-opening): this is a
+        // one-way introduction with no question asked -- outputFields:
+        // ["intraTrIntroductionComplete"] previously made it an
+        // input-required prompt (generic outputFields.length > 0 fallback in
+        // promptRequiresPatientInput), so a participant's "네" was rejected as
+        // a non-answer. Record the field deterministically on delivery
+        // instead of waiting on an answer that was never actually being
+        // asked for -- intraTrIntroductionComplete is never branched on
+        // elsewhere (grep-verified), only used as node-level requiredFields
+        // metadata.
+        { slug: "fourteen-question-introduction", type: "opening", source: [483, 494], marker: "Today we are going to work with something called", patientText: "Today we are going to work with something called the Intrapersonal Thought Record, or Intra-TR. It is a structured set of 14 questions that will help you examine a thought that is causing you distress. We'll go step by step together. There are no right or wrong answers — your honest responses are what matter most.", completionEffect: { type: "set_field", field: "intraTrIntroductionComplete", value: true } },
         { slug: "ccd-connection", type: "explanation", source: [483, 494], marker: "You may remember the diagram", patientText: "You may remember the diagram we worked on before, with the situation, automatic thought, emotion, and behavior. The Intra-TR uses exactly those same pieces, but takes you further — all the way to a new conclusion and a new way of feeling and acting.", outputFields: ["intraTrIntroductionComplete"] },
         // §6.3 [신규 B-12]: system prompt v4's session-start contract had no
         // corresponding prompt. Appended after the two orientation prompts

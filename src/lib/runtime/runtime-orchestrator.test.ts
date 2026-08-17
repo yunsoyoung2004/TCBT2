@@ -129,11 +129,18 @@ describe("resolveRepeatedFallbackOverride: S01-only phase-aware exception", () =
   });
 });
 
-describe("resolveRepeatedFallbackOverride: S02-S08 regression (unchanged generic behavior)", () => {
-  const genericEnglish = 'It sounds like "I feel like nothing I do is good enough" is weighing on you. Could you share one specific moment when it felt strongest?';
-  const genericKorean = '"힘들었어요"라고 느끼고 계시는군요. 그 마음이 가장 크게 느껴졌던 구체적인 순간 하나를 말씀해 주실 수 있을까요?';
-
-  it("RF-6: S02 gets the exact original generic override, byte-identical, in English", () => {
+// P1-3 (TBCT S01-S03 fidelity pass): S02 and S03 gained the same
+// phase/construct-preserving exception S01 already had -- both now delegate
+// to their own static-messages/s0N.ts resolveRepeatedFallbackText instead of
+// this generic override, for the same reason: the generic override's fixed
+// "share one specific moment when it felt strongest" text is a
+// Personal-Example-shaped question that could silently replace an S02
+// problem/goal/rating question or an S03 situation/thought/emotion/body
+// question with an unrelated new-personal-situation prompt. S04-S08 are the
+// true regression group now: still byte-identical to the original generic
+// override.
+describe("resolveRepeatedFallbackOverride: S02/S03 construct-preserving exception", () => {
+  it("RF-6: S02's problem-framing prompt gets its hand-tuned, problem-preserving rephrase", () => {
     const result = resolveRepeatedFallbackOverride({
       sessionDefinitionId: "tbct-s02",
       usedFallback: true,
@@ -141,26 +148,46 @@ describe("resolveRepeatedFallbackOverride: S02-S08 regression (unchanged generic
       recentAssistantMessages: threeRepeats(APPROVED),
       lastPatientMessage: "I feel like nothing I do is good enough",
       locale: "en-US",
-      activePromptItemId: "tbct-s02-n02-p01-elicit-problems",
+      activePromptItemId: "tbct-s02-n02-p01-problem-framing",
     });
-    expect(result).toBe(genericEnglish);
+    expect(result).not.toContain("specific moment");
+    expect(result).toMatch(/problem/i);
   });
 
-  it("RF-6: S02 gets the exact original generic override, byte-identical, in Korean", () => {
+  it("RF-6: S02 falls back to the generic, still-construct-preserving default for a prompt with no hand-tuned rephrase", () => {
     const result = resolveRepeatedFallbackOverride({
       sessionDefinitionId: "tbct-s02",
       usedFallback: true,
       approvedPatientText: APPROVED,
       recentAssistantMessages: threeRepeats(APPROVED),
       lastPatientMessage: "힘들었어요",
-      locale: "ko-KR",
+      locale: "en-US",
       activePromptItemId: "tbct-s02-n02-p01-elicit-problems",
     });
-    expect(result).toBe(genericKorean);
+    expect(result).toContain(APPROVED);
+    expect(result).not.toContain("specific moment");
   });
 
-  it.each(["tbct-s03", "tbct-s04", "tbct-s05", "tbct-s06", "tbct-s07", "tbct-s08"])(
-    "RF-7: %s gets the exact original generic override, unaffected by the S01 exception",
+  it("RF-7: S03's automatic-thought prompt gets its hand-tuned, thought-preserving rephrase", () => {
+    const result = resolveRepeatedFallbackOverride({
+      sessionDefinitionId: "tbct-s03",
+      usedFallback: true,
+      approvedPatientText: APPROVED,
+      recentAssistantMessages: threeRepeats(APPROVED),
+      lastPatientMessage: "I feel like nothing I do is good enough",
+      locale: "en-US",
+      activePromptItemId: "tbct-s03-n04-p01-automatic-thought",
+    });
+    expect(result).not.toContain("specific moment");
+    expect(result).toMatch(/thought/i);
+  });
+});
+
+describe("resolveRepeatedFallbackOverride: S04-S08 regression (unchanged generic behavior)", () => {
+  const genericEnglish = 'It sounds like "I feel like nothing I do is good enough" is weighing on you. Could you share one specific moment when it felt strongest?';
+
+  it.each(["tbct-s04", "tbct-s05", "tbct-s06", "tbct-s07", "tbct-s08"])(
+    "RF-7: %s gets the exact original generic override, unaffected by the S01/S02/S03 exceptions",
     (sessionDefinitionId) => {
       const result = resolveRepeatedFallbackOverride({
         sessionDefinitionId,

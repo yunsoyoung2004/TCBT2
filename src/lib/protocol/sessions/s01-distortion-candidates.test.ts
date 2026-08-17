@@ -14,6 +14,11 @@ describe("S01_COGNITIVE_DISTORTIONS registry", () => {
       expect(distortion.nameEn.length).toBeGreaterThan(0);
       expect(distortion.descriptionKo.length).toBeGreaterThan(0);
       expect(distortion.exampleKo.length).toBeGreaterThan(0);
+      // English quality parity: every entry must carry its own English
+      // description/example, not just the Korean fields -- see this type's
+      // doc comment in s01-cognitive-distortions.ts.
+      expect(distortion.descriptionEn.length).toBeGreaterThan(0);
+      expect(distortion.exampleEn.length).toBeGreaterThan(0);
     }
     expect(S01_DISTORTION_IDS.size).toBe(15);
   });
@@ -59,6 +64,78 @@ describe("selectDistortionCandidatesDeterministically", () => {
   it("every candidate carries a non-empty relevanceReason", () => {
     const candidates = selectDistortionCandidatesDeterministically({ situation: "회의에 늦었다.", automaticThought: "다들 나를 무능하다고 생각할 거야." });
     for (const candidate of candidates) expect(candidate.relevanceReason.trim().length).toBeGreaterThan(0);
+  });
+
+  // English quality parity: this deterministic fallback is what actually
+  // runs whenever no live ANTHROPIC_API_KEY is configured (this repo's
+  // dev/test default), so an English-speaking participant depends on this
+  // path exactly as much as a Korean-speaking one does.
+  it("locale=en-US: every relevanceReason is the registry's own descriptionEn, never Korean", () => {
+    const candidates = selectDistortionCandidatesDeterministically({
+      situation: "I have a big exam next week.",
+      automaticThought: "There's too much to study, what if I can't finish it all?",
+      locale: "en-US",
+    });
+    expect(candidates.length).toBeGreaterThan(0);
+    for (const candidate of candidates) {
+      const distortion = S01_COGNITIVE_DISTORTIONS.find((d) => d.id === candidate.id)!;
+      expect(candidate.relevanceReason).toBe(distortion.descriptionEn);
+      expect(candidate.relevanceReason).not.toMatch(/[가-힣]/); // no Hangul
+    }
+  });
+
+  it("locale=ko-KR (default): relevanceReason is unaffected by the English fix, still quotes exampleKo", () => {
+    const candidates = selectDistortionCandidatesDeterministically({
+      situation: "다음 주에 큰 시험이 있다.",
+      automaticThought: "공부할 양이 너무 많아서 다 할 수 있을까? 다 못하면 어떻게 하지?",
+    });
+    for (const candidate of candidates) {
+      const distortion = S01_COGNITIVE_DISTORTIONS.find((d) => d.id === candidate.id)!;
+      expect(candidate.relevanceReason).toBe(`"${distortion.exampleKo[0]}"처럼, ${distortion.descriptionKo}`);
+    }
+  });
+});
+
+describe("composed distortion-candidate text stays under dialogue-output-validator's 700-char limit", () => {
+  // Regression test for a genuine bug found via the 8-session simulated-
+  // patient audit (en-US): English composed text is naturally longer than
+  // Korean's per-character information density, and the deterministic
+  // fallback can select ANY 5 of the 15 registry entries -- so passing for
+  // one sampled combination isn't enough proof. This exhaustively checks
+  // every possible 5-of-15 combination (455 total) against the real
+  // composeDistortionCandidateText, giving a hard guarantee independent of
+  // which 5 the (regex-based) trigger scoring actually picks.
+  function combinations<T>(arr: T[], k: number): T[][] {
+    const results: T[][] = [];
+    const helper = (start: number, combo: T[]) => {
+      if (combo.length === k) { results.push([...combo]); return; }
+      for (let i = start; i < arr.length; i++) { combo.push(arr[i]); helper(i + 1, combo); combo.pop(); }
+    };
+    helper(0, []);
+    return results;
+  }
+
+  function composeForIds(ids: string[], locale: string) {
+    const isKorean = locale.toLowerCase().startsWith("ko");
+    const candidates = ids.map((id) => {
+      const d = S01_COGNITIVE_DISTORTIONS.find((x) => x.id === id)!;
+      return { id, relevanceReason: isKorean ? `"${d.exampleKo[0]}"처럼, ${d.descriptionKo}` : d.descriptionEn };
+    });
+    return composeDistortionCandidateText(candidates, locale);
+  }
+
+  it("every possible 5-candidate English combination stays at or under 700 characters", () => {
+    const ids = S01_COGNITIVE_DISTORTIONS.map((d) => d.id);
+    let worst = 0;
+    for (const combo of combinations(ids, 5)) worst = Math.max(worst, composeForIds(combo, "en-US").length);
+    expect(worst).toBeLessThanOrEqual(700);
+  });
+
+  it("every possible 5-candidate Korean combination stays at or under 700 characters (regression guard)", () => {
+    const ids = S01_COGNITIVE_DISTORTIONS.map((d) => d.id);
+    let worst = 0;
+    for (const combo of combinations(ids, 5)) worst = Math.max(worst, composeForIds(combo, "ko-KR").length);
+    expect(worst).toBeLessThanOrEqual(700);
   });
 });
 

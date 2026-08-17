@@ -43,7 +43,16 @@ export const spec: SessionSpec = {
         // was shown).
         // 세션로그 §9-2/§12-2 [P0]: opening 노드 4개 전부 patientText 없이
         // marker만 있어서 세션 첫 발화부터 generic fallback이었다. verbatim 복원.
-        { slug: "first-session-opening", type: "opening", source: [250, 261], marker: "Hi! I'm here to help you map out", patientText: "Hi! I'm here to help you map out what's been on your mind lately — both the challenges you're facing and the goals you'd like to work toward. There are no right or wrong answers here — just share whatever feels most true for you right now.", activationCondition: { field: "returningParticipant", operator: "not_equals", value: true }, outputFields: ["openingMode"] },
+        // P0-3 (정상 발화 오인 수정): this prompt is a one-way welcome with no
+        // question asked -- the real elicitation happens in elicit-problems
+        // below. outputFields: ["openingMode"] previously made this an
+        // input-required prompt (generic outputFields.length > 0 fallback in
+        // promptRequiresPatientInput), so a participant's "네" was rejected
+        // as a non-answer and looped toward invalid-answer clarification.
+        // openingMode only ever served as a which-opening-fired marker (see
+        // the comment above), so record it deterministically instead of
+        // waiting on a patient answer that was never actually being asked for.
+        { slug: "first-session-opening", type: "opening", source: [250, 261], marker: "Hi! I'm here to help you map out", patientText: "Hi! I'm here to help you map out what's been on your mind lately — both the challenges you're facing and the goals you'd like to work toward. There are no right or wrong answers here — just share whatever feels most true for you right now.", activationCondition: { field: "returningParticipant", operator: "not_equals", value: true }, completionEffect: { type: "set_field", field: "openingMode", value: "first_session" } },
         { slug: "returning-opening", type: "opening", source: [250, 261], marker: "Welcome back", patientText: "Welcome back. Before we dive in today, I just want to check in — is there anything from our last session that's still on your mind? Something that came up that you'd like to bring forward, or anything you'd like to revisit?", activationCondition: { field: "returningParticipant", operator: "equals", value: true }, outputFields: ["openingMode"] },
         { slug: "between-session-bridge", type: "follow_up", source: [250, 261], marker: "How did that go", patientText: "How did that go for you? Were you able to use it during the week, and did it change anything for you?", activationCondition: { field: "returningParticipant", operator: "equals", value: true }, outputFields: ["betweenSessionWork"] },
         { slug: "assessment-transition", type: "transition", source: [250, 261], marker: "It's great to hear", patientText: "It's great to hear that. Let's now take a look at where things stand for you today — both the challenges you're facing and the goals you're working toward.", activationCondition: { field: "returningParticipant", operator: "equals", value: true } },
@@ -61,11 +70,30 @@ export const spec: SessionSpec = {
         // 세션로그 §9-2 [P0]: elicit-problems 노드 7/7 전부 누락 -- 세션의
         // 본체(문제 수집)가 백지였다. verbatim 전체 복원.
         { slug: "problem-framing", type: "question", source: [263, 279], marker: "Over the next five or six months", patientText: "Over the next five or six months, as we work together in therapy, what are the five most important problems or difficulties that — if we resolve them — will leave you feeling well? What would you like to breathe from? To be free from?", outputFields: ["problems"], validation: { kind: "array", minItems: 1, maxItems: 5 } },
-        { slug: "problem-home-work-relationships", type: "follow_up", source: [263, 279], marker: "Is there anything going on at home", patientText: "Is there anything going on at home, at work, or in your relationships that's been weighing on you?", outputFields: ["problems"] },
-        { slug: "problem-avoidance", type: "follow_up", source: [263, 279], marker: "Are there things you've been avoiding", patientText: "Are there things you've been avoiding or worrying about lately?", outputFields: ["problems"] },
-        { slug: "problem-therapy-goal", type: "follow_up", source: [263, 279], marker: "What brought you to therapy", patientText: "What brought you to therapy, or what would you most like to change?", outputFields: ["problems"] },
-        { slug: "problem-forward-importance", type: "follow_up", source: [263, 279], marker: "Think about what's affecting you", patientText: "Think about what's affecting you most right now — and also things in your life that, if resolved, would really make a difference.", outputFields: ["problems"] },
-        { slug: "problem-confirmation", type: "confirmation", source: [263, 279], marker: "Got it", patientText: "Got it — I'll add that to your list.", outputFields: ["problems"] },
+        // Real-runtime reproduction (see .claude/TASK_SCOPE.json's
+        // note2026_08_17g entry): "더 생각나는 건 없어요" correctly set
+        // problemsNoMore=true (runtime-context.ts's isNoMoreEvidence) but
+        // nothing here ever READ that flag, so the four remaining follow-up
+        // prompts below kept firing regardless -- a participant who clearly
+        // said "that's everything" was still asked four more "anything at
+        // home? at work? avoiding anything?" questions before the node would
+        // move on. Each follow-up now skips once the participant has said
+        // there's nothing more.
+        { slug: "problem-home-work-relationships", type: "follow_up", source: [263, 279], marker: "Is there anything going on at home", patientText: "Is there anything going on at home, at work, or in your relationships that's been weighing on you?", activationCondition: { field: "problemsNoMore", operator: "not_equals", value: true }, outputFields: ["problems"] },
+        { slug: "problem-avoidance", type: "follow_up", source: [263, 279], marker: "Are there things you've been avoiding", patientText: "Are there things you've been avoiding or worrying about lately?", activationCondition: { field: "problemsNoMore", operator: "not_equals", value: true }, outputFields: ["problems"] },
+        { slug: "problem-therapy-goal", type: "follow_up", source: [263, 279], marker: "What brought you to therapy", patientText: "What brought you to therapy, or what would you most like to change?", activationCondition: { field: "problemsNoMore", operator: "not_equals", value: true }, outputFields: ["problems"] },
+        { slug: "problem-forward-importance", type: "follow_up", source: [263, 279], marker: "Think about what's affecting you", patientText: "Think about what's affecting you most right now — and also things in your life that, if resolved, would really make a difference.", activationCondition: { field: "problemsNoMore", operator: "not_equals", value: true }, outputFields: ["problems"] },
+        // Real-runtime reproduction: this is a passive acknowledgment of the
+        // problem the PREVIOUS turn already added ("Got it -- I'll add that
+        // to your list."), not a new question -- it asks nothing. outputFields:
+        // ["problems"] previously combined with type "confirmation" being
+        // unconditionally input-required (see promptRequiresPatientInput's
+        // PASSIVE_ACKNOWLEDGMENT_PROMPT_IDS exception, added for this exact
+        // id) to make the runtime wait for a fresh "problems" answer here,
+        // rejecting a plain "네" as filler. Removed since this prompt never
+        // legitimately produces a NEW problems entry -- the entry it's
+        // acknowledging was already written by whichever prompt preceded it.
+        { slug: "problem-confirmation", type: "confirmation", source: [263, 279], marker: "Got it", patientText: "Got it — I'll add that to your list.", activationCondition: { field: "problemsNoMore", operator: "not_equals", value: true } },
         { slug: "problem-reframe", type: "clarification", source: [263, 279], marker: "That sounds really hard", patientText: "That sounds really hard. Just so we can track this in a way that's useful — would it help to frame it as something like 'how I'm coping with [situation]'? That way we can track your own journey through it, even if the situation itself is outside your control. Does that feel right?", activationCondition: { field: "problemOutsideParticipantControl", operator: "equals", value: true }, outputFields: ["problemFraming"] },
       ],
     },
@@ -95,9 +123,20 @@ export const spec: SessionSpec = {
       restrictions: [sourceText([294, 313])],
       participantRationale: "Rating each problem helps us see which ones matter most right now, so we know where to focus first.",
       prompts: [
-        { slug: "rating-card-check", type: "question", source: [294, 313], marker: "Do you have the rating scale card", patientText: "Do you have the rating scale card in front of you right now?", outputFields: ["problemScaleCardAvailable"] },
+        // P0-4 (정상 발화 오인 수정): these are real yes/no questions ("Do you
+        // have the card...?", "Does that distinction make sense?") but had no
+        // validation.kind, so "네"/"아니요" fell through to the generic
+        // filler-word rejection (NON_ANSWER_TEXT includes "네") instead of
+        // being recognized as the complete answer. validation.kind: "boolean"
+        // reuses the existing yes/no acceptance path (parseBooleanInput
+        // already accepts 네/예/응/아니/아니요) and, for
+        // discomfort-distress-distinction, also correctly makes the prompt
+        // wait for the participant's confirmation instead of auto-advancing
+        // past an unanswered comprehension check (validation.kind: "boolean"
+        // is in PASSIVE_TYPE_REAL_ANSWER_VALIDATION_KINDS).
+        { slug: "rating-card-check", type: "question", source: [294, 313], marker: "Do you have the rating scale card", patientText: "Do you have the rating scale card in front of you right now?", outputFields: ["problemScaleCardAvailable"], validation: { kind: "boolean" } },
         { slug: "six-anchor-problem-scale", type: "instruction", source: [294, 313], marker: "Now I'll ask you to rate each problem", outputFields: ["problemScalePresented"], validation: { kind: "exact_scale_anchors", min: 0, max: 5 } },
-        { slug: "discomfort-distress-distinction", type: "explanation", source: [294, 313], marker: "Notice something important about this scale", outputFields: ["problemScaleDistinctionAcknowledged"] },
+        { slug: "discomfort-distress-distinction", type: "explanation", source: [294, 313], marker: "Notice something important about this scale", outputFields: ["problemScaleDistinctionAcknowledged"], validation: { kind: "boolean" } },
       ],
     },
     {
@@ -165,19 +204,33 @@ export const spec: SessionSpec = {
       prompts: [
         // 세션로그 §9-2 [P0]: elicit-goals 노드 7/8 누락 -- verbatim 전체 복원.
         { slug: "goal-framing", type: "question", source: [334, 350], marker: "Over the next five or six months, if therapy goes really well", patientText: "Over the next five or six months, if therapy goes really well — what are the five most important goals or aspirations you'd like to achieve? What would make you feel more fulfilled, healthier, or happier?", outputFields: ["goals"], validation: { kind: "array", minItems: 1, maxItems: 5 } },
-        { slug: "goal-life-change", type: "follow_up", source: [334, 350], marker: "If therapy goes really well, what would be different", patientText: "If therapy goes really well, what would be different in your life?", outputFields: ["goals"] },
-        { slug: "goal-difficult-action", type: "follow_up", source: [334, 350], marker: "Are there things you've been wanting", patientText: "Are there things you've been wanting to do but have felt too difficult or scary to try?", outputFields: ["goals"] },
-        { slug: "goal-freedom", type: "follow_up", source: [334, 350], marker: "What would make you feel more at ease", patientText: "What would make you feel more at ease, more yourself, or more free?", outputFields: ["goals"] },
-        { slug: "goal-dream", type: "follow_up", source: [334, 350], marker: "Are there things you've always wanted", patientText: "Are there things you've always wanted to do or become — even long-term dreams — that feel important to you?", outputFields: ["goals"] },
-        { slug: "goal-overlap", type: "clarification", source: [334, 350], marker: "That sounds like both a problem", patientText: "That sounds like both a problem we should include in our list, and a goal. Would you like to add it to both?", activationCondition: { field: "goalOverlapsProblem", operator: "equals", value: true }, outputFields: ["goalProblemOverlap"] },
-        { slug: "goal-confirmation", type: "confirmation", source: [334, 350], marker: "That's a wonderful goal", patientText: "That's a wonderful goal — I'll add that.", outputFields: ["goals"] },
+        // Same fix as elicit-problems above: skip the remaining follow-ups
+        // once the participant has said there's nothing more (goalsNoMore).
+        { slug: "goal-life-change", type: "follow_up", source: [334, 350], marker: "If therapy goes really well, what would be different", patientText: "If therapy goes really well, what would be different in your life?", activationCondition: { field: "goalsNoMore", operator: "not_equals", value: true }, outputFields: ["goals"] },
+        { slug: "goal-difficult-action", type: "follow_up", source: [334, 350], marker: "Are there things you've been wanting", patientText: "Are there things you've been wanting to do but have felt too difficult or scary to try?", activationCondition: { field: "goalsNoMore", operator: "not_equals", value: true }, outputFields: ["goals"] },
+        { slug: "goal-freedom", type: "follow_up", source: [334, 350], marker: "What would make you feel more at ease", patientText: "What would make you feel more at ease, more yourself, or more free?", activationCondition: { field: "goalsNoMore", operator: "not_equals", value: true }, outputFields: ["goals"] },
+        { slug: "goal-dream", type: "follow_up", source: [334, 350], marker: "Are there things you've always wanted", patientText: "Are there things you've always wanted to do or become — even long-term dreams — that feel important to you?", activationCondition: { field: "goalsNoMore", operator: "not_equals", value: true }, outputFields: ["goals"] },
+        // P0-4: real yes/no question ("Would you like to add it to both?"),
+        // see the discomfort-distress-distinction comment above for why
+        // validation.kind: "boolean" is the correct fix here too.
+        { slug: "goal-overlap", type: "clarification", source: [334, 350], marker: "That sounds like both a problem", patientText: "That sounds like both a problem we should include in our list, and a goal. Would you like to add it to both?", activationCondition: { field: "goalOverlapsProblem", operator: "equals", value: true }, outputFields: ["goalProblemOverlap"], validation: { kind: "boolean" } },
+        // Passive acknowledgment, same fix as problem-confirmation above --
+        // see PASSIVE_ACKNOWLEDGMENT_PROMPT_IDS in runtime-release-normalizer.ts.
+        { slug: "goal-confirmation", type: "confirmation", source: [334, 350], marker: "That's a wonderful goal", patientText: "That's a wonderful goal — I'll add that.", activationCondition: { field: "goalsNoMore", operator: "not_equals", value: true } },
         // §5.9 [신규 B-11]: manual gives an explicit follow-up for a distant
         // dream ("what's one small thing you could do now to start moving
         // toward it?") that had no corresponding prompt. Appended (not
         // inserted) so no existing prompt ID in this node shifts; phrased
         // generically since detecting which specific goal is a "distant
         // dream" would need semantic classification outside this file's scope.
-        { slug: "goal-dream-small-step", type: "follow_up", source: [334, 350], marker: "Are there things you've always wanted", patientText: "For anything on this list that feels like a distant dream rather than something within reach right now, what's one small thing you could do to start moving toward it?", outputFields: ["goalSmallSteps"], validation: { kind: "array" } },
+        // Session 2 manual-control recovery: the manual only asks this when
+        // a real distant dream was actually named -- this prompt previously
+        // had no activationCondition at all and always fired, even when
+        // goal-dream got "없어요"/a meta remark and no distant dream exists
+        // to ask about. goalDistantDreamIdentified is set in
+        // runtime-context.ts only when goal-dream's own answer is a genuine
+        // item (not no_more/meta_or_clarification).
+        { slug: "goal-dream-small-step", type: "follow_up", source: [334, 350], marker: "Are there things you've always wanted", patientText: "For anything on this list that feels like a distant dream rather than something within reach right now, what's one small thing you could do to start moving toward it?", activationCondition: { field: "goalDistantDreamIdentified", operator: "equals", value: true }, outputFields: ["goalSmallSteps"], validation: { kind: "array" } },
       ],
     },
     {
@@ -188,7 +241,8 @@ export const spec: SessionSpec = {
       requiredFields: ["goalScalePresented"],
       restrictions: [sourceText([351, 368])],
       prompts: [
-        { slug: "goal-rating-card-check", type: "question", source: [351, 368], marker: "Do you still have the rating card", patientText: "Do you still have the rating card in front of you?", outputFields: ["goalScaleCardAvailable"] },
+        // P0-4: same fix as rating-card-check above.
+        { slug: "goal-rating-card-check", type: "question", source: [351, 368], marker: "Do you still have the rating card", patientText: "Do you still have the rating card in front of you?", outputFields: ["goalScaleCardAvailable"], validation: { kind: "boolean" } },
         { slug: "six-anchor-goal-scale", type: "instruction", source: [351, 368], marker: "Now let's rate how difficult", outputFields: ["goalScalePresented"], validation: { kind: "exact_scale_anchors", min: 0, max: 5 } },
       ],
     },
@@ -214,6 +268,10 @@ export const spec: SessionSpec = {
         },
         { slug: "acknowledge-difficult-goal", type: "reflection", source: [369, 376], marker: "That's a really meaningful goal", patientText: "That's a really meaningful goal, even if it feels far away right now. These are the ones therapy often helps unlock.", activationCondition: { field: "currentGoalScore", operator: "in", value: [4, 5] } },
         { slug: "acknowledge-achieved-goal", type: "reflection", source: [369, 376], marker: "Wonderful", patientText: "Wonderful — it sounds like you're already living this one!", activationCondition: { field: "currentGoalScore", operator: "equals", value: 0 } },
+        // P1-1: goal-rating equivalent of rate-problems' score-clarification
+        // above -- same uncertainty-between-two-scores experience, now that
+        // currentGoalScoreUncertain is actually set by runtime-context.ts.
+        { slug: "goal-score-clarification", type: "clarification", source: [369, 376], marker: "When you think about it as", patientText: "When you think about it as [description of lower score] versus [description of higher score] — which one feels truer to you right now?", activationCondition: { field: "currentGoalScoreUncertain", operator: "equals", value: true } },
       ],
     },
     {
