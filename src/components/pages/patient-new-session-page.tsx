@@ -67,7 +67,7 @@ export function PatientNewSessionPage() {
             {sessions.map((session) => (
               <Card key={session.id} className="flex h-full flex-col gap-4 p-4 transition hover:border-clinical-blue hover:shadow-lg">
                 <div>
-                  <div className="font-semibold text-text-primary">{session.title}</div>
+                  <div className="font-semibold text-text-primary">{locale === "ko" ? (session.titleKo ?? session.title) : session.title}</div>
                   <div className="mt-1 text-xs text-text-secondary">{t("patientNewSession.sessionLabel", { number: session.number, technique: session.techniqueName })}</div>
                 </div>
                 <Button className="mt-auto" onClick={() => void handleStartSession(session.id)} disabled={startingSessionId !== null}>

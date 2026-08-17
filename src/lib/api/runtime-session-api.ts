@@ -184,6 +184,7 @@ export async function listCanonicalTestSessions() {
       id: session.id,
       number: session.number,
       title: session.title,
+      titleKo: session.titleKo,
       techniqueName: session.techniqueName,
     }));
 }

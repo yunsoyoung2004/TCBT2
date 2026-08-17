@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 4,
   id: "tbct-s04",
   title: "Interpersonal Thought Record (Inter-TR)",
+  titleKo: "대인관계 사고 기록 (Inter-TR)",
   techniqueName: "Interpersonal Thought Record (Inter-TR)",
   acronym: "Inter-TR",
   sourceLineStart: 746,

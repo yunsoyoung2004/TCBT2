@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 6,
   id: "tbct-s06",
   title: "Color-Coded Symptoms Hierarchy (CCSH)",
+  titleKo: "색상별 증상 위계 (CCSH)",
   techniqueName: "Color-Coded Symptoms Hierarchy (CCSH)",
   acronym: "CCSH",
   sourceLineStart: 932,

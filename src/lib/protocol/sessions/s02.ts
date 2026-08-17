@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 2,
   id: "tbct-s02",
   title: "Problems and Goals",
+  titleKo: "문제와 목표",
   techniqueName: "Color-Coded Problem Hierarchy (CCPH) / Color-Coded Goals/Aspirations Hierarchy (CCGH)",
   acronym: "CCPH / CCGH",
   sourceLineStart: 223,

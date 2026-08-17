@@ -55,6 +55,11 @@ export type SessionDefinition = {
   protocolId: string;
   number: number;
   title: string;
+  /** Clinician-facing Korean session name -- purely a display label (see
+   * findSessionTitle), never validated against sourceTrace/sourceFidelityStatus
+   * the way title's own English wording traces back to the source manual.
+   * Falls back to `title` wherever unset. */
+  titleKo?: string;
   techniqueName: string;
   acronym?: string;
   contextAndPurpose: string;

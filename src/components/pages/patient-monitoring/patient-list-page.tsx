@@ -47,7 +47,7 @@ function formatTimestamp(value?: string) {
 }
 
 export function PatientListPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const participantsQuery = useQuery({ queryKey: ["patient-monitoring-participants"], queryFn: listRuntimeParticipants });
   const sessionsQuery = useQuery({ queryKey: ["patient-monitoring-sessions"], queryFn: listRuntimeSessions });
   const safetyQuery = useQuery({ queryKey: ["patient-monitoring-safety-events"], queryFn: getSafetyEvents });
@@ -280,7 +280,7 @@ export function PatientListPage() {
             <select className={cn(inputClass, "lg:w-56")} value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)} aria-label={t("patientMonitoring.sessionFilter")}>
               <option value="all">{t("common.all")}</option>
               {sessionOptions.map((id) => (
-                <option key={id} value={id}>{findSessionTitle(id) ?? id}</option>
+                <option key={id} value={id}>{findSessionTitle(id, locale) ?? id}</option>
               ))}
             </select>
             <button
@@ -328,7 +328,7 @@ export function PatientListPage() {
             <select className={inputClass} value={sessionFilter} onChange={(event) => setSessionFilter(event.target.value)} aria-label={t("patientMonitoring.sessionFilter")}>
               <option value="all">{t("common.all")}</option>
               {sessionOptions.map((id) => (
-                <option key={id} value={id}>{findSessionTitle(id) ?? id}</option>
+                <option key={id} value={id}>{findSessionTitle(id, locale) ?? id}</option>
               ))}
             </select>
             <button
@@ -360,7 +360,7 @@ export function PatientListPage() {
                 </thead>
                 <tbody>
                   {filteredRows.map(({ participant, summary }) => (
-                    <ParticipantRow key={participant.id} participant={participant} summary={summary} t={t} />
+                    <ParticipantRow key={participant.id} participant={participant} summary={summary} t={t} locale={locale} />
                   ))}
                 </tbody>
               </table>
@@ -378,7 +378,7 @@ export function PatientListPage() {
                       <div className="min-w-0 truncate text-sm font-semibold text-text-primary">{participant.alias}</div>
                       <Badge dot className="shrink-0" tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
                     </div>
-                    <div className="mt-2 truncate text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</div>
+                    <div className="mt-2 truncate text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId, locale) ?? "—"}</div>
                     <div className="mt-1 truncate text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</div>
                     <div className="mt-2 text-[11px] text-text-muted">{formatTimestamp(summary.lastActivity)}</div>
                   </Card>
@@ -478,10 +478,12 @@ function ParticipantRow({
   participant,
   summary,
   t,
+  locale,
 }: {
   participant: RuntimeParticipant;
   summary: ParticipantMonitoringSummary;
   t: ReturnType<typeof useT>["t"];
+  locale: string;
 }) {
   const router = useRouter();
   const href = `/patients/${participant.id}`;
@@ -503,7 +505,7 @@ function ParticipantRow({
         </Link>
         <div className="text-[11px] text-text-muted">{participant.id}</div>
       </td>
-      <td className="px-4 py-3 text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId) ?? "—"}</td>
+      <td className="px-4 py-3 text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId, locale) ?? "—"}</td>
       <td className="px-4 py-3 text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</td>
       <td className="px-4 py-3"><Badge dot tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge></td>
       <td className="relative px-4 py-3 text-text-secondary">

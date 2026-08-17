@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 5,
   id: "tbct-s05",
   title: "Participation Grid (PG)",
+  titleKo: "참여 격자표 (PG)",
   techniqueName: "Participation Grid (PG)",
   acronym: "PG",
   sourceLineStart: 804,

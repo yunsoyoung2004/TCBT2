@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 8,
   id: "tbct-s08",
   title: "Trial One",
+  titleKo: "첫 번째 시도",
   techniqueName: "Trial One",
   acronym: "TBTR",
   sourceLineStart: 1537,

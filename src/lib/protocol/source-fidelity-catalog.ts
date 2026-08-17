@@ -32,6 +32,9 @@ export type SessionSourceMetadata = {
   number: number;
   id: string;
   title: string;
+  /** See SessionDefinition.titleKo's own doc comment -- carried through
+   * unchanged into the built definition below. */
+  titleKo?: string;
   techniqueName: string;
   acronym?: string;
   sourceLineStart: number;
@@ -313,6 +316,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
     protocolId: CANONICAL_PROTOCOL_ID,
     number: metadata.number,
     title: metadata.title,
+    titleKo: metadata.titleKo,
     techniqueName: metadata.techniqueName,
     acronym: metadata.acronym,
     contextAndPurpose: sourceText(metadata.contextRange),

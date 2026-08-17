@@ -32,12 +32,17 @@ export function findStepTitle(nodeId?: string): string | undefined {
   return NODE_TITLE_BY_ID.get(nodeId);
 }
 
-/** Clinician-facing session label, e.g. "S03 · Intrapersonal Thought Record (Intra-TR)". */
-export function findSessionTitle(sessionDefinitionId?: string): string | undefined {
+/** Clinician-facing session label, e.g. "S03 · Intrapersonal Thought Record
+ * (Intra-TR)" (or "S03 · 개인 내적 사고 기록 (Intra-TR)" under locale "ko",
+ * falling back to the English title for any session that doesn't have a
+ * titleKo yet). Step names (findStepTitle above) aren't translated the same
+ * way yet -- only the 8 session-level names were asked for so far. */
+export function findSessionTitle(sessionDefinitionId?: string, locale?: string): string | undefined {
   if (!sessionDefinitionId) return undefined;
   const definition = SESSION_DEFINITION_BY_ID.get(sessionDefinitionId);
   if (!definition) return sessionDefinitionId;
-  return `S${String(definition.number).padStart(2, "0")} · ${definition.title}`;
+  const title = locale === "ko" ? (definition.titleKo ?? definition.title) : definition.title;
+  return `S${String(definition.number).padStart(2, "0")} · ${title}`;
 }
 
 export interface ParticipantMonitoringSummary {

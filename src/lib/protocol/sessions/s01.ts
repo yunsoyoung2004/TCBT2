@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 1,
   id: "tbct-s01",
   title: "Introduction to the TBCT Model",
+  titleKo: "TBCT 모델 소개",
   techniqueName: "Cognitive Conceptualization Diagram (CCD), Level 1",
   acronym: "CCD Level 1",
   sourceLineStart: 18,

@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 3,
   id: "tbct-s03",
   title: "Intrapersonal Thought Record (Intra-TR)",
+  titleKo: "개인 내적 사고 기록 (Intra-TR)",
   techniqueName: "Intrapersonal Thought Record (Intra-TR)",
   acronym: "Intra-TR",
   sourceLineStart: 430,

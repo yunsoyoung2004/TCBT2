@@ -90,7 +90,7 @@ interface TimelineEntry {
 }
 
 export function PatientMonitoringDetailPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const params = useParams<{ participantId?: string | string[] }>();
   const pathname = usePathname();
   const participantId =
@@ -213,7 +213,7 @@ export function PatientMonitoringDetailPage() {
     deriveMonitoringStatus(item.status, (safetyQuery.data ?? []).some((event) => event.runtimeSessionId === item.id && isOpenSafetyEvent(event)));
 
   const sessionLabel = (item: RuntimeSession) =>
-    `${findSessionTitle(item.sessionDefinitionId) ?? item.sessionDefinitionId} · ${t(`patientMonitoring.status.${runStatus(item)}`)} · ${formatTimestamp(item.updatedAt)}`;
+    `${findSessionTitle(item.sessionDefinitionId, locale) ?? item.sessionDefinitionId} · ${t(`patientMonitoring.status.${runStatus(item)}`)} · ${formatTimestamp(item.updatedAt)}`;
 
   const openSession = (sessionId: string, tab: "audit" | "worksheet" | "profile" | "progress" = "audit") => {
     setSelectedSessionId(sessionId);
@@ -358,11 +358,11 @@ export function PatientMonitoringDetailPage() {
       return {
         id: definition.id,
         number: definition.number,
-        title: definition.title,
+        title: locale === "ko" ? (definition.titleKo ?? definition.title) : definition.title,
         status: matched ? matchedSummary.monitoringStatus : "notStarted",
       } satisfies { id: string; number: number; title: string; status: MonitoringStatus };
     });
-  }, [canonicalSessionsQuery.data, summary.sessions, safetyQuery.data, participantId]);
+  }, [canonicalSessionsQuery.data, summary.sessions, safetyQuery.data, participantId, locale]);
 
   if (participantQuery.isLoading) {
     return (
@@ -625,7 +625,7 @@ export function PatientMonitoringDetailPage() {
                   comment) -- also what keeps the two cards the same height,
                   since both cards use the identical calc(). */}
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
+                <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId, locale) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.currentStep")} value={currentNode?.title ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.status")} value={t(`patientMonitoring.status.${status}`)} />
                 <SummaryRow label={t("patientDetail.summary.progress")} value={String(session?.completedPromptItemIds?.length ?? 0)} />
@@ -726,7 +726,7 @@ export function PatientMonitoringDetailPage() {
                   )}
                 </div>
                 <SummaryRow label={t("patientDetail.profile.preferredLanguage")} value={participant.locale} />
-                <SummaryRow label={t("patientDetail.profile.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
+                <SummaryRow label={t("patientDetail.profile.currentSession")} value={findSessionTitle(session?.sessionDefinitionId, locale) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.profile.completedSessions")} value={String(summary.completedSessionCount)} />
               </div>
               <SectionHeader title={t("patientDetail.profile.sessionsHeading")} />

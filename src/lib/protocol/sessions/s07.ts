@@ -5,6 +5,7 @@ const metadata: SessionSourceMetadata = {
   number: 7,
   id: "tbct-s07",
   title: "Consensual Role-Play (CRP)",
+  titleKo: "합의된 역할극 (CRP)",
   techniqueName: "Consensual Role-Play (CRP)",
   acronym: "CRP",
   sourceLineStart: 1276,
