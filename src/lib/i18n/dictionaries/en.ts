@@ -297,6 +297,7 @@ const en = {
       profile: "Patient Profile",
       messages: "Messages",
       appointments: "Appointments",
+      inspector: "Inspector",
     },
     worksheet: {
       unavailable: "This session has no live worksheet.",

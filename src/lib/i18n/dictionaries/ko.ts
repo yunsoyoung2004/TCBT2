@@ -297,6 +297,7 @@ const ko = {
       profile: "환자 프로필",
       messages: "메시지",
       appointments: "예약",
+      inspector: "인스펙터",
     },
     worksheet: {
       unavailable: "이 세션에는 실시간 워크시트가 없습니다.",
