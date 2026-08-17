@@ -130,6 +130,14 @@ export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChan
               nodeTypes={protocolNodeTypes}
               nodesDraggable={!immutableSourceView}
               nodesConnectable={!immutableSourceView}
+              panOnDrag={false}
+              panOnScroll={false}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
+              zoomOnDoubleClick={false}
+              preventScrolling={false}
+              autoPanOnNodeDrag={false}
+              autoPanOnConnect={false}
               onNodesChange={handleNodesChange}
               onNodeClick={(_, node) => onNodeClick(node.id)}
               onNodeDragStart={(_, node) => onNodeDragStart(node.id)}
@@ -142,7 +150,7 @@ export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChan
               translateExtent={[[-40, -80], [Math.max(viewportWidth + 40, 360), 10000]]}
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
-              <MiniMap className="!bg-surface" pannable zoomable />
+              <MiniMap className="!bg-surface" pannable={false} zoomable={false} />
               <Controls position="bottom-left" />
             </ReactFlow>
           </div>

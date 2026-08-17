@@ -68,7 +68,6 @@ export function SessionPanel({ sessionTitle: _sessionTitle, nodes, selectedStepI
           return (
             <motion.button
               key={step.id}
-              layout={!reducedMotion}
               variants={reducedMotion ? undefined : fadeUp}
               initial={reducedMotion ? false : "initial"}
               animate={reducedMotion ? undefined : "animate"}

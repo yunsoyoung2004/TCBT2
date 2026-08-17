@@ -351,6 +351,18 @@ select:focus-visible {
     border-radius: 14px;
     background: rgb(var(--color-surface));
     box-shadow: 0 4px 16px rgba(35, 50, 80, .06);
+    contain: layout paint;
+  }
+
+  .protocol-builder-panel [class*="overflow-auto"] {
+    scrollbar-gutter: stable;
+  }
+
+  .protocol-builder-grid .react-flow,
+  .protocol-builder-grid .react-flow__renderer,
+  .protocol-builder-grid .react-flow__pane {
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .protocol-builder-panel textarea,
