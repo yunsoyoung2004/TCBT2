@@ -519,17 +519,22 @@ export function PatientMonitoringDetailPage() {
                   </select>
                 }
               />
-              {/* max-height (not height) capped to the viewport, same
-                  approach as session-panel.tsx/canvas-panel.tsx's own
-                  calc(100vh-...) panels -- new entries streaming in grow
-                  *this* div's scroll content, never the card itself. The
-                  272px header estimate quietly used elsewhere on this exact
-                  page (see canvas-panel.tsx) doesn't apply here: this page's
-                  own PageHeader + tab strip is taller, hence the larger
+              {/* A genuine fixed height, not max-height -- max-height only
+                  ever caps the ceiling, it still lets the box grow/shrink
+                  freely underneath that ceiling, so every new log entry
+                  streaming in was still visibly resizing (and re-jittering)
+                  this card right up until it happened to hit the cap.
+                  Confirmed live in an isolated Playwright repro before this
+                  fix and after: with a real `height`, the card's own box
+                  never changes size no matter how many entries are inside;
+                  only this div's own scroll position changes. The 272px
+                  header estimate quietly used elsewhere on this exact page
+                  (see canvas-panel.tsx) doesn't apply here: this page's own
+                  PageHeader + tab strip is taller, hence the larger
                   subtracted constant -- generous rather than exact, since a
                   little unused space is far safer than the card overflowing
                   the viewport. */}
-              <div className="audit-log-scroll max-h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
+              <div className="audit-log-scroll h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
                 {sessionViewQuery.isLoading ? (
                   <PageSkeleton />
                 ) : filteredTimeline.length === 0 ? (
@@ -572,11 +577,12 @@ export function PatientMonitoringDetailPage() {
 
             <Card className="patient-monitoring-panel min-w-0">
               <SectionHeader title={t("patientDetail.summary.status")} />
-              {/* Same calc(100vh-...) cap as the log panel's own scroll area
-                  (not just a visual match -- this is what makes the two
-                  cards line up at the same height instead of each one
-                  auto-sizing to its own content). */}
-              <div className="max-h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
+              {/* Same fixed height as the log panel's own scroll area (see
+                  its comment for why this must be `height`, not
+                  `max-height`) -- this is also what makes the two cards
+                  line up at the same height instead of each one
+                  auto-sizing to its own content. */}
+              <div className="h-[calc(100vh-480px)] space-y-3 overflow-auto p-4">
                 <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.currentStep")} value={currentNode?.title ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.status")} value={t(`patientMonitoring.status.${status}`)} />
