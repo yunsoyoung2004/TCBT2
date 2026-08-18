@@ -77,6 +77,15 @@ function formatTimestamp(value?: string) {
   return parsed.toLocaleString();
 }
 
+/** Same locale fallback findStepTitle (patient-monitoring-utils.ts) applies,
+ * for the two spots here that already have the node object in hand (a
+ * fallback when a message's nodeId isn't in the canonical catalog, and the
+ * "Current Step" summary row) rather than just its id. */
+function localizedNodeTitle(node?: { title: string; titleKo?: string }, locale?: string): string | undefined {
+  if (!node) return undefined;
+  return locale === "ko" ? (node.titleKo ?? node.title) : node.title;
+}
+
 interface TimelineEntry {
   id: string;
   kind: "message" | "note" | "lifecycle";
@@ -295,7 +304,7 @@ export function PatientMonitoringDetailPage() {
         kind: "message",
         speaker: speakerFor(message.role),
         content: message.content,
-        stepTitle: findStepTitle(message.nodeId) ?? nodes.find((node) => node.id === message.nodeId)?.title,
+        stepTitle: findStepTitle(message.nodeId, locale) ?? localizedNodeTitle(nodes.find((node) => node.id === message.nodeId), locale),
         createdAt: message.createdAt,
         sessionDefinitionId: session?.sessionDefinitionId,
         nodeId: message.nodeId,
@@ -333,7 +342,7 @@ export function PatientMonitoringDetailPage() {
     }
 
     return entries.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [sessionViewQuery.data?.messages, clinicianNotes, effectiveSessionId, nodes, session, t]);
+  }, [sessionViewQuery.data?.messages, clinicianNotes, effectiveSessionId, nodes, session, t, locale]);
 
   useEffect(() => {
     const messageIds = timeline.filter((entry) => entry.kind === "message").map((entry) => entry.id);
@@ -626,7 +635,7 @@ export function PatientMonitoringDetailPage() {
                   since both cards use the identical calc(). */}
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 <SummaryRow label={t("patientDetail.summary.currentSession")} value={findSessionTitle(session?.sessionDefinitionId, locale) ?? t("common.unknown")} />
-                <SummaryRow label={t("patientDetail.summary.currentStep")} value={currentNode?.title ?? t("common.unknown")} />
+                <SummaryRow label={t("patientDetail.summary.currentStep")} value={localizedNodeTitle(currentNode, locale) ?? t("common.unknown")} />
                 <SummaryRow label={t("patientDetail.summary.status")} value={t(`patientMonitoring.status.${status}`)} />
                 <SummaryRow label={t("patientDetail.summary.progress")} value={String(session?.completedPromptItemIds?.length ?? 0)} />
                 <SummaryRow label={t("patientDetail.summary.startedAt")} value={formatTimestamp(session?.startedAt)} />

@@ -34,6 +34,7 @@ export const spec: SessionSpec = {
     {
       slug: "investigation-and-core-belief",
       title: "Step 1 - Investigation and Core Belief",
+      titleKo: "1단계 - 조사 및 핵심 신념",
       type: "session_start",
       source: [1578, 1578],
       requiredFields: ["trialMaterialsReady", "chargeOrientationReaction", "distressingSituation", "automaticThought", "coreBelief"],
@@ -78,6 +79,7 @@ export const spec: SessionSpec = {
     {
       slug: "baseline-ratings",
       title: "Step 2 - Baseline Belief and Emotion Ratings",
+      titleKo: "2단계 - 기저 신념·감정 평가",
       type: "assessment",
       source: [1579, 1579],
       requiredFields: ["coreBeliefBaselinePercent", "baselineEmotion", "baselineEmotionIntensityPercent"],
@@ -90,6 +92,7 @@ export const spec: SessionSpec = {
     {
       slug: "courtroom-orientation",
       title: "Step 3 - Courtroom Orientation",
+      titleKo: "3단계 - 법정 절차 안내",
       type: "orientation",
       source: [1580, 1580],
       requiredFields: ["courtroomOrientationAcknowledged", "charge"],
@@ -115,6 +118,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-chair",
       title: "Step 4 - Defendant Chair",
+      titleKo: "4단계 - 피고인석",
       type: "dialogue",
       source: [1582, 1582],
       requiredFields: ["defendantRoleReady", "defendantPreProsecutionBeliefPercent", "defendantPreProsecutionEmotionIntensityPercent"],
@@ -127,6 +131,7 @@ export const spec: SessionSpec = {
     {
       slug: "prosecutor-imagery",
       title: "Step 5 - Prosecutor Imagery",
+      titleKo: "5단계 - 검사 심상화",
       type: "visualization",
       source: [1583, 1584],
       requiredFields: ["prosecutorImagery"],
@@ -138,6 +143,7 @@ export const spec: SessionSpec = {
     {
       slug: "prosecution-evidence",
       title: "Step 6 - Prosecution Evidence",
+      titleKo: "6단계 - 검찰 측 증거",
       type: "dialogue",
       source: [1585, 1589],
       requiredFields: ["prosecutionEvidence"],
@@ -172,6 +178,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-return-defense-imagery",
       title: "Step 7 - Defendant Return and Defense Imagery",
+      titleKo: "7단계 - 피고인 복귀 및 변호인 심상화",
       type: "visualization",
       source: [1591, 1592],
       requiredFields: ["defendantPostProsecutionBeliefPercent", "defendantPostProsecutionEmotionIntensityPercent", "defenseImagery"],
@@ -184,6 +191,7 @@ export const spec: SessionSpec = {
     {
       slug: "defense-evidence",
       title: "Step 8 - Defense Evidence",
+      titleKo: "8단계 - 변호 측 증거",
       type: "dialogue",
       source: [1593, 1598],
       requiredFields: ["defenseEvidence"],
@@ -206,6 +214,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-post-defense",
       title: "Step 9 - Defendant Post-Defense Re-assessment",
+      titleKo: "9단계 - 변론 후 재평가",
       type: "assessment",
       source: [1600, 1600],
       requiredFields: ["defendantPostDefenseBeliefPercent", "defendantPostDefenseEmotionIntensityPercent"],
@@ -217,6 +226,7 @@ export const spec: SessionSpec = {
     {
       slug: "prosecution-rebuttal",
       title: "Step 10 - Prosecution Rebuttal",
+      titleKo: "10단계 - 검찰 측 반박",
       type: "dialogue",
       source: [1601, 1601],
       requiredFields: ["prosecutionRebuttals"],
@@ -244,6 +254,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-post-rebuttal",
       title: "Step 11 - Defendant Post-Rebuttal Re-assessment",
+      titleKo: "11단계 - 반박 후 재평가",
       type: "assessment",
       source: [1602, 1602],
       requiredFields: ["defendantPostRebuttalBeliefPercent", "defendantPostRebuttalEmotionIntensityPercent", "unrebuttedDefenseEvidence"],
@@ -255,6 +266,7 @@ export const spec: SessionSpec = {
     {
       slug: "defense-surrebuttal",
       title: "Step 12 - Defense Surrebuttal",
+      titleKo: "12단계 - 변호 측 재반박",
       type: "dialogue",
       source: [1604, 1604],
       requiredFields: ["defenseSurrebuttals", "thereforeConclusions"],
@@ -296,6 +308,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-post-surrebuttal",
       title: "Step 13 - Defendant Post-Surrebuttal Re-assessment",
+      titleKo: "13단계 - 재반박 후 재평가",
       type: "assessment",
       source: [1605, 1606],
       requiredFields: ["defendantPostSurrebuttalBeliefPercent", "defendantPostSurrebuttalEmotionIntensityPercent"],
@@ -306,6 +319,7 @@ export const spec: SessionSpec = {
     {
       slug: "jury-deliberation",
       title: "Step 14 - Jury Deliberation and Verdict",
+      titleKo: "14단계 - 배심원 평의 및 평결",
       type: "dialogue",
       source: [1609, 1616],
       requiredFields: ["juryOrientation", "juryReview", "verdict"],
@@ -347,6 +361,7 @@ export const spec: SessionSpec = {
     {
       slug: "court-officer-announcement",
       title: "Step 15 - Court Officer Announcement",
+      titleKo: "15단계 - 법정 경위의 선고",
       type: "dialogue",
       source: [1617, 1617],
       requiredFields: ["verdictAnnounced"],
@@ -358,6 +373,7 @@ export const spec: SessionSpec = {
     {
       slug: "defendant-post-verdict",
       title: "Step 16 - Defendant Post-Verdict Ratings",
+      titleKo: "16단계 - 평결 후 재평가",
       type: "assessment",
       source: [1618, 1618],
       requiredFields: ["defendantPostVerdictBeliefPercent", "defendantPostVerdictEmotionIntensityPercent"],
@@ -369,6 +385,7 @@ export const spec: SessionSpec = {
     {
       slug: "open-discussion",
       title: "Step 17 - Open Discussion",
+      titleKo: "17단계 - 자유 논의",
       type: "dialogue",
       source: [1620, 1627],
       // One field per question: all seven used to write the same
@@ -393,6 +410,7 @@ export const spec: SessionSpec = {
     {
       slug: "positive-belief",
       title: "Step 18 - Positive Belief",
+      titleKo: "18단계 - 긍정적 신념",
       type: "question",
       source: [1628, 1628],
       requiredFields: ["positiveBelief"],
@@ -404,6 +422,7 @@ export const spec: SessionSpec = {
     {
       slug: "appeal-preparation",
       title: "Step 19 - Appeal Preparation",
+      titleKo: "19단계 - 항소 준비",
       type: "homework",
       source: [1630, 1630],
       requiredFields: ["appealEvidence", "appealHomeworkAcknowledged"],
@@ -429,6 +448,7 @@ export const spec: SessionSpec = {
     {
       slug: "positive-belief-rating",
       title: "Step 20 - Positive Belief Rating",
+      titleKo: "20단계 - 긍정적 신념 평가",
       type: "assessment",
       source: [1631, 1631],
       requiredFields: ["positiveBeliefPercent"],
@@ -439,6 +459,7 @@ export const spec: SessionSpec = {
     {
       slug: "original-charge-final-ratings",
       title: "Step 21 - Original Charge Final Ratings",
+      titleKo: "21단계 - 원래 혐의 최종 평가",
       type: "session_complete",
       source: [1632, 1632],
       requiredFields: ["originalChargeFinalBeliefPercent", "originalChargeFinalEmotionIntensityPercent", "trialClosingSummary"],
@@ -457,6 +478,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-pause",
       title: "Safety Pause and Support",
+      titleKo: "안전을 위한 일시 중지 및 지원",
       type: "clinician_escalation",
       source: [1634, 1651],
       safetyRuleIds: ["TBCT-S08-CRISIS-STOP"],

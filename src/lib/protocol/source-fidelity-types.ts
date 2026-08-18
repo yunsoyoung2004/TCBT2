@@ -92,6 +92,10 @@ export type ClinicalStageNode = {
   protocolId: string;
   sessionId: string;
   title: string;
+  /** Clinician-facing Korean step name -- purely a display label (see
+   * SessionDefinition.titleKo above), never validated against sourceTrace
+   * the way title's own English wording traces back to the source manual. */
+  titleKo?: string;
   type: string;
   clinicalPurpose: string;
   objective?: string;

@@ -26,6 +26,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-check",
       title: "Safety Protocol",
+      titleKo: "안전 프로토콜",
       type: "session_start",
       source: [455, 470],
       requiredFields: ["safetyCheck"],
@@ -54,6 +55,7 @@ export const spec: SessionSpec = {
     {
       slug: "intra-tr-introduction",
       title: "Introducing the Intra-TR",
+      titleKo: "Intra-TR 소개",
       type: "orientation",
       source: [483, 494],
       requiredFields: ["intraTrIntroductionComplete"],
@@ -92,6 +94,7 @@ export const spec: SessionSpec = {
     {
       slug: "q1-situation",
       title: "Q1 - Situation",
+      titleKo: "Q1 - 상황",
       type: "question",
       source: [501, 510],
       requiredFields: ["situation"],
@@ -114,6 +117,7 @@ export const spec: SessionSpec = {
     {
       slug: "q2-automatic-thought",
       title: "Q2a - Automatic Thought",
+      titleKo: "Q2a - 자동적 사고",
       type: "question",
       source: [511, 528],
       requiredFields: ["automaticThought"],
@@ -126,6 +130,7 @@ export const spec: SessionSpec = {
     {
       slug: "factual-thought-meaning",
       title: "Q2a - Factual Automatic Thought Follow-up",
+      titleKo: "Q2a - 사실 여부 확인",
       type: "condition",
       source: [511, 528],
       requiredFields: ["workingAutomaticThought", "factualThoughtConfirmed"],
@@ -139,6 +144,7 @@ export const spec: SessionSpec = {
     {
       slug: "q2b-at-belief",
       title: "Q2b - Belief in the Automatic Thought",
+      titleKo: "Q2b - 자동적 사고에 대한 믿음",
       type: "assessment",
       source: [529, 536],
       requiredFields: ["automaticThoughtBeliefPercent"],
@@ -160,6 +166,7 @@ export const spec: SessionSpec = {
     {
       slug: "q3-emotion",
       title: "Q3 - Emotion and Intensity",
+      titleKo: "Q3 - 감정과 강도",
       type: "assessment",
       source: [537, 550],
       requiredFields: ["primaryEmotion", "primaryEmotionIntensityPercent"],
@@ -172,6 +179,7 @@ export const spec: SessionSpec = {
     {
       slug: "q4-behavior-body-summary",
       title: "Q4 - Behavior, Body, and Participant Summary",
+      titleKo: "Q4 - 행동, 신체 반응, 참여자 요약",
       type: "assessment",
       source: [551, 572],
       requiredFields: ["behavior", "bodySensations", "participantSummary"],
@@ -196,6 +204,7 @@ export const spec: SessionSpec = {
     {
       slug: "q5-q7-behavior-and-distortion",
       title: "Q5-Q7 - Behavior Pros, Cons, and Cognitive Distortion",
+      titleKo: "Q5-Q7 - 행동의 장단점과 인지 왜곡",
       type: "question",
       source: [573, 596],
       requiredFields: ["behaviorPros", "behaviorCons", "cognitiveDistortion"],
@@ -235,6 +244,7 @@ export const spec: SessionSpec = {
     {
       slug: "q8-q9-evidence",
       title: "Q8-Q9 - Evidence Examination",
+      titleKo: "Q8-Q9 - 근거 검토",
       type: "question",
       source: [597, 616],
       requiredFields: ["evidenceFor", "evidenceAgainst"],
@@ -286,6 +296,7 @@ export const spec: SessionSpec = {
     {
       slug: "q10-conclusion",
       title: "Q10 - Balanced Conclusion",
+      titleKo: "Q10 - 균형 잡힌 결론",
       type: "question",
       source: [617, 634],
       requiredFields: ["balancedConclusion", "conclusionTherefore", "conclusionBeliefPercent"],
@@ -300,6 +311,7 @@ export const spec: SessionSpec = {
     {
       slug: "q11-new-emotions",
       title: "Q11 - New Emotions",
+      titleKo: "Q11 - 새로운 감정",
       type: "assessment",
       source: [635, 658],
       requiredFields: ["positiveEmotions", "originalEmotionRerating", "newEmotionIntensities"],
@@ -321,6 +333,7 @@ export const spec: SessionSpec = {
     {
       slug: "q12-q14-final-evaluation",
       title: "Q12-Q14 - Intended Action and Final Evaluation",
+      titleKo: "Q12-Q14 - 실천 계획과 최종 평가",
       type: "assessment",
       source: [659, 686],
       requiredFields: ["intendedActions", "newBodySensations", "revisedAutomaticThoughtBeliefPercent", "globalEvaluation"],
@@ -349,6 +362,7 @@ export const spec: SessionSpec = {
     {
       slug: "closing",
       title: "Closing the Session",
+      titleKo: "세션 마무리",
       type: "session_complete",
       source: [687, 698],
       restrictions: [sourceText([699, 724])],
@@ -363,6 +377,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-pause",
       title: "Safety Pause and Escalation",
+      titleKo: "안전을 위한 일시 중지 및 보고",
       type: "clinician_escalation",
       source: [455, 470],
       safetyRuleIds: ["TBCT-S03-CRISIS-PAUSE"],

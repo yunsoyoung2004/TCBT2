@@ -26,6 +26,7 @@ export const spec: SessionSpec = {
     {
       slug: "mandatory-opening",
       title: "Session Opening - Mandatory First Move",
+      titleKo: "세션 시작 - 도입",
       type: "session_start",
       source: [53, 74],
       requiredFields: ["sessionOpeningAcknowledged", "situationThoughtDistinction"],
@@ -50,6 +51,7 @@ export const spec: SessionSpec = {
     {
       slug: "situation-thought-distinction",
       title: "Step 1 - Distinguish Situation from Thoughts and Emotions",
+      titleKo: "1단계 - 상황과 생각·감정 구분하기",
       type: "question",
       source: [66, 74],
       requiredFields: ["situationThoughtDistinction", "openingInitialThought"],
@@ -89,6 +91,7 @@ export const spec: SessionSpec = {
     {
       slug: "three-person-example",
       title: "Step 2 - Three-Person Example",
+      titleKo: "2단계 - 세 사람 예시",
       type: "orientation",
       source: [75, 85],
       requiredFields: ["threePersonPreviewComplete"],
@@ -130,6 +133,7 @@ export const spec: SessionSpec = {
       // tbct-s01.ts, out of scope) keeps showing it.
       slug: "first-candidate",
       title: "Step 2 - First Person",
+      titleKo: "2단계 - 첫 번째 사람",
       type: "dialogue",
       source: [86, 92],
       requiredFields: ["candidateOneEmotion", "candidateOneBehavior"],
@@ -142,6 +146,7 @@ export const spec: SessionSpec = {
     {
       slug: "second-candidate",
       title: "Step 2 - Second Person",
+      titleKo: "2단계 - 두 번째 사람",
       type: "dialogue",
       source: [93, 104],
       requiredFields: ["candidateTwoEmotion", "candidateTwoBehavior"],
@@ -154,6 +159,7 @@ export const spec: SessionSpec = {
     {
       slug: "third-candidate",
       title: "Step 2 - Third Person",
+      titleKo: "2단계 - 세 번째 사람",
       type: "dialogue",
       source: [105, 117],
       requiredFields: ["candidateThreeEmotion", "candidateThreeBehavior"],
@@ -166,6 +172,7 @@ export const spec: SessionSpec = {
     {
       slug: "three-person-conclusion",
       title: "Step 2 - Three-Person Conclusion",
+      titleKo: "2단계 - 세 사람 예시 정리",
       type: "summary",
       source: [118, 129],
       requiredFields: ["threePersonModelInsight"],
@@ -202,6 +209,7 @@ export const spec: SessionSpec = {
       // already-dead branch, not a loss of reachable behavior.
       slug: "personal-returning-arrows",
       title: "Step 3 - Returning to Your Own Experience",
+      titleKo: "3단계 - 나의 경험으로 돌아오기",
       type: "dialogue",
       source: [130, 140],
       requiredFields: ["personalEmotion", "personalBehavior"],
@@ -215,6 +223,7 @@ export const spec: SessionSpec = {
     {
       slug: "participant-summary",
       title: "Step 4 - Participant Summary",
+      titleKo: "4단계 - 참여자 요약",
       type: "summary",
       source: [141, 144],
       requiredFields: ["participantSummary"],
@@ -236,6 +245,7 @@ export const spec: SessionSpec = {
       // selection is left to the participant.
       slug: "cognitive-distortions",
       title: "Step 5 - Introducing Cognitive Distortions",
+      titleKo: "5단계 - 인지 왜곡 소개",
       type: "question",
       source: [145, 155],
       requiredFields: ["participantSelectedDistortions"],
@@ -271,6 +281,7 @@ export const spec: SessionSpec = {
     {
       slug: "daily-observation-closing",
       title: "Step 6 - Closing the Session",
+      titleKo: "6단계 - 세션 마무리",
       type: "session_complete",
       source: [156, 159],
       restrictions: [sourceText([160, 222])],

@@ -32,6 +32,7 @@ export const spec: SessionSpec = {
     {
       slug: "opening-language-lock",
       title: "Opening and Language Lock",
+      titleKo: "도입 및 언어 고정",
       type: "session_start",
       source: [943, 1017],
       requiredFields: ["sessionLanguage", "languageLocked"],
@@ -45,6 +46,7 @@ export const spec: SessionSpec = {
     {
       slug: "human-presence",
       title: "Human Presence and Room Safety",
+      titleKo: "동석자 확인 및 공간 안전",
       type: "dialogue",
       source: [990, 1017],
       requiredFields: ["inRoomSafetyBehaviorCheck"],
@@ -58,6 +60,7 @@ export const spec: SessionSpec = {
     {
       slug: "symptom-list",
       title: "Step 1 - Symptom List and Item Expansion",
+      titleKo: "1단계 - 증상 목록 작성 및 확장",
       type: "question",
       source: [1062, 1104],
       requiredFields: ["symptomItems"],
@@ -71,6 +74,7 @@ export const spec: SessionSpec = {
     {
       slug: "color-scale-and-calibration",
       title: "Step 2 - Color Scale and Calibration",
+      titleKo: "2단계 - 색상 척도 및 보정",
       type: "assessment",
       source: [1105, 1123],
       requiredFields: ["colorScalePresented", "calibrationScore"],
@@ -90,6 +94,7 @@ export const spec: SessionSpec = {
     {
       slug: "rate-items",
       title: "Step 2 - Rate Each Symptom Item",
+      titleKo: "2단계 - 각 증상 항목 평가하기",
       type: "assessment",
       source: [1105, 1123],
       requiredFields: ["symptomItemScores"],
@@ -113,6 +118,7 @@ export const spec: SessionSpec = {
     {
       slug: "discomfort-distress",
       title: "Step 3 - Discomfort and Distress",
+      titleKo: "3단계 - 불편함과 고통",
       type: "dialogue",
       source: [1124, 1138],
       requiredFields: ["discomfortDistressSummary"],
@@ -126,6 +132,7 @@ export const spec: SessionSpec = {
     {
       slug: "green-commitments",
       title: "Step 4 - Green Commitments",
+      titleKo: "4단계 - 초록 단계 실천 약속",
       type: "homework",
       source: [1139, 1151],
       requiredFields: ["greenHomeworkItems", "accountabilityPartner", "fallbackPlan"],
@@ -140,6 +147,7 @@ export const spec: SessionSpec = {
     {
       slug: "exposure-principles",
       title: "Step 5 - Exposure Principles",
+      titleKo: "5단계 - 노출 원칙",
       type: "orientation",
       source: [1152, 1171],
       requiredFields: ["exposurePrinciplesAcknowledged"],
@@ -154,6 +162,7 @@ export const spec: SessionSpec = {
     {
       slug: "relief-versus-overcoming",
       title: "Step 6 - Relief Versus Overcoming",
+      titleKo: "6단계 - 안도감과 극복의 차이",
       type: "visualization",
       source: [1172, 1183],
       requiredFields: ["reliefVersusOvercomingInsight"],
@@ -171,6 +180,7 @@ export const spec: SessionSpec = {
     {
       slug: "circuit-two",
       title: "Step 7 - Circuit 2 and Underlying Assumption",
+      titleKo: "7단계 - 2회차 순환과 근본 가정",
       type: "activity",
       source: [1184, 1206],
       requiredFields: ["safetyBehaviors", "underlyingAssumption", "circuitTwo", "circuitTwoSummary"],
@@ -191,6 +201,7 @@ export const spec: SessionSpec = {
     {
       slug: "review-required-closing",
       title: "Interaction Rules, Failure Modes, and Closing",
+      titleKo: "진행 원칙, 유의 사항, 마무리",
       type: "session_complete",
       source: [1207, 1275],
       safetyRuleIds: ["TBCT-S06-CRISIS-PAUSE", "TBCT-S06-NO-YELLOW-RED-HOMEWORK"],
@@ -203,6 +214,7 @@ export const spec: SessionSpec = {
     {
       slug: "yellow-red-homework-block",
       title: "Yellow and Red Homework Block",
+      titleKo: "노랑·빨강 단계 과제 제한",
       type: "condition",
       source: [1139, 1151],
       nextSlug: "green-commitments",
@@ -215,6 +227,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-pause",
       title: "Safety Pause and Clinician Review",
+      titleKo: "안전을 위한 일시 중지 및 의료진 검토",
       type: "clinician_escalation",
       source: [990, 1017],
       safetyRuleIds: ["TBCT-S06-CRISIS-PAUSE"],

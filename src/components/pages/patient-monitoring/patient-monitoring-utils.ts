@@ -23,20 +23,23 @@ export function deriveMonitoringStatus(sessionStatus: RuntimeSessionStatus | und
   return "inProgress";
 }
 
-const NODE_TITLE_BY_ID = new Map(CANONICAL_STAGE_NODES.map((node) => [node.id, node.title] as const));
+const NODE_BY_ID = new Map(CANONICAL_STAGE_NODES.map((node) => [node.id, node] as const));
 const SESSION_DEFINITION_BY_ID = new Map(CANONICAL_SESSION_DEFINITIONS.map((def) => [def.id, def] as const));
 
-/** Clinician-facing step name for a runtime node ID (never the raw node/prompt ID). */
-export function findStepTitle(nodeId?: string): string | undefined {
+/** Clinician-facing step name for a runtime node ID (never the raw node/prompt
+ * ID), e.g. "Q1 - Situation" (or "Q1 - 상황" under locale "ko", falling back
+ * to the English title for any node that doesn't have a titleKo yet). */
+export function findStepTitle(nodeId?: string, locale?: string): string | undefined {
   if (!nodeId) return undefined;
-  return NODE_TITLE_BY_ID.get(nodeId);
+  const node = NODE_BY_ID.get(nodeId);
+  if (!node) return undefined;
+  return locale === "ko" ? (node.titleKo ?? node.title) : node.title;
 }
 
 /** Clinician-facing session label, e.g. "S03 · Intrapersonal Thought Record
  * (Intra-TR)" (or "S03 · 개인 내적 사고 기록 (Intra-TR)" under locale "ko",
  * falling back to the English title for any session that doesn't have a
- * titleKo yet). Step names (findStepTitle above) aren't translated the same
- * way yet -- only the 8 session-level names were asked for so far. */
+ * titleKo yet). */
 export function findSessionTitle(sessionDefinitionId?: string, locale?: string): string | undefined {
   if (!sessionDefinitionId) return undefined;
   const definition = SESSION_DEFINITION_BY_ID.get(sessionDefinitionId);

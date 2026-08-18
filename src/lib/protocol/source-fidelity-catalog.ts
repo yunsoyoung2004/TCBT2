@@ -81,6 +81,9 @@ export type PromptSpec = {
 export type NodeSpec = {
   slug: string;
   title: string;
+  /** See SessionSourceMetadata.titleKo's own doc comment -- same "clinician-
+   * facing display label only" contract, one level down at the step/node. */
+  titleKo?: string;
   type: string;
   source: SourceRange;
   requiredFields?: string[];
@@ -251,6 +254,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
       protocolId: CANONICAL_PROTOCOL_ID,
       sessionId: metadata.id,
       title: node.title,
+      titleKo: node.titleKo,
       type: node.type,
       clinicalPurpose: sourceText(node.source),
       participantRationale: node.participantRationale,

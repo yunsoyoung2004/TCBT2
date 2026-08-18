@@ -36,6 +36,7 @@ export const spec: SessionSpec = {
     {
       slug: "opening-consent",
       title: "Session Opening and Consent",
+      titleKo: "세션 시작 및 동의",
       type: "session_start",
       source: [1475, 1479],
       requiredFields: ["crpConsent", "crpWorksheetReady"],
@@ -58,6 +59,7 @@ export const spec: SessionSpec = {
     {
       slug: "language-and-principles",
       title: "Language Lock and Core Principles",
+      titleKo: "언어 고정 및 핵심 원칙",
       type: "orientation",
       source: [1289, 1369],
       requiredFields: ["sessionLanguage", "languageLocked", "crpPrinciplesAcknowledged"],
@@ -71,6 +73,7 @@ export const spec: SessionSpec = {
     {
       slug: "step-zero-psychoeducation",
       title: "Step 0 - Psychoeducation",
+      titleKo: "0단계 - 심리 교육",
       type: "orientation",
       source: [1370, 1379],
       requiredFields: ["ambivalenceAcknowledged"],
@@ -85,6 +88,7 @@ export const spec: SessionSpec = {
     {
       slug: "decisional-balance",
       title: "Step 1 - Decisional Balance",
+      titleKo: "1단계 - 의사 결정 저울",
       type: "question",
       source: [1380, 1391],
       requiredFields: ["desiredOrFearedAction", "disadvantages", "advantages"],
@@ -121,6 +125,7 @@ export const spec: SessionSpec = {
     {
       slug: "weigh-ambivalence",
       title: "Step 2 - Weigh Ambivalence",
+      titleKo: "2단계 - 양가감정 저울질하기",
       type: "assessment",
       source: [1392, 1407],
       requiredFields: ["emotionDisadvantageWeight", "reasonAdvantageWeight", "ambivalenceSplitNamed"],
@@ -140,6 +145,7 @@ export const spec: SessionSpec = {
     {
       slug: "empty-chair-dialogue",
       title: "Step 3 - Empty-Chair Dialogue",
+      titleKo: "3단계 - 빈 의자 대화",
       type: "dialogue",
       source: [1408, 1432],
       requiredFields: ["emotionReasonDialogue"],
@@ -170,6 +176,7 @@ export const spec: SessionSpec = {
     {
       slug: "consensus-chair",
       title: "Step 4 - Consensus Chair",
+      titleKo: "4단계 - 합의 의자",
       type: "dialogue",
       source: [1433, 1441],
       requiredFields: ["consensusLearning", "consensusSurprise", "consensusEmotionIntent", "consensusPartsNeeds"],
@@ -204,6 +211,7 @@ export const spec: SessionSpec = {
     {
       slug: "consensus-reweight",
       title: "Step 5 - Reassess Weights",
+      titleKo: "5단계 - 무게 다시 평가하기",
       type: "assessment",
       source: [1442, 1449],
       requiredFields: ["consensusAdvantageWeight", "consensusDisadvantageWeight"],
@@ -215,6 +223,7 @@ export const spec: SessionSpec = {
     {
       slug: "decision",
       title: "Step 6 - Decision",
+      titleKo: "6단계 - 결정",
       type: "assessment",
       source: [1450, 1461],
       requiredFields: ["implementationReadiness", "colourCodedScopeAcknowledged"],
@@ -238,6 +247,7 @@ export const spec: SessionSpec = {
     {
       slug: "action-plan",
       title: "Step 7 - Action Plan",
+      titleKo: "7단계 - 실천 계획",
       type: "activity",
       source: [1462, 1477],
       requiredFields: ["proposedActions", "possibleObstacles", "obstacleSolutions", "implementationPlan", "supportPeople", "followUpPlan"],
@@ -259,6 +269,7 @@ export const spec: SessionSpec = {
     {
       slug: "closing",
       title: "Closing and Failure-Mode Guardrails",
+      titleKo: "마무리 및 유의 사항",
       type: "session_complete",
       source: [1478, 1536],
       safetyRuleIds: ["TBCT-S07-CRISIS-STOP"],
@@ -271,6 +282,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-pause",
       title: "Safety Pause and Support",
+      titleKo: "안전을 위한 일시 중지 및 지원",
       type: "clinician_escalation",
       source: [1496, 1536],
       safetyRuleIds: ["TBCT-S07-CRISIS-STOP"],

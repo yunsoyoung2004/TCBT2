@@ -26,6 +26,7 @@ export const spec: SessionSpec = {
     {
       slug: "situation",
       title: "Step 1 - Interpersonal Situation",
+      titleKo: "1단계 - 대인관계 상황",
       type: "session_start",
       source: [746, 762],
       requiredFields: ["interpersonalSituation"],
@@ -37,6 +38,7 @@ export const spec: SessionSpec = {
     {
       slug: "pathway-determination",
       title: "Pathway Determination",
+      titleKo: "진행 경로 결정",
       type: "condition",
       source: [763, 769],
       requiredFields: ["interpersonalPathway"],
@@ -49,6 +51,7 @@ export const spec: SessionSpec = {
     {
       slug: "patient-thought-belief",
       title: "Step 2 - Patient Automatic Thought and Belief",
+      titleKo: "2단계 - 나의 자동적 사고와 믿음",
       type: "assessment",
       source: [746, 762],
       requiredFields: ["patientAutomaticThought", "patientAutomaticThoughtBeliefPercent"],
@@ -60,6 +63,7 @@ export const spec: SessionSpec = {
     {
       slug: "patient-emotion",
       title: "Step 3 - Patient Emotion and Intensity",
+      titleKo: "3단계 - 나의 감정과 강도",
       type: "assessment",
       source: [746, 762],
       requiredFields: ["patientEmotion", "patientEmotionIntensityPercent"],
@@ -71,6 +75,7 @@ export const spec: SessionSpec = {
     {
       slug: "patient-behavior-body",
       title: "Step 4 - Patient Behavior and Body",
+      titleKo: "4단계 - 나의 행동과 신체 반응",
       type: "assessment",
       source: [746, 762],
       requiredFields: ["patientBehavior", "patientBodySensations", "interpersonalSummaryConfirmed"],
@@ -83,6 +88,7 @@ export const spec: SessionSpec = {
     {
       slug: "other-thought",
       title: "Step 5 - Other Person's Automatic Thought",
+      titleKo: "5단계 - 상대방의 자동적 사고",
       type: "question",
       source: [746, 769],
       requiredFields: ["otherPersonLikelyThought"],
@@ -94,6 +100,7 @@ export const spec: SessionSpec = {
     {
       slug: "other-emotion",
       title: "Step 6 - Other Person's Emotion",
+      titleKo: "6단계 - 상대방의 감정",
       type: "question",
       source: [746, 762],
       requiredFields: ["otherPersonLikelyEmotion"],
@@ -104,6 +111,7 @@ export const spec: SessionSpec = {
     {
       slug: "other-behavior",
       title: "Step 7 - Other Person's Behavior",
+      titleKo: "7단계 - 상대방의 행동",
       type: "question",
       source: [746, 762],
       requiredFields: ["otherPersonLikelyBehavior"],
@@ -114,6 +122,7 @@ export const spec: SessionSpec = {
     {
       slug: "feedback-loop",
       title: "Feedback Loop Discovery",
+      titleKo: "상호작용 고리 발견",
       type: "dialogue",
       source: [770, 771],
       requiredFields: ["feedbackLoopRecognition"],
@@ -128,6 +137,7 @@ export const spec: SessionSpec = {
     {
       slug: "locus-of-control",
       title: "Locus of Control",
+      titleKo: "통제 소재",
       type: "dialogue",
       source: [772, 777],
       requiredFields: ["locusOfControlRecognition"],
@@ -141,6 +151,7 @@ export const spec: SessionSpec = {
     {
       slug: "final-at-rerating",
       title: "Step 8 - Final Automatic Thought Re-rating",
+      titleKo: "8단계 - 자동적 사고 재평가",
       type: "assessment",
       source: [772, 783],
       requiredFields: ["revisedPatientAutomaticThoughtBeliefPercent"],
@@ -151,6 +162,7 @@ export const spec: SessionSpec = {
     {
       slug: "action-plan",
       title: "Action Plan",
+      titleKo: "실천 계획",
       type: "activity",
       source: [778, 783],
       requiredFields: ["plannedActions", "actionObstacles", "obstacleSolutions", "implementationTiming"],
@@ -166,6 +178,7 @@ export const spec: SessionSpec = {
     {
       slug: "final-check-in",
       title: "Final Check-in",
+      titleKo: "마무리 확인",
       type: "session_complete",
       source: [784, 803],
       safetyRuleIds: ["TBCT-S04-CRISIS-SUSPEND"],
@@ -185,6 +198,7 @@ export const spec: SessionSpec = {
     {
       slug: "social-anxiety-guidance",
       title: "Social Anxiety / Feared-Evaluation Guidance",
+      titleKo: "사회 불안 · 평가에 대한 두려움 안내",
       type: "condition",
       source: [763, 769],
       nextSlug: "patient-thought-belief",

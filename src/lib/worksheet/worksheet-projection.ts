@@ -128,14 +128,27 @@ export async function getWorksheetView(runtimeSessionId: string, sessionDefiniti
   const valueByDefinitionId = new Map(values.map((value) => [value.fieldDefinitionId, value]));
   const bindings = getWorksheetBindings(sessionDefinitionId);
   const bindingByWorksheetKey = new Map(bindings.map((binding) => [binding.worksheetFieldKey, binding]));
-  return {
-    instance, templateVersion,
-    fields: fieldDefinitions.map((definition: WorksheetFieldDefinitionRecord) => ({
+  // ensureTemplateAndInstance's worksheet_field_definitions rows are written
+  // ONCE per (templateId, TEMPLATE_VERSION) and then reused forever --
+  // ensureTemplateVersion no-ops once that row already exists (see its own
+  // comment), so a session created before a content rewrite that renamed or
+  // removed a worksheetFieldKey (e.g. S01's personalThoughtEmotionLink/
+  // personalEmotionBehaviorLink/personalBehaviorSituationLink, replaced by
+  // openingInitialThought/personalEmotion/personalBehavior/
+  // personalBodySensations) still has field-definition rows for the OLD key,
+  // which no longer has a matching binding in the current registry. Filtering
+  // those out here -- rather than asserting a binding always exists -- is
+  // what actually crashed in production (TypeError: undefined is not an
+  // object (evaluating 'e.binding.displayOrder')): an orphaned field simply
+  // disappears from the view instead of crashing the whole panel.
+  const fields = fieldDefinitions
+    .filter((definition: WorksheetFieldDefinitionRecord) => bindingByWorksheetKey.has(definition.worksheetFieldKey))
+    .map((definition: WorksheetFieldDefinitionRecord) => ({
       definition,
       binding: bindingByWorksheetKey.get(definition.worksheetFieldKey)!,
       value: valueByDefinitionId.get(definition.id) ?? null,
-    })),
-  };
+    }));
+  return { instance, templateVersion, fields };
 }
 
 /**

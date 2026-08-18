@@ -379,7 +379,7 @@ export function PatientListPage() {
                       <Badge dot className="shrink-0" tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge>
                     </div>
                     <div className="mt-2 truncate text-xs text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId, locale) ?? "—"}</div>
-                    <div className="mt-1 truncate text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</div>
+                    <div className="mt-1 truncate text-xs text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId, locale) ?? "—"}</div>
                     <div className="mt-2 text-[11px] text-text-muted">{formatTimestamp(summary.lastActivity)}</div>
                   </Card>
                 </Link>
@@ -506,7 +506,7 @@ function ParticipantRow({
         <div className="text-[11px] text-text-muted">{participant.id}</div>
       </td>
       <td className="px-4 py-3 text-text-secondary">{findSessionTitle(summary.currentSession?.sessionDefinitionId, locale) ?? "—"}</td>
-      <td className="px-4 py-3 text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId) ?? "—"}</td>
+      <td className="px-4 py-3 text-text-secondary">{findStepTitle(summary.currentSession?.currentNodeId, locale) ?? "—"}</td>
       <td className="px-4 py-3"><Badge dot tone={STATUS_TONE[summary.monitoringStatus]}>{t(`patientMonitoring.status.${summary.monitoringStatus}`)}</Badge></td>
       <td className="relative px-4 py-3 text-text-secondary">
         {formatTimestamp(summary.lastActivity)}

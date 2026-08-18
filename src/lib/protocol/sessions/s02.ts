@@ -26,6 +26,7 @@ export const spec: SessionSpec = {
     {
       slug: "opening",
       title: "Opening",
+      titleKo: "도입",
       type: "session_start",
       source: [250, 261],
       requiredFields: ["openingMode"],
@@ -62,6 +63,7 @@ export const spec: SessionSpec = {
     {
       slug: "elicit-problems",
       title: "Step 1 - Elicit Problems",
+      titleKo: "1단계 - 문제 이끌어내기",
       type: "question",
       source: [263, 279],
       requiredFields: ["problems"],
@@ -101,6 +103,7 @@ export const spec: SessionSpec = {
     {
       slug: "hidden-problems",
       title: "Step 1b - X, Y, Z Strategy",
+      titleKo: "1-1단계 - X, Y, Z 전략",
       type: "question",
       source: [280, 293],
       requiredFields: ["privateProblemPlaceholders"],
@@ -118,6 +121,7 @@ export const spec: SessionSpec = {
     {
       slug: "problem-scale",
       title: "Step 2 - Problem Scale",
+      titleKo: "2단계 - 문제 척도",
       type: "assessment",
       source: [294, 313],
       requiredFields: ["problemScalePresented"],
@@ -143,6 +147,7 @@ export const spec: SessionSpec = {
     {
       slug: "rate-problems",
       title: "Step 3 - Rate Each Problem",
+      titleKo: "3단계 - 각 문제 평가하기",
       type: "assessment",
       source: [314, 318],
       requiredFields: ["problemRatings"],
@@ -182,6 +187,7 @@ export const spec: SessionSpec = {
     {
       slug: "problem-summary",
       title: "Step 4 - Problem Summary and Distress Count",
+      titleKo: "4단계 - 문제 요약 및 고통 지수",
       type: "assessment",
       source: [319, 333],
       requiredFields: ["totalProblemScore", "yellowRedProblemsCount"],
@@ -197,6 +203,7 @@ export const spec: SessionSpec = {
     {
       slug: "elicit-goals",
       title: "Step 6 - Elicit Goals",
+      titleKo: "6단계 - 목표 이끌어내기",
       type: "question",
       source: [334, 350],
       requiredFields: ["goals"],
@@ -237,6 +244,7 @@ export const spec: SessionSpec = {
     {
       slug: "goal-scale",
       title: "Step 7 - Goal Scale",
+      titleKo: "7단계 - 목표 척도",
       type: "assessment",
       source: [351, 368],
       requiredFields: ["goalScalePresented"],
@@ -250,6 +258,7 @@ export const spec: SessionSpec = {
     {
       slug: "rate-goals",
       title: "Step 8 - Rate Each Goal",
+      titleKo: "8단계 - 각 목표 평가하기",
       type: "assessment",
       source: [369, 376],
       requiredFields: ["goalRatings"],
@@ -278,6 +287,7 @@ export const spec: SessionSpec = {
     {
       slug: "goal-summary",
       title: "Step 9 - Goal Summary and Distress Count",
+      titleKo: "9단계 - 목표 요약 및 고통 지수",
       type: "assessment",
       source: [377, 387],
       requiredFields: ["totalGoalsScore", "yellowRedGoalsCount"],
@@ -289,6 +299,7 @@ export const spec: SessionSpec = {
     {
       slug: "closing",
       title: "Closing Summary",
+      titleKo: "마무리 요약",
       type: "session_complete",
       source: [388, 429],
       restrictions: [sourceText([388, 429])],

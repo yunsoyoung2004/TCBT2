@@ -26,6 +26,7 @@ export const spec: SessionSpec = {
     {
       slug: "baseline-guilt-shame",
       title: "Step 1 - Baseline Guilt and Shame",
+      titleKo: "1단계 - 기저 죄책감과 수치심",
       type: "session_start",
       source: [828, 831],
       requiredFields: ["guiltBeliefBaseline", "shameIntensityBaseline", "shameBaselineRecorded"],
@@ -39,6 +40,7 @@ export const spec: SessionSpec = {
     {
       slug: "language-substitution",
       title: "Step 2 - Language Substitution",
+      titleKo: "2단계 - 표현 바꾸기",
       type: "orientation",
       source: [832, 834],
       requiredFields: ["participationLanguageAccepted"],
@@ -50,6 +52,7 @@ export const spec: SessionSpec = {
     {
       slug: "populate-grid",
       title: "Step 3 - Populate the Grid",
+      titleKo: "3단계 - 격자 채우기",
       type: "question",
       source: [835, 838],
       requiredFields: ["contributors"],
@@ -62,6 +65,7 @@ export const spec: SessionSpec = {
     {
       slug: "first-participation-ratings",
       title: "Step 4 - First Round of Participation Ratings",
+      titleKo: "4단계 - 참여도 평가 1차",
       type: "assessment",
       source: [839, 843],
       requiredFields: ["participationRatingsRound1", "participantParticipationRound1"],
@@ -75,6 +79,7 @@ export const spec: SessionSpec = {
     {
       slug: "socratic-deepening",
       title: "Step 5 - Socratic Deepening",
+      titleKo: "5단계 - 소크라테스식 질문으로 깊이 살펴보기",
       type: "dialogue",
       source: [844, 850],
       requiredFields: ["contributorExploration"],
@@ -87,6 +92,7 @@ export const spec: SessionSpec = {
     {
       slug: "rerating-rounds",
       title: "Step 6 - Second Through Fifth Evaluations",
+      titleKo: "6단계 - 2~5차 평가",
       type: "assessment",
       source: [851, 851],
       requiredFields: ["participationRatingRounds", "participationRatingStable"],
@@ -122,6 +128,7 @@ export const spec: SessionSpec = {
     {
       slug: "guilt-shame-rerating",
       title: "Step 7 - Guilt and Shame Re-rating",
+      titleKo: "7단계 - 죄책감과 수치심 재평가",
       type: "assessment",
       source: [852, 859],
       requiredFields: ["guiltBeliefFinal", "shameIntensityFinal"],
@@ -134,6 +141,7 @@ export const spec: SessionSpec = {
     {
       slug: "values",
       title: "Step 8 - Values",
+      titleKo: "8단계 - 가치관",
       type: "reflection",
       source: [860, 862],
       requiredFields: ["valuesArticulated"],
@@ -146,6 +154,7 @@ export const spec: SessionSpec = {
     {
       slug: "residual-shame",
       title: "Step 9 - Downward Arrow on Residual Shame",
+      titleKo: "9단계 - 남은 수치심 파고들기",
       type: "question",
       source: [863, 868],
       requiredFields: ["residualShameBelief"],
@@ -159,6 +168,7 @@ export const spec: SessionSpec = {
     {
       slug: "summary-table",
       title: "Step 10 - Summary Table",
+      titleKo: "10단계 - 요약표",
       type: "session_complete",
       source: [869, 879],
       restrictions: [sourceText([869, 879])],
@@ -170,6 +180,7 @@ export const spec: SessionSpec = {
     {
       slug: "safety-pause",
       title: "Safety Pause and Clinician Review",
+      titleKo: "안전을 위한 일시 중지 및 의료진 검토",
       type: "clinician_escalation",
       source: [915, 931],
       safetyRuleIds: ["TBCT-S05-CRISIS-PAUSE"],
