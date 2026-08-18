@@ -40,6 +40,23 @@ const NO_MORE_EXACT_PHRASES = new Set([
   "없는듯",
   "없는 듯",
   "없다고",
+  // Global dialogue rules, explicit stop-signal list (2026-08-18): a bare
+  // "I don't know"/"can't think of any"/"that's fine"/"let's move on" reply
+  // to a list-collection prompt is a deliberate stop, not a request for more
+  // time -- same exact-match-only scoping as the rest of this set, since
+  // e.g. "모르겠어요" alone is never coherent as an actual disadvantage/
+  // advantage/evidence item, but longer sentences using these words to
+  // describe real content must still fall through untouched.
+  "모르겠다",
+  "모르겠어요",
+  "생각나지 않아요",
+  "생각나지 않는다",
+  "괜찮습니다",
+  "괜찮아요",
+  "됐습니다",
+  "됐어요",
+  "넘어가겠습니다",
+  "넘어갈게요",
   "none",
   "no more",
   "more none",
