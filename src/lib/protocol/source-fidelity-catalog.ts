@@ -96,6 +96,8 @@ export type NodeSpec = {
   /** See ClinicalStageNode.participantRationale. Only set on nodes where a
    * brief "why this step" line materially helps comprehension. */
   participantRationale?: string;
+  /** See ClinicalStageNode.objective's own doc comment. */
+  objective?: string;
 };
 
 export type EdgeSpec = {
@@ -257,6 +259,7 @@ function buildSessionSeed(spec: SessionSpec): SourceFidelitySessionSeed {
       titleKo: node.titleKo,
       type: node.type,
       clinicalPurpose: sourceText(node.source),
+      objective: node.objective,
       participantRationale: node.participantRationale,
       position: { x: 180 + (index % 2) * 340, y: 100 + index * 190 },
       promptItemIds: promptItems.filter((item) => item.nodeId === node.id).map((item) => item.id),

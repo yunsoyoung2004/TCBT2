@@ -16,6 +16,7 @@ const contract: DialogueContract = {
   therapeuticObjective: "Name the desired or feared action.",
   currentTaskText: "지금 마음에 두고 계신 그 행동을, 본인의 말로 한 문장으로 표현해 주시겠어요?",
   expectedInputType: "free_text",
+  isRepeatablePrompt: false,
   participantOwned: true,
   assistantMustNotSupply: true,
   worksheetEditAvailable: false,

@@ -10,6 +10,10 @@ const PROTOCOL_STATE_PATTERN = /\b(?:node[-_ ]?id|prompt ?item|runtime state|com
 const AI_SELF_REFERENCE_PATTERN = /\b(?:as an ai|i am an ai language model|as a language model)\b/i;
 const READINESS_CHECK_PATTERN = /(?:are you ready|ready to (?:begin|continue)|shall we (?:begin|start)|준비되셨나요|준비됐나요|시작할 준비가 되셨나요|괜찮으실까요)\s*[?.!]?\s*$/i;
 
+function normalizeForRepeatCheck(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 /**
  * Section 15's pre-display gate: everything here is a REFUSAL check, not a
  * rewrite -- if patientFacingMessage fails any of these, the caller falls
@@ -40,7 +44,31 @@ export function validateDialogueDecision(decision: DialogueDecision, contract: D
   if (TREATMENT_ADVICE_PATTERN.test(text)) return { accepted: false, reason: "unsolicited_treatment_advice" };
   if (PROTOCOL_STATE_PATTERN.test(text)) return { accepted: false, reason: "protocol_state_language" };
   if (AI_SELF_REFERENCE_PATTERN.test(text)) return { accepted: false, reason: "ai_self_reference" };
+  // Widening this to every prompt (not just ordered_list) was tried and
+  // reverted: "괜찮으실까요?" in particular is common Korean phrasing inside
+  // otherwise-legitimate confirmation questions elsewhere (S06/S07's real
+  // check-in moments), and the 8-session simulated audit caught it
+  // regressing both to "partial". Left scoped to ordered_list, where the
+  // phrase can only ever be decorative filler after a list-collection task.
   if (contract.expectedInputType === "ordered_list" && READINESS_CHECK_PATTERN.test(text)) return { accepted: false, reason: "readiness_question_instead_of_task" };
+  // Confirmed live: the model asked "그 상황에서 그 사람이 느낀 감정은
+  // 무엇인가요?" twice in a row despite a valid answer to the first ask --
+  // the system prompt's own anti-repeat instruction (check recentContext,
+  // never send the identical/near-identical message two turns running) is
+  // advisory-only with no deterministic backstop. Excludes isRepeatablePrompt
+  // (see the comment above isPatientFacingLocaleConsistent and
+  // isRepeatablePrompt's own doc comment in dialogue-agent-contract.ts): a
+  // repeat_until prompt legitimately repeats near-identical wording across
+  // iterations (S02's ordered_list evidence collection, S05's per-contributor
+  // re-rating loop, ...), so a blanket check there would reject correct
+  // behavior -- confirmed by the 8-session simulated audit regressing S05
+  // when this was scoped to expectedInputType==="ordered_list" alone.
+  if (!contract.isRepeatablePrompt) {
+    const lastAssistantTurn = [...contract.recentContext].reverse().find((message) => message.role === "assistant");
+    if (lastAssistantTurn && normalizeForRepeatCheck(lastAssistantTurn.content) === normalizeForRepeatCheck(text)) {
+      return { accepted: false, reason: "repeated_identical_message" };
+    }
+  }
 
   // "assistantMustNotSupply" fields: Claude may report what the participant
   // themselves said (candidateFieldMention is documented as non-authoritative

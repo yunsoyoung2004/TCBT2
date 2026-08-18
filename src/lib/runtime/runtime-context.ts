@@ -599,6 +599,27 @@ export function looksLikeFeelingOrUrgeNotThought(text: string) {
   return EMOTION_WORD_PATTERN.test(trimmed) || URGE_OR_DESIRE_PATTERN.test(trimmed);
 }
 
+// Mirror of looksLikeFeelingOrUrgeNotThought, for the opposite mismatch: a
+// judgment/prediction ABOUT someone ("그 사람은 꼬인 사람이구나라고 생각할 거
+// 같은데" -- "I'd think that's a twisted person") answering an EMOTION
+// question. Confirmed live (S01's candidate/personal emotion prompts, which
+// have no validation.kind and therefore no semantic-assessment coverage --
+// see requiresSemanticInputAssessment): an explicit "-라고 생각"/"I think"
+// judgment framing with no emotion word anywhere in it was accepted verbatim
+// as the emotion and the turn advanced. Deliberately narrow (an explicit
+// self-reported-thought marker, not just "any text that isn't an emotion
+// word" -- a patient describing a feeling in words outside
+// EMOTION_WORD_PATTERN's list must not be blocked) and deliberately does NOT
+// flag when an emotion word is ALSO present ("나는 화가 났다고 생각해" still
+// names an emotion, just phrased through "생각").
+const THOUGHT_MARKER_PATTERN = /(?:라고|이라고)\s*생각(?:할|하는|이|해)|생각이?\s*들(?:어|었)|것\s*같다는\s*생각|\b(?:i\s+(?:think|thought|'d\s+think|would\s+think|believe|assumed?))\b/i;
+
+export function looksLikeThoughtNotFeeling(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  return THOUGHT_MARKER_PATTERN.test(trimmed) && !EMOTION_WORD_PATTERN.test(trimmed);
+}
+
 function compactText(value: string) {
   return normalizeText(value).replace(/[\s.,!?\u2026'"`~\u00B7\-_/\\()[\]{}]+/g, "");
 }
@@ -1261,6 +1282,12 @@ export async function extractRuntimeState(input: {
     // isn't a physical sensation, so leave the field unset and let the
     // missing-field clarification ask for one (racing heart, shaky hands, ...).
     nextFields[`${field}ReportedAsFeeling`] = true;
+  } else if (/Emotion$/i.test(field) && looksLikeThoughtNotFeeling(rawText)) {
+    // See looksLikeThoughtNotFeeling's own comment -- leave the field unset
+    // (rather than storing a judgment/prediction verbatim as "the emotion")
+    // so it comes back through missingFields and the patient is asked again,
+    // same pattern as automaticThought/BodySensations above.
+    nextFields[`${field}ReportedAsThought`] = true;
   } else if (expectedFields.length === 1) {
     nextFields[field] = deterministic.handled && deterministic.valid ? deterministic.value : input.patientInput.value;
   }

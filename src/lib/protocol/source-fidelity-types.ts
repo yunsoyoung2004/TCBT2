@@ -98,6 +98,21 @@ export type ClinicalStageNode = {
   titleKo?: string;
   type: string;
   clinicalPurpose: string;
+  /** Overrides clinicalPurpose as the dialogue agent's "Therapeutic objective
+   * for this step" grounding text (runtime-release-normalizer.ts /
+   * dialogue-contract-compiler.ts both already prefer this field when set --
+   * see their own `node.objective || node.clinicalPurpose` fallback). Needed
+   * because clinicalPurpose is sourceText(node.source) verbatim: when a
+   * node's own patient-facing content has been redesigned away from the
+   * source manual's literal wording (see S01's presentation-vignette
+   * redesign) but its `source` line range still spans manual text describing
+   * the OLD wording, clinicalPurpose keeps handing the model stale grounding
+   * -- confirmed live: several S01 Step-2 nodes' source ranges still
+   * captured leftover job-interview-scenario sentences ("the interviewer's
+   * reaction, positive or negative?") after the vignette was redesigned, and
+   * the dialogue agent voiced them verbatim to patients even though no
+   * interviewer exists anywhere in the current content. Set this whenever a
+   * node's redesigned content diverges from what its own source range says. */
   objective?: string;
   /** Short (1-2 sentence), participant-facing "why this step matters" text,
    * paraphrased from this node's own clinicalPurpose/objective -- not new

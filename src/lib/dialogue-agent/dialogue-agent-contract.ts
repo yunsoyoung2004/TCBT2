@@ -35,6 +35,15 @@ export const dialogueContractSchema = z.object({
   targetField: z.string().optional(),
   expectedConstruct: z.string().optional(),
   expectedInputType: expectedInputTypeSchema,
+  // True for a repeat_until prompt (RuntimePromptItem.executionMode) -- one
+  // that is by design asked again, near-identically, for each item/round
+  // (S02's ordered_list collection, but also e.g. S05's per-contributor
+  // re-rating loop, which isn't ordered_list). The dialogue-output-validator
+  // repeated-identical-message check must not reject these -- confirmed live
+  // via the 8-session simulated audit (S05 regressed to "partial" when that
+  // check was scoped to expectedInputType==="ordered_list" alone, missing
+  // this broader repeat_until case).
+  isRepeatablePrompt: z.boolean().default(false),
   choiceOptions: z.array(z.string()).optional(),
   participantOwned: z.boolean(),
   assistantMustNotSupply: z.boolean(),

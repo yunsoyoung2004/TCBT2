@@ -291,6 +291,17 @@ export function compileDialogueContract(input: {
     targetField,
     expectedConstruct: terminology?.meaning,
     expectedInputType,
+    // Two distinct mechanisms in this codebase both legitimately re-deliver
+    // the SAME prompt/near-identical wording for the same node before it's
+    // done: an explicit repeat_until loop (S05's per-contributor re-rating),
+    // and a single prompt whose own validation.kind is a list-building kind
+    // (S02/S06's "name another item" collection, min/max-gated, no
+    // executionMode at all -- confirmed live via the 8-session simulated
+    // audit: S06's concrete-actions prompt, validation.kind "array", was
+    // wrongly caught by the repeated-identical-message check below before
+    // this second condition was added).
+    isRepeatablePrompt: runtimePromptItem.executionMode === "repeat_until"
+      || ["array", "min_items"].includes(String((sourcePromptItem.validation as { kind?: unknown } | null)?.kind ?? "")),
     choiceOptions: expectedInputType === "single_choice" ? choiceOptionsFor(sourcePromptItem) : undefined,
     participantOwned: ownership.participantOwned,
     assistantMustNotSupply: ownership.assistantMustNotSupply,

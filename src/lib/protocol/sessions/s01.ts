@@ -96,6 +96,17 @@ export const spec: SessionSpec = {
       source: [75, 85],
       requiredFields: ["threePersonPreviewComplete"],
       restrictions: [sourceText([75, 85])],
+      // This node's own source range ([75, 85]) still ends inside the
+      // manual's job-interview vignette (the "interviewer's reaction,
+      // positive or negative" instruction), left over from before the
+      // presentation-vignette redesign -- without an explicit objective
+      // here, clinicalPurpose (sourceText(node.source) verbatim) hands the
+      // dialogue agent that stale interviewer text as its grounding for
+      // this turn, and it gets voiced to the patient even though no
+      // interviewer exists anywhere in the redesigned content (confirmed
+      // live). Same fix applied to first/second/third-candidate and
+      // three-person-conclusion below, whose ranges have the same overlap.
+      objective: "Introduce a neutral three-person example before the participant's own situation: three different people who all just gave the same presentation all hear the exact same compliment afterward. The goal is only to set up that comparison -- do not introduce any other scenario (e.g. a job interview).",
       participantRationale: "Three people hearing the exact same words can react in completely different ways. Walking through their reactions makes it easier to see how a thought, not just what happened, shapes how someone feels and acts.",
       prompts: [
         {
@@ -138,6 +149,10 @@ export const spec: SessionSpec = {
       source: [86, 92],
       requiredFields: ["candidateOneEmotion", "candidateOneBehavior"],
       restrictions: [sourceText([86, 92])],
+      // See three-person-example's objective comment -- this range still
+      // trails into leftover job-interview-vignette text ("interviewing the
+      // first three candidates").
+      objective: "The first person in the presentation example thought their presentation must have gone well. Ask what emotion and behavior would naturally follow from that specific thought, in the presentation scenario only.",
       prompts: [
         { slug: "candidate-one-emotion", type: "question", source: [86, 92], patientText: "The first person thought, “My presentation must have gone well.” What do you think they'd feel?", outputFields: ["candidateOneEmotion"], completionEffect: { type: "set_field", field: "candidateOneThought", value: "My presentation must have gone well." } },
         { slug: "candidate-one-behavior", type: "question", source: [86, 92], patientText: "And how do you think they'd behave?", outputFields: ["candidateOneBehavior"] },
@@ -151,6 +166,9 @@ export const spec: SessionSpec = {
       source: [93, 104],
       requiredFields: ["candidateTwoEmotion", "candidateTwoBehavior"],
       restrictions: [sourceText([93, 104])],
+      // See three-person-example's objective comment -- this range's tail is
+      // where the reported leak's "interviewer reaction" sentences live.
+      objective: "The second person, in the exact same presentation situation, thought the compliment was probably just empty flattery. Ask what emotion and behavior would follow from THIS different thought, reinforcing that the same event produces a different feeling and behavior depending on the thought attached to it. Presentation scenario only -- no interviewer, no job application.",
       prompts: [
         { slug: "candidate-two-emotion", type: "question", source: [93, 104], patientText: "Now here's a second person. They thought, “That's probably just empty flattery.” What do you think they'd feel?", outputFields: ["candidateTwoEmotion"], completionEffect: { type: "set_field", field: "candidateTwoThought", value: "That's probably just empty flattery." } },
         { slug: "candidate-two-behavior", type: "question", source: [93, 104], patientText: "And how do you think they'd behave?", outputFields: ["candidateTwoBehavior"] },
@@ -164,6 +182,10 @@ export const spec: SessionSpec = {
       source: [105, 117],
       requiredFields: ["candidateThreeEmotion", "candidateThreeBehavior"],
       restrictions: [sourceText([105, 117])],
+      // See three-person-example's objective comment -- this is the node the
+      // reported leak's "interviewer reaction... reinforce the original
+      // thought, keeping the whole cycle going" sentences came from verbatim.
+      objective: "The third person, again in the exact same presentation situation, thought the compliment might have been sarcastic. Ask what emotion and behavior would follow from this third, still-different thought -- completing the three-way contrast the exercise is built on. Presentation scenario only -- no interviewer, no job application.",
       prompts: [
         { slug: "candidate-three-emotion", type: "question", source: [105, 117], patientText: "And a third person. They thought, “Are they being sarcastic?” What do you think they'd feel?", outputFields: ["candidateThreeEmotion"], completionEffect: { type: "set_field", field: "candidateThreeThought", value: "Are they being sarcastic?" } },
         { slug: "candidate-three-behavior", type: "question", source: [105, 117], patientText: "And how do you think they'd behave?", outputFields: ["candidateThreeBehavior"] },
@@ -177,6 +199,9 @@ export const spec: SessionSpec = {
       source: [118, 129],
       requiredFields: ["threePersonModelInsight"],
       restrictions: [sourceText([118, 129])],
+      // See three-person-example's objective comment -- this range's head is
+      // the third candidate's own leftover "interviewer reaction" sentences.
+      objective: "Help the participant put into their own words what the three-person example showed: the same situation and the same words led to three different thoughts, and those thoughts -- not the situation itself -- produced three different feelings and behaviors. Then bridge back to the participant's own earlier situation and thought.",
       prompts: [
         // Merged the source's two-part observation ("what did you notice?"
         // then "what does that tell you?") into one question -- both wrote

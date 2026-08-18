@@ -16,6 +16,7 @@ function baseContract(overrides: Partial<DialogueContract> = {}): DialogueContra
     targetField: "automaticThought",
     expectedConstruct: "A thought, interpretation, prediction, judgment, or meaning. Not an emotion and not a description of the situation.",
     expectedInputType: "free_text",
+    isRepeatablePrompt: false,
     participantOwned: true,
     assistantMustNotSupply: false,
     worksheetEditAvailable: true,
