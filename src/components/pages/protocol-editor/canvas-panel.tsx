@@ -130,10 +130,27 @@ export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChan
               nodeTypes={protocolNodeTypes}
               nodesDraggable={!immutableSourceView}
               nodesConnectable={!immutableSourceView}
-              panOnDrag={false}
-              panOnScroll={false}
+              // A prior fix (5832c42, "stop protocol editor layout and
+              // canvas jitter") disabled panning/zooming outright, right
+              // after the previous commit forced every node onto one
+              // centered column reaching up to y=10000 (translateExtent
+              // below) -- the jitter was very likely left-click canvas-pan
+              // fighting with left-click node-drag on that single crowded
+              // column, but the fix also removed the only way to reach
+              // nodes below the first screenful ("map doesn't move even
+              // when I drag it", confirmed live). Restored navigation via
+              // gestures that can't collide with node-dragging: middle/
+              // right-click drag to pan (panOnDrag as a button list, not a
+              // bare boolean, leaves plain left-click drag exclusively for
+              // repositioning a node), mouse-wheel scroll to pan, and pinch
+              // to zoom. zoomOnDoubleClick stays off -- it would collide
+              // with onEdgeDoubleClick below. autoPanOnNodeDrag/
+              // autoPanOnConnect stay off too -- unrelated to this bug and
+              // not implicated in the original jitter report either.
+              panOnDrag={[1, 2]}
+              panOnScroll
               zoomOnScroll={false}
-              zoomOnPinch={false}
+              zoomOnPinch
               zoomOnDoubleClick={false}
               preventScrolling={false}
               autoPanOnNodeDrag={false}
@@ -150,7 +167,7 @@ export function CanvasPanel({ flowNodes, edges, immutableSourceView, onNodesChan
               translateExtent={[[-40, -80], [Math.max(viewportWidth + 40, 360), 10000]]}
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
-              <MiniMap className="!bg-surface" pannable={false} zoomable={false} />
+              <MiniMap className="!bg-surface" pannable zoomable />
               <Controls position="bottom-left" />
             </ReactFlow>
           </div>
