@@ -5,30 +5,9 @@ import { Button, inputClass } from "@/components/ui/primitives";
 import type { PromptItem } from "@/lib/protocol/source-fidelity-types";
 import type { PatientInput } from "@/types/runtime-session";
 import { useSpeechRecognition } from "@/lib/speech/use-speech-recognition";
+import { choiceLabel } from "@/lib/runtime/patient-input-display";
 
 type PatientPromptInput = Pick<PromptItem, "type" | "validation" | "outputFields">;
-
-// Choice buttons used to print the catalog's raw canonical value, so the two
-// most consequential answers in the programme appeared as "not_ready" and
-// "not_guilty" -- untranslated, and visibly not the wording the question had
-// just used. The submitted value stays canonical; only the label changes.
-const CHOICE_LABELS: Record<string, { en: string; ko: string }> = {
-  ready: { en: "Ready", ko: "준비됐어요" },
-  not_ready: { en: "Not ready", ko: "아직 준비 안 됐어요" },
-  guilty: { en: "Guilty", ko: "유죄" },
-  not_guilty: { en: "Not guilty", ko: "무죄" },
-  not_started: { en: "Not started", ko: "시작 못 했어요" },
-  partial: { en: "Partly done", ko: "일부 했어요" },
-  completed: { en: "Completed", ko: "완료했어요" },
-  not_assigned: { en: "Not assigned", ko: "부여되지 않음" },
-  pending: { en: "In progress", ko: "진행 중" },
-};
-
-function choiceLabel(choice: string, locale?: string) {
-  const entry = CHOICE_LABELS[choice];
-  if (!entry) return choice.replace(/_/g, " ");
-  return locale?.startsWith("ko") ? entry.ko : entry.en;
-}
 
 export function PatientInputControls({
   payload,

@@ -16,6 +16,7 @@ import { useReducedMotionPreference } from "@/lib/motion/use-reduced-motion-pref
 import { getPatientRuntimeSession, getRuntimeSession } from "@/lib/api/runtime-session-api";
 import { saveRemoteSessionAuditSnapshot } from "@/lib/audit/remote-session-audit";
 import { computeSessionProgressPercent } from "@/lib/runtime/session-progress-estimate";
+import { describePatientInputForDisplay } from "@/lib/runtime/patient-input-display";
 import { resumeRuntimeSession, retryStalledRuntimeNode, startRuntimeSession, submitPatientInput, terminateRuntimeSession } from "@/lib/api/runtime-execution-api";
 import type { PatientInput, PatientRuntimeSessionView } from "@/types/runtime-session";
 import { useBrowserTts } from "@/lib/speech/use-browser-tts";
@@ -119,7 +120,7 @@ export function PatientSessionPage() {
       const queryKey = ["patient-runtime-session", sessionId] as const;
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<PatientRuntimeSessionView | null>(queryKey);
-      const content = Array.isArray(patientInput.value) ? patientInput.value.join(", ") : String(patientInput.value);
+      const content = describePatientInputForDisplay(patientInput, displayLocale);
       if (previous) {
         const now = new Date().toISOString();
         queryClient.setQueryData<PatientRuntimeSessionView>(queryKey, {

@@ -24,6 +24,22 @@ const NO_MORE_EXACT_PHRASES = new Set([
   "추가로는 없어요",
   "더 생각나는 건 없어요",
   "더 생각나는 건 없습니다",
+  // Confirmed live (S07's advantages/disadvantages collection): the informal
+  // register of the exact same "no more" answer -- "없어요" without the
+  // polite 요, or restating/hedging it -- was accepted as a genuine new list
+  // item instead of ending the loop, so the participant repeated themselves
+  // four times ("없는듯", "없다고", "장점이 더이상 없어", "장점이 없어")
+  // before the collection finally stopped on an unrelated max-items message.
+  // Still exact-match only, per this set's own rule above -- "없어"/"없다"
+  // bare are common enough as genuine content (see the P0-2 comment) that
+  // only the standalone form is safe to add here.
+  "없어",
+  "없음",
+  "없다",
+  "없대",
+  "없는듯",
+  "없는 듯",
+  "없다고",
   "none",
   "no more",
   "more none",
@@ -41,6 +57,15 @@ const NO_MORE_CONTAINS_PHRASES = [
   "반박할 수 없어요",
   "반박 못 하겠어요",
   "반박 못하겠어요",
+  // "더 이상"/"더이상" ("any more/further") makes a trailing 없다-family verb
+  // an unambiguous "no more items" signal regardless of what topic noun
+  // precedes it ("장점이 더이상 없어", "생각나는 게 더 이상 없어") -- unlike bare
+  // "없다"/"없어" (see NO_MORE_EXACT_PHRASES' comment), nobody uses "더 이상"
+  // to describe new content, only to say a list is exhausted, so this is
+  // safe to match anywhere in the message rather than requiring an exact
+  // whole-message match.
+  "더 이상 없",
+  "더이상 없",
 ];
 
 function isNoMoreEvidence(text: string) {

@@ -7,6 +7,7 @@ import { createSafetyEvent, findOpenSafetyEventByTriggerKey, patchSafetyEvent, p
 import { getRuntimeParticipant } from "@/lib/api/participant-api";
 import { mergeExtractedRuntimeContext, extractRuntimeState, isExplicitPatientRefusal, violatesThirdPersonRequirement, normalizeText, looksLikeMetaQuestionAboutTheProcess, looksLikeMeaningClarificationRequest, looksLikeS02ExplanationRequest } from "@/lib/runtime/runtime-context";
 import { detectLanguageSwitchRequest } from "@/lib/runtime/language-switch-detector";
+import { describePatientInputForDisplay } from "@/lib/runtime/patient-input-display";
 import { executeRuntimeNodeMessage } from "@/lib/runtime/runtime-node-executor";
 import { runSafetyOrchestrator } from "@/lib/runtime/runtime-safety-orchestrator";
 import { createRuntimeExecutionTrace } from "@/lib/runtime/runtime-execution-tracer";
@@ -1412,7 +1413,7 @@ export async function submitPatientInput(sessionId: string, patientInput: Patien
     id: makeId("RMSG"),
     runtimeSessionId: sessionId,
     role: "patient",
-    content: Array.isArray(patientInput.value) ? patientInput.value.join(", ") : String(patientInput.value),
+    content: describePatientInputForDisplay(patientInput, turnLocale),
     status: "delivered",
     nodeId: currentNode.id,
     promptItemId: currentPromptItem.id,
