@@ -222,7 +222,17 @@ export function PatientSessionPage() {
       startMutation.mutate();
     }
   }, [activeSession?.status, startMutation]);
-  const displayLocale = uiLocale === "ko" ? "ko-KR" : "en-US";
+  // The session's own content locale (what language the assistant actually
+  // writes/speaks in), NOT the UI chrome locale (uiLocale/isKoreanSession
+  // above, which only governs this app's own labels/toasts) -- the two can
+  // genuinely differ, e.g. a Korean-UI participant on an English-content
+  // test session. Using uiLocale here made TTS select a Korean voice for an
+  // English message (or vice versa): a Korean voice given English text
+  // commonly spells it out letter by letter rather than reading it as
+  // words, since it has no English pronunciation model at all. Falls back
+  // to the UI-locale-derived value only until the session record itself
+  // has loaded.
+  const displayLocale = activeSession?.locale ?? (uiLocale === "ko" ? "ko-KR" : "en-US");
   const tts = useBrowserTts(displayLocale);
   const { supported: ttsSupported, speak, stop } = tts;
   const patientVisibleMessages = messages.filter((message) => message.role === "patient" || message.role === "assistant" || message.role === "system");
