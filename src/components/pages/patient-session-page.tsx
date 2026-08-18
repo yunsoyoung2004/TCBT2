@@ -303,8 +303,12 @@ export function PatientSessionPage() {
                 <div className="mt-1 text-xs text-text-secondary">{isKoreanSession ? "현재 세션 상태와 참여자에게 승인된 안내만 표시됩니다." : "The patient view shows only the current session state and approved patient-facing safety guidance."}</div>
               </div>
               <div className="flex gap-2">
-                {activeSession.status === "created" && <Button onClick={() => startMutation.mutate()}>{isKoreanSession ? "시작" : "Start"}</Button>}
-                {activeSession.status === "paused" && <Button onClick={() => resumeMutation.mutate()}>{isKoreanSession ? "재개" : "Resume"}</Button>}
+                {/* claimRuntimeSessionStart (runtime-execution-api.ts) makes a second
+                    concurrent start a safe no-op server-side, but disabling
+                    this while the auto-start effect's own call is already in
+                    flight still avoids a confusing "nothing happened" click. */}
+                {activeSession.status === "created" && <Button disabled={startMutation.isPending} onClick={() => startMutation.mutate()}>{isKoreanSession ? "시작" : "Start"}</Button>}
+                {activeSession.status === "paused" && <Button disabled={resumeMutation.isPending} onClick={() => resumeMutation.mutate()}>{isKoreanSession ? "재개" : "Resume"}</Button>}
                 <Button variant="danger" onClick={() => setEndConfirmOpen(true)}>{isKoreanSession ? "종료" : "End"}</Button>
               </div>
             </div>

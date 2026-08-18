@@ -26,6 +26,10 @@ describe("S02 Problems and Goals -- 정상 발화 오인 수정", () => {
   it("P0-3: opening never waits for/rejects a patient answer -- the session starts already on problem-framing", async () => {
     const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s02", locale: "ko-KR" });
     const started = await startRuntimeSession(session.id);
+    // null would mean claimRuntimeSessionStart lost a race to a concurrent
+    // caller (see runtime-execution-api.ts) -- can't happen here, a fresh
+    // session with exactly one sequential start call.
+    if (!started) throw new Error("startRuntimeSession returned null");
     // Before the fix, the opening prompt's outputFields: ["openingMode"] made
     // it wait for a patient answer with no validation.kind to accept one,
     // so a real "네" was rejected as filler and the session stalled here.

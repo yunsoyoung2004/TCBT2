@@ -14,6 +14,7 @@ import type {
   CommitRuntimeAssistantTurnInput,
   CommitRuntimeAssistantTurnResult,
   RuntimePatientTurnClaim,
+  RuntimeSessionStartClaim,
   RuntimeStoreOp,
 } from "@/lib/runtime/runtime-store-ops";
 
@@ -111,6 +112,39 @@ export async function claimRuntimePatientTurn(input: {
        VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
       [input.patientMessage.id, input.patientMessage.runtimeSessionId, input.patientMessage.role, input.patientMessage.createdAt, input.patientMessage.deliveredAt ?? null, JSON.stringify(input.patientMessage)],
     );
+    await client.query(
+      `UPDATE runtime_sessions SET participant_id=$2, protocol_id=$3, release_id=$4, status=$5, updated_at=$6, data=$7 WHERE id=$1`,
+      [next.id, next.participantId, next.protocolId, next.releaseId, next.status, next.updatedAt, JSON.stringify(next)],
+    );
+    return { claimed: true, session: next };
+  });
+}
+
+/** Same "SELECT ... FOR UPDATE inside one transaction" guard as
+ * claimRuntimePatientTurn, for startRuntimeSession's created -> preparing
+ * transition. Without this, startRuntimeSession had no precondition check at
+ * all (unlike pauseRuntimeSession/resumeRuntimeSession, which both verify
+ * the session is in a legal source status first) -- two callers racing
+ * (the patient-session-page.tsx auto-start effect and a still-visible,
+ * not-yet-disabled manual Start button; or a stray auto-retry) would each
+ * read status "created" before either had committed, then each
+ * independently run the full entry-node execution chain, generating two
+ * separate assistant messages for what should be one logical first turn
+ * (confirmed live: reported as "the counselor's first message repeats
+ * twice"). Only the FIRST caller whose transaction commits sees
+ * claimed:true; every other caller gets claimed:false and skips re-running
+ * the chain entirely (see startRuntimeSession in runtime-execution-api.ts). */
+export async function claimRuntimeSessionStart(sessionId: string): Promise<RuntimeSessionStartClaim> {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query<{ data: RuntimeSession }>(
+      "SELECT data FROM runtime_sessions WHERE id = $1 FOR UPDATE",
+      [sessionId],
+    );
+    const current = rows[0]?.data;
+    if (!current) throw new Error("Runtime session not found");
+    if (current.status !== "created") return { claimed: false, session: current };
+
+    const next: RuntimeSession = { ...current, status: "preparing", startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await client.query(
       `UPDATE runtime_sessions SET participant_id=$2, protocol_id=$3, release_id=$4, status=$5, updated_at=$6, data=$7 WHERE id=$1`,
       [next.id, next.participantId, next.protocolId, next.releaseId, next.status, next.updatedAt, JSON.stringify(next)],
@@ -426,6 +460,7 @@ export async function dispatchRuntimeStoreOp(op: RuntimeStoreOp): Promise<unknow
     case "createSession": return createRuntimeSessionRecord(op.session);
     case "updateSession": return updateRuntimeSessionRecord(op.sessionId, op.patch);
     case "claimPatientTurn": return claimRuntimePatientTurn(op);
+    case "claimSessionStart": return claimRuntimeSessionStart(op.sessionId);
     case "getSession": return getRuntimeSessionRecord(op.sessionId);
     case "listSessions": return listRuntimeSessionRecords();
     case "listSessionsByParticipant": return listRuntimeSessionRecordsByParticipant(op.participantId);

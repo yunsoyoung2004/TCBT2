@@ -26,6 +26,17 @@ export type RuntimePatientTurnClaim =
   | { claimed: true; session: RuntimeSession }
   | { claimed: false; session: RuntimeSession };
 
+/** Same claim-or-no-op shape as RuntimePatientTurnClaim, for the
+ * created -> preparing transition startRuntimeSession makes. Only ever
+ * claimable once per session (status must be exactly "created"), so a
+ * second concurrent caller (an auto-start effect racing a manual Start
+ * click, or a stray retry) gets claimed:false and skips re-running the
+ * entry-node execution chain instead of independently generating a second
+ * copy of the session's first assistant message. */
+export type RuntimeSessionStartClaim =
+  | { claimed: true; session: RuntimeSession }
+  | { claimed: false; session: RuntimeSession };
+
 export type CommitRuntimeAssistantTurnResult = {
   session: RuntimeSession;
   assistantMessage: RuntimeMessage;
@@ -36,6 +47,7 @@ export type RuntimeStoreOp =
   | { op: "createSession"; session: RuntimeSession }
   | { op: "updateSession"; sessionId: string; patch: Partial<RuntimeSession> }
   | { op: "claimPatientTurn"; sessionId: string; clientTurnId: string; expectedSessionVersion: number; patientMessage: RuntimeMessage; turnPatch?: Pick<RuntimeSession, "locale" | "currentPromptItemId" | "skippedPromptItemIds"> }
+  | { op: "claimSessionStart"; sessionId: string }
   | { op: "getSession"; sessionId: string }
   | { op: "listSessions" }
   | { op: "listSessionsByParticipant"; participantId: string }

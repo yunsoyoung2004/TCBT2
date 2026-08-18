@@ -4,6 +4,7 @@ import type {
   CommitRuntimeAssistantTurnInput,
   CommitRuntimeAssistantTurnResult,
   RuntimePatientTurnClaim,
+  RuntimeSessionStartClaim,
   RuntimeStoreOp,
 } from "@/lib/runtime/runtime-store-ops";
 import type {
@@ -51,6 +52,10 @@ export async function claimRuntimePatientTurn(input: {
   turnPatch?: Pick<RuntimeSession, "locale" | "currentPromptItemId" | "skippedPromptItemIds">;
 }): Promise<RuntimePatientTurnClaim> {
   return callStore<RuntimePatientTurnClaim>({ op: "claimPatientTurn", ...input });
+}
+
+export async function claimRuntimeSessionStart(sessionId: string): Promise<RuntimeSessionStartClaim> {
+  return callStore<RuntimeSessionStartClaim>({ op: "claimSessionStart", sessionId });
 }
 
 export async function getRuntimeSessionRecord(sessionId: string) {

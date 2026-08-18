@@ -34,6 +34,41 @@ describe("canonical source-fidelity runtime", () => {
     }
   }, 15_000);
 
+  // Reproduces a live-reported bug ("the counselor's first message repeats
+  // twice"): patient-session-page.tsx's auto-start effect and a still-
+  // visible, not-yet-disabled manual "Start" button (or a stray auto-retry)
+  // could both call startRuntimeSession for the same freshly-created
+  // session. startRuntimeSession previously had no precondition check at
+  // all, so both concurrent calls would independently run the full
+  // entry-node execution chain and each generate their own assistant
+  // message for the session's first turn. claimRuntimeSessionStart
+  // (runtime-execution-api.ts / runtime-session-store.ts) now makes this an
+  // atomic claim -- only one caller's chain actually runs.
+  it("never delivers a duplicate first message when startRuntimeSession is called concurrently", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = "mock";
+    try {
+      const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s01", locale: "ko-KR" });
+      const [first, second] = await Promise.all([startRuntimeSession(session.id), startRuntimeSession(session.id)]);
+      // Exactly one of the two racing calls should have won the claim and
+      // actually run the chain; the other is a no-op (null).
+      expect([first, second].filter((result) => result !== null)).toHaveLength(1);
+
+      const view = await getRuntimeSession(session.id);
+      const assistantMessages = view?.messages.filter((message) => message.role === "assistant") ?? [];
+      // S01's opening node legitimately delivers two DIFFERENT prompts in
+      // one healthy chain (warm-acknowledgement, then telegraphic-situation)
+      // -- the bug was the SAME prompt being delivered twice, so assert on
+      // distinct (nodeId, promptItemId) pairs rather than a raw count.
+      expect(assistantMessages.length).toBeGreaterThan(0);
+      const promptKeys = assistantMessages.map((message) => `${message.nodeId}:${message.promptItemId}`);
+      expect(new Set(promptKeys).size).toBe(promptKeys.length);
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
+  }, 15_000);
+
   it("makes every canonical session available to the publish-free test flow", async () => {
     const sessions = await listCanonicalTestSessions();
     const session = await createCanonicalTestRuntimeSession({ sessionDefinitionId: "tbct-s08" });

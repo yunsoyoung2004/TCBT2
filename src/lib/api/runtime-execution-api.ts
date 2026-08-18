@@ -1,4 +1,4 @@
-import { claimRuntimePatientTurn, commitRuntimeAssistantTurn, saveRuntimeEscalation, saveRuntimeLog, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
+import { claimRuntimePatientTurn, claimRuntimeSessionStart, commitRuntimeAssistantTurn, saveRuntimeEscalation, saveRuntimeLog, updateRuntimeSessionRecord } from "@/lib/repositories/runtime-session-repository";
 import { cleanupExpiredTriggerSuppressions, findActiveTriggerSuppression, updateTriggerSuppression } from "@/lib/repositories/safety-event-repository";
 import { createRuntimeCheckpoint, getRuntimeSession, getRuntimeSessionForTurn, setRuntimeSessionStatus } from "@/lib/api/runtime-session-api";
 import { runMemoryRetrieval } from "@/lib/api/longitudinal-memory-api";
@@ -1066,9 +1066,22 @@ async function ensureSafetyOperationsRecord(input: {
 }
 
 export async function startRuntimeSession(sessionId: string) {
+  // Guards the created -> preparing transition atomically (SELECT ... FOR
+  // UPDATE inside one transaction, same pattern as claimRuntimePatientTurn)
+  // -- startRuntimeSession previously had no precondition check at all, so
+  // two racing callers (patient-session-page.tsx's auto-start effect and a
+  // still-visible, not-yet-disabled manual Start button; or a stray
+  // auto-retry) could each read status "created" before either committed,
+  // then each independently run the full entry-node execution chain,
+  // generating two separate assistant messages for the session's first turn
+  // (confirmed live: "the counselor's first message repeats twice"). Only
+  // the caller that actually wins the claim proceeds; every other
+  // concurrent caller returns early with the current, already-in-progress
+  // view instead of re-running the chain.
+  const claim = await claimRuntimeSessionStart(sessionId);
+  if (!claim.claimed) return null;
   const view = await getRuntimeSession(sessionId);
   if (!view) throw new Error("Runtime session not found");
-  await setRuntimeSessionStatus(sessionId, "preparing", { startedAt: new Date().toISOString() });
   const runtimeRelease = loadRuntimeRelease(view.release);
   const runtimeState = normalizeRuntimeSessionState(view.session, runtimeRelease);
   const entryNode = view.nodes.find((node) => node.id === runtimeState.activeNodeId);

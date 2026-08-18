@@ -84,6 +84,15 @@ function claimPatientTurn(input: {
   return { claimed: true as const, session: next };
 }
 
+function claimSessionStart(sessionId: string) {
+  const current = sessions.get(sessionId);
+  if (!current) throw new Error("Runtime session not found");
+  if (current.status !== "created") return { claimed: false as const, session: clone(current) };
+  const next: RuntimeSession = { ...current, status: "preparing", startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  sessions.set(sessionId, clone(next));
+  return { claimed: true as const, session: next };
+}
+
 function saveMessage(message: RuntimeMessage) {
   messages.set(message.id, clone(message));
   const session = sessions.get(message.runtimeSessionId);
@@ -180,6 +189,7 @@ export async function dispatchFakeRuntimeStoreOp(op: RuntimeStoreOp): Promise<un
     case "createSession": return clone(createSession(op.session));
     case "updateSession": return clone(updateSession(op.sessionId, op.patch));
     case "claimPatientTurn": return clone(claimPatientTurn(op));
+    case "claimSessionStart": return clone(claimSessionStart(op.sessionId));
     case "getSession": {
       const found = sessions.get(op.sessionId);
       return found ? clone(found) : undefined;
