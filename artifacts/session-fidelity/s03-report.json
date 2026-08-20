@@ -1,12 +1,13 @@
 {
   "sessionId": "tbct-s03",
-  "runtimeSessionId": "RTS-85d14494",
+  "runtimeSessionId": "RTS-dbc1901a",
   "releaseId": "demo-release",
   "patientTurns": 29,
-  "programTurns": 33,
+  "programTurns": 35,
   "promptItemsExecuted": [
     "tbct-s03-n01-p01-safety-check",
-    "tbct-s03-n02-p01-fourteen-question-introduction",
+    "tbct-s03-n02-p03-redirection-contract",
+    "tbct-s03-n02-p04-worksheet-readiness-check",
     "tbct-s03-n03-p01-describe-situation",
     "tbct-s03-n04-p01-automatic-thought",
     "tbct-s03-n06-p01-rate-at-belief",
@@ -15,7 +16,6 @@
     "tbct-s03-n08-p01-behavior",
     "tbct-s03-n08-p02-body-sensations",
     "tbct-s03-n08-p03-participant-summary",
-    "tbct-s03-n08-p04-cycle-note",
     "tbct-s03-n09-p01-behavior-pros",
     "tbct-s03-n09-p03-behavior-cons",
     "tbct-s03-n09-p04-cognitive-distortion",
@@ -47,6 +47,8 @@
   "expectedFields": [
     "safetyCheck",
     "intraTrIntroductionComplete",
+    "redirectionContractAcknowledged",
+    "worksheetReady",
     "situation",
     "automaticThought",
     "workingAutomaticThought",
@@ -90,6 +92,8 @@
     "defenseSurrebuttalsComplete",
     "thereforeConclusionsComplete",
     "intraTrIntroductionComplete",
+    "redirectionContractAcknowledged",
+    "worksheetReady",
     "situation",
     "automaticThoughtReportedAsFeeling",
     "automaticThought",
@@ -128,6 +132,30 @@
   "missingFields": [],
   "finalState": "completed",
   "fidelity": [
+    {
+      "activePromptFidelity": "pass",
+      "sequenceFidelity": "pass",
+      "roleFidelity": "pass",
+      "responseContingency": "pass",
+      "languageFidelity": "pass",
+      "safetyFidelity": "pass",
+      "transitionFidelity": "pass",
+      "exposureSafety": "pass",
+      "responsiveness": "pass",
+      "reasons": []
+    },
+    {
+      "activePromptFidelity": "pass",
+      "sequenceFidelity": "pass",
+      "roleFidelity": "pass",
+      "responseContingency": "pass",
+      "languageFidelity": "pass",
+      "safetyFidelity": "pass",
+      "transitionFidelity": "pass",
+      "exposureSafety": "pass",
+      "responsiveness": "pass",
+      "reasons": []
+    },
     {
       "activePromptFidelity": "pass",
       "sequenceFidelity": "pass",

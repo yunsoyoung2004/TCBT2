@@ -2,7 +2,7 @@
 
 - Release: demo-release
 - Patient turns: 29
-- Program turns: 33
+- Program turns: 35
 - PromptItems executed: 29
 - PromptItems skipped: 2
 - Fallbacks: 0
@@ -16,7 +16,8 @@
 ## Executed PromptItems
 
 - tbct-s03-n01-p01-safety-check
-- tbct-s03-n02-p01-fourteen-question-introduction
+- tbct-s03-n02-p03-redirection-contract
+- tbct-s03-n02-p04-worksheet-readiness-check
 - tbct-s03-n03-p01-describe-situation
 - tbct-s03-n04-p01-automatic-thought
 - tbct-s03-n06-p01-rate-at-belief
@@ -25,7 +26,6 @@
 - tbct-s03-n08-p01-behavior
 - tbct-s03-n08-p02-body-sensations
 - tbct-s03-n08-p03-participant-summary
-- tbct-s03-n08-p04-cycle-note
 - tbct-s03-n09-p01-behavior-pros
 - tbct-s03-n09-p03-behavior-cons
 - tbct-s03-n09-p04-cognitive-distortion
@@ -47,6 +47,6 @@
 
 ## Field extraction
 
-- Expected reachable fields: safetyCheck, intraTrIntroductionComplete, situation, automaticThought, workingAutomaticThought, factualThoughtConfirmed, automaticThoughtBeliefPercent, primaryEmotion, primaryEmotionIntensityPercent, behavior, bodySensations, participantSummary, cycleSummaryAcknowledged, behaviorPros, behaviorCons, cognitiveDistortion, evidenceFor, evidenceAgainst, balancedConclusion, conclusionTherefore, conclusionReadBackComplete, conclusionBeliefPercent, positiveEmotions, originalEmotionRerating, newEmotionIntensities, intendedActions, newBodySensations, revisedAutomaticThoughtBeliefPercent, globalEvaluation, closingReview, actionPlanOffer
-- Captured fields: safetyCheck, prosecutionEvidenceSufficient, defenseEvidenceSufficient, appealEvidenceSufficient, emotionReasonDialogueSufficient, disadvantagesSufficient, advantagesSufficient, consensusLearningSufficient, prosecutionRebuttalsComplete, defenseSurrebuttalsComplete, thereforeConclusionsComplete, intraTrIntroductionComplete, situation, automaticThoughtReportedAsFeeling, automaticThought, automaticThoughtBeliefPercent, primaryEmotion, primaryEmotionIntensityPercent, behavior, bodySensations, participantSummary, cycleSummaryAcknowledged, behaviorPros, behaviorCons, cognitiveDistortion, evidenceFor, evidenceForNoMore, evidenceForDuplicate, evidenceForCount, evidenceAgainst, evidenceAgainstNoMore, evidenceAgainstDuplicate, evidenceAgainstCount, balancedConclusion, conclusionTherefore, conclusionReadBackComplete, conclusionBeliefPercent, positiveEmotions, originalEmotionRerating, newEmotionIntensities, intendedActions, newBodySensations, revisedAutomaticThoughtBeliefPercent, globalEvaluation, closingReview, actionPlanOffer
+- Expected reachable fields: safetyCheck, intraTrIntroductionComplete, redirectionContractAcknowledged, worksheetReady, situation, automaticThought, workingAutomaticThought, factualThoughtConfirmed, automaticThoughtBeliefPercent, primaryEmotion, primaryEmotionIntensityPercent, behavior, bodySensations, participantSummary, cycleSummaryAcknowledged, behaviorPros, behaviorCons, cognitiveDistortion, evidenceFor, evidenceAgainst, balancedConclusion, conclusionTherefore, conclusionReadBackComplete, conclusionBeliefPercent, positiveEmotions, originalEmotionRerating, newEmotionIntensities, intendedActions, newBodySensations, revisedAutomaticThoughtBeliefPercent, globalEvaluation, closingReview, actionPlanOffer
+- Captured fields: safetyCheck, prosecutionEvidenceSufficient, defenseEvidenceSufficient, appealEvidenceSufficient, emotionReasonDialogueSufficient, disadvantagesSufficient, advantagesSufficient, consensusLearningSufficient, prosecutionRebuttalsComplete, defenseSurrebuttalsComplete, thereforeConclusionsComplete, intraTrIntroductionComplete, redirectionContractAcknowledged, worksheetReady, situation, automaticThoughtReportedAsFeeling, automaticThought, automaticThoughtBeliefPercent, primaryEmotion, primaryEmotionIntensityPercent, behavior, bodySensations, participantSummary, cycleSummaryAcknowledged, behaviorPros, behaviorCons, cognitiveDistortion, evidenceFor, evidenceForNoMore, evidenceForDuplicate, evidenceForCount, evidenceAgainst, evidenceAgainstNoMore, evidenceAgainstDuplicate, evidenceAgainstCount, balancedConclusion, conclusionTherefore, conclusionReadBackComplete, conclusionBeliefPercent, positiveEmotions, originalEmotionRerating, newEmotionIntensities, intendedActions, newBodySensations, revisedAutomaticThoughtBeliefPercent, globalEvaluation, closingReview, actionPlanOffer
 - Missing fields: none

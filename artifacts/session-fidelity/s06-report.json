@@ -1,6 +1,6 @@
 {
   "sessionId": "tbct-s06",
-  "runtimeSessionId": "RTS-7bea715e",
+  "runtimeSessionId": "RTS-33cf84c3",
   "releaseId": "demo-release",
   "patientTurns": 23,
   "programTurns": 30,
@@ -82,6 +82,7 @@
     "colorZoneRulesAcknowledged",
     "symptomItemScores",
     "currentSymptomScore",
+    "currentSymptomScoreUncertain",
     "symptomItemScoresCount",
     "discomfortDistressSummary",
     "greenHomeworkItems",

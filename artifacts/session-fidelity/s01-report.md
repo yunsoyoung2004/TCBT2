@@ -1,9 +1,9 @@
 # TBCT-S01 fidelity audit
 
 - Release: demo-release
-- Patient turns: 35
-- Program turns: 41
-- PromptItems executed: 35
+- Patient turns: 16
+- Program turns: 23
+- PromptItems executed: 16
 - PromptItems skipped: 0
 - Fallbacks: 0
 - Repairs: 0
@@ -17,42 +17,23 @@
 
 - tbct-s01-n01-p02-telegraphic-situation
 - tbct-s01-n02-p01-situation-or-thought
+- tbct-s01-n02-p02-initial-thought-probe
 - tbct-s01-n04-p01-candidate-one-emotion
-- tbct-s01-n04-p02-candidate-one-thought
-- tbct-s01-n04-p03-candidate-one-behavior
-- tbct-s01-n04-p04-candidate-one-reaction
-- tbct-s01-n04-p05-candidate-one-thought-arrow
-- tbct-s01-n04-p06-candidate-one-emotion-arrow
-- tbct-s01-n04-p07-candidate-one-behavior-arrow
-- tbct-s01-n05-p01-candidate-two-same-situation
-- tbct-s01-n05-p02-candidate-two-emotion
-- tbct-s01-n05-p03-candidate-two-possibility
-- tbct-s01-n05-p04-candidate-two-emotion-recheck
-- tbct-s01-n05-p05-candidate-two-thought
-- tbct-s01-n05-p06-candidate-two-behavior
-- tbct-s01-n05-p07-candidate-two-reaction
-- tbct-s01-n05-p08-candidate-two-cycle
-- tbct-s01-n06-p01-candidate-three-same-situation
-- tbct-s01-n06-p02-candidate-three-emotion
-- tbct-s01-n06-p03-candidate-three-emotion-recheck
-- tbct-s01-n06-p04-candidate-three-thought
-- tbct-s01-n06-p05-candidate-three-behavior
-- tbct-s01-n06-p06-candidate-three-reaction
-- tbct-s01-n06-p07-candidate-three-cycle
-- tbct-s01-n07-p01-three-person-observation
-- tbct-s01-n07-p02-situation-thought-emotion-link
-- tbct-s01-n08-p01-thought-to-emotion
-- tbct-s01-n08-p02-emotion-to-behavior
-- tbct-s01-n08-p03-behavior-to-situation
-- tbct-s01-n08-p04-situation-to-thought
+- tbct-s01-n04-p02-candidate-one-behavior
+- tbct-s01-n05-p01-candidate-two-emotion
+- tbct-s01-n05-p02-candidate-two-behavior
+- tbct-s01-n06-p01-candidate-three-emotion
+- tbct-s01-n06-p02-candidate-three-behavior
+- tbct-s01-n07-p01-three-person-insight
+- tbct-s01-n08-p01-personal-emotion
+- tbct-s01-n08-p02-personal-behavior
+- tbct-s01-n08-p03-personal-body
 - tbct-s01-n09-p01-participant-summary
-- tbct-s01-n10-p01-confirm-list
-- tbct-s01-n10-p02-read-distortions
-- tbct-s01-n10-p03-identify-distortion
-- tbct-s01-n10-p04-meaning-of-distortion
+- tbct-s01-n10-p02-identify-distortion
+- tbct-s01-n10-p03-meaning-of-distortion
 
 ## Field extraction
 
-- Expected reachable fields: situationThoughtDistinction, threePersonPreviewComplete, candidateOneEmotion, candidateOneThought, candidateOneBehavior, candidateOneReaction, candidateOneReturningArrows, candidateTwoSameSituation, candidateTwoEmotion, candidateTwoPossibility, candidateTwoThought, candidateTwoBehavior, candidateTwoReaction, candidateTwoCycleComplete, candidateThreeSameSituation, candidateThreeEmotion, candidateThreeThought, candidateThreeBehavior, candidateThreeReaction, threePersonExampleComplete, threePersonModelInsight, personalThoughtEmotionLink, personalEmotionBehaviorLink, personalBehaviorSituationLink, personalSituationThoughtLink, outcomeGapInsight, participantSummary, distortionListAvailable, participantSelectedDistortions, distortionMeaning, dailyObservationPractice
-- Captured fields: situationThoughtDistinction, prosecutionEvidenceSufficient, defenseEvidenceSufficient, appealEvidenceSufficient, emotionReasonDialogueSufficient, disadvantagesSufficient, advantagesSufficient, consensusLearningSufficient, prosecutionRebuttalsComplete, defenseSurrebuttalsComplete, thereforeConclusionsComplete, redirectToThreePersonExample, threePersonPreviewComplete, candidateOneEmotion, candidateOneThought, candidateOneBehavior, candidateOneReaction, candidateOneReturningArrows, candidateTwoSameSituation, candidateTwoEmotion, candidateTwoEmotionRepeatsSibling, candidateTwoPossibility, candidateTwoThought, candidateTwoBehavior, candidateTwoReaction, candidateTwoCycleComplete, candidateThreeSameSituation, candidateThreeEmotion, candidateThreeEmotionRepeatsSibling, candidateThreeThought, candidateThreeBehavior, candidateThreeReaction, threePersonExampleComplete, threePersonModelInsight, personalThoughtEmotionLink, personalEmotionBehaviorLink, personalBehaviorSituationLink, personalSituationThoughtLink, participantSummary, distortionListAvailable, participantSelectedDistortions, participantSelectedDistortionsNoMore, participantSelectedDistortionsDuplicate, participantSelectedDistortionsCount, distortionMeaning, dailyObservationPractice
+- Expected reachable fields: situationThoughtDistinction, openingInitialThought, threePersonPreviewComplete, candidateOneEmotion, candidateOneBehavior, candidateTwoEmotion, candidateTwoBehavior, candidateThreeEmotion, candidateThreeBehavior, threePersonModelInsight, personalEmotion, personalBehavior, personalBodySensations, participantSummary, distortionsIntroductionAcknowledged, participantSelectedDistortions, distortionMeaning, dailyObservationPractice
+- Captured fields: situationThoughtDistinction, prosecutionEvidenceSufficient, defenseEvidenceSufficient, appealEvidenceSufficient, emotionReasonDialogueSufficient, disadvantagesSufficient, advantagesSufficient, consensusLearningSufficient, prosecutionRebuttalsComplete, defenseSurrebuttalsComplete, thereforeConclusionsComplete, openingInitialThought, redirectToThreePersonExample, threePersonPreviewComplete, candidateOneEmotion, candidateOneThought, candidateOneBehavior, candidateTwoEmotion, candidateTwoThought, candidateTwoBehavior, candidateThreeEmotion, candidateThreeThought, candidateThreeBehavior, threePersonModelInsight, personalEmotion, personalBehavior, personalBodySensations, participantSummary, distortionsIntroductionAcknowledged, participantSelectedDistortions, distortionMeaning, dailyObservationPractice
 - Missing fields: none

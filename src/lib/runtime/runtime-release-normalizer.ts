@@ -405,11 +405,30 @@ const IMMEDIATE_COMPLETION_EFFECTS = new Set(["pause_session", "complete_session
 // tbct-s02-n07-p07-goal-confirmation ("That's a wonderful goal -- I'll add
 // that.") is the same pattern on the goals side, checked and fixed
 // alongside problem-confirmation per an explicit follow-up request.
+// S01-S03 "answering 네 sends a random reply" bug report: reported live
+// against tbct-s03-n08-p04-cycle-note ("...the behavior reinforces the
+// thought. [question]") -- type "reflection" is in the same unconditional
+// requiresPatientInput=true list as "confirmation" above, so the same defect
+// applies to every reflection-typed prompt that is actually a passive
+// comment rather than a real question. Audited every "reflection"- and
+// "confirmation"-typed prompt in s01.ts/s02.ts/s03.ts (S01 has neither type
+// at all) and added every remaining passive one below in one pass, rather
+// than fixing only the reported example, since the same class of bug would
+// otherwise resurface prompt by prompt. tbct-s03-n11-p03-full-conclusion-readback
+// is a real yes/no question missing validation.kind: "boolean" instead --
+// fixed separately at its own declaration in s03.ts, not listed here.
 const PASSIVE_ACKNOWLEDGMENT_PROMPT_IDS = new Set([
   "tbct-s02-n11-p02-recorded-summary",
   "tbct-s02-n02-p06-problem-confirmation",
   "tbct-s02-n03-p02-acknowledge-private-placeholder",
   "tbct-s02-n07-p07-goal-confirmation",
+  "tbct-s02-n05-p02-acknowledge-distress",
+  "tbct-s02-n05-p03-acknowledge-manageable",
+  "tbct-s02-n06-p02-problem-total-personal",
+  "tbct-s02-n09-p02-acknowledge-difficult-goal",
+  "tbct-s02-n09-p03-acknowledge-achieved-goal",
+  "tbct-s02-n10-p02-goal-total-personal",
+  "tbct-s03-n08-p04-cycle-note",
 ]);
 
 export function promptRequiresPatientInput(promptItem: PromptItem) {
