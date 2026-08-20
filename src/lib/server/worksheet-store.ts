@@ -44,14 +44,33 @@ async function ensureTemplateVersion(input: { templateId: string; sessionDefinit
       `INSERT INTO worksheet_template_versions (id, template_id, version, source_text_hash, status, created_at, data) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [versionId, input.templateId, input.version, input.sourceTextHash, "published", now, JSON.stringify({ sourceTextHash: input.sourceTextHash, status: "published", createdAt: now })],
     );
-    for (const [index, definition] of input.fieldDefinitions.entries()) {
-      await pool.query(
-        `INSERT INTO worksheet_field_definitions (id, template_version_id, canonical_field_key, worksheet_field_key, value_type, participant_owned, assistant_must_not_supply, confirmation_required, visual_element_id, display_order, source_section)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         ON CONFLICT (template_version_id, worksheet_field_key) DO NOTHING`,
-        [makeId("WKFD"), versionId, definition.canonicalFieldKey, definition.worksheetFieldKey, definition.valueType, definition.participantOwned, definition.assistantMustNotSupply, definition.confirmationRequired, definition.visualElementId, index, definition.sourceSection ?? null],
-      );
-    }
+  }
+  // Backfill any field this session's WorksheetBinding[] defines that this
+  // template version doesn't have a row for yet -- covers both a brand-new
+  // version (nothing exists) and, just as importantly, an EXISTING version
+  // whose bindings array has grown since it was first created. TEMPLATE_VERSION
+  // is a constant that's never bumped (see worksheet-projection.ts), so
+  // without this, a field added to a session's bindings after its first real
+  // run never gets a definition row for that session, forever -- it silently
+  // disappears from getWorksheetView's output (this is what happened to
+  // S07's emotionReasonSpeakers/consensusSurprise/consensusEmotionIntent/
+  // consensusPartsNeeds, all added after S07's template version already
+  // existed in production). ON CONFLICT DO NOTHING plus the existingKeys
+  // check keeps this safe to run on every call: already-defined fields (and
+  // their original display_order) are left untouched.
+  const existingKeys = await pool.query<{ worksheet_field_key: string }>(
+    `SELECT worksheet_field_key FROM worksheet_field_definitions WHERE template_version_id = $1`,
+    [versionId],
+  );
+  const existingKeySet = new Set(existingKeys.rows.map((row) => row.worksheet_field_key));
+  for (const [index, definition] of input.fieldDefinitions.entries()) {
+    if (existingKeySet.has(definition.worksheetFieldKey)) continue;
+    await pool.query(
+      `INSERT INTO worksheet_field_definitions (id, template_version_id, canonical_field_key, worksheet_field_key, value_type, participant_owned, assistant_must_not_supply, confirmation_required, visual_element_id, display_order, source_section)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (template_version_id, worksheet_field_key) DO NOTHING`,
+      [makeId("WKFD"), versionId, definition.canonicalFieldKey, definition.worksheetFieldKey, definition.valueType, definition.participantOwned, definition.assistantMustNotSupply, definition.confirmationRequired, definition.visualElementId, index, definition.sourceSection ?? null],
+    );
   }
   return { id: versionId, templateId: input.templateId, version: input.version, sourceTextHash: input.sourceTextHash, status: "published", createdAt: now };
 }

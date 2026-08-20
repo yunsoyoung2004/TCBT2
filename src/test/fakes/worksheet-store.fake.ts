@@ -43,11 +43,26 @@ export async function dispatchFakeWorksheetStoreOp(op: WorksheetStoreOp): Promis
     case "ensureTemplateVersion": {
       const key = `${op.sessionDefinitionId}:${op.version}`;
       const existing = templatesByKey.get(key);
-      if (existing) return existing;
-      const now = new Date().toISOString();
-      const record: WorksheetTemplateVersionRecord = { id: makeId("WKTV"), templateId: op.templateId, version: op.version, sourceTextHash: op.sourceTextHash, status: "published", createdAt: now };
-      templatesByKey.set(key, record);
-      fieldDefinitionsByTemplateVersion.set(record.id, op.fieldDefinitions.map((definition, index) => ({ ...definition, id: makeId("WKFD"), templateVersionId: record.id, displayOrder: definition.displayOrder ?? index })));
+      let record: WorksheetTemplateVersionRecord;
+      if (existing) {
+        record = existing;
+      } else {
+        const now = new Date().toISOString();
+        record = { id: makeId("WKTV"), templateId: op.templateId, version: op.version, sourceTextHash: op.sourceTextHash, status: "published", createdAt: now };
+        templatesByKey.set(key, record);
+        fieldDefinitionsByTemplateVersion.set(record.id, []);
+      }
+      // Mirrors src/lib/server/worksheet-store.ts's own backfill: a field
+      // added to this session's bindings after the template version already
+      // existed still needs a definition row, on every call, not only the
+      // first one -- see that file's comment for the production bug this
+      // fixes.
+      const current = fieldDefinitionsByTemplateVersion.get(record.id) ?? [];
+      const existingKeySet = new Set(current.map((definition) => definition.worksheetFieldKey));
+      const additions = op.fieldDefinitions
+        .filter((definition) => !existingKeySet.has(definition.worksheetFieldKey))
+        .map((definition, index) => ({ ...definition, id: makeId("WKFD"), templateVersionId: record.id, displayOrder: definition.displayOrder ?? current.length + index }));
+      if (additions.length) fieldDefinitionsByTemplateVersion.set(record.id, [...current, ...additions]);
       return record;
     }
     case "getTemplateVersion": return templatesByKey.get(`${op.sessionDefinitionId}:${op.version}`);

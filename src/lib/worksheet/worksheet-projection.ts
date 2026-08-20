@@ -129,10 +129,9 @@ export async function getWorksheetView(runtimeSessionId: string, sessionDefiniti
   const bindings = getWorksheetBindings(sessionDefinitionId);
   const bindingByWorksheetKey = new Map(bindings.map((binding) => [binding.worksheetFieldKey, binding]));
   // ensureTemplateAndInstance's worksheet_field_definitions rows are written
-  // ONCE per (templateId, TEMPLATE_VERSION) and then reused forever --
-  // ensureTemplateVersion no-ops once that row already exists (see its own
-  // comment), so a session created before a content rewrite that renamed or
-  // removed a worksheetFieldKey (e.g. S01's personalThoughtEmotionLink/
+  // ONCE per (templateId, TEMPLATE_VERSION) and then reused forever, so a
+  // session created before a content rewrite that renamed or removed a
+  // worksheetFieldKey (e.g. S01's personalThoughtEmotionLink/
   // personalEmotionBehaviorLink/personalBehaviorSituationLink, replaced by
   // openingInitialThought/personalEmotion/personalBehavior/
   // personalBodySensations) still has field-definition rows for the OLD key,
@@ -141,6 +140,13 @@ export async function getWorksheetView(runtimeSessionId: string, sessionDefiniti
   // what actually crashed in production (TypeError: undefined is not an
   // object (evaluating 'e.binding.displayOrder')): an orphaned field simply
   // disappears from the view instead of crashing the whole panel.
+  // The other direction (a field ADDED to a session's bindings after its
+  // template version already exists -- S07's emotionReasonSpeakers/
+  // consensusSurprise/consensusEmotionIntent/consensusPartsNeeds, which
+  // simply never appeared for any session created before they were added)
+  // is handled on the write side instead: ensureTemplateVersion now backfills
+  // any missing current-binding definition row on every call, not only the
+  // first one (see its own comment in worksheet-store.ts).
   const fields = fieldDefinitions
     .filter((definition: WorksheetFieldDefinitionRecord) => bindingByWorksheetKey.has(definition.worksheetFieldKey))
     .map((definition: WorksheetFieldDefinitionRecord) => ({
