@@ -100,7 +100,21 @@ export async function projectRuntimeFieldsToWorksheet(input: {
     const unchanged = existing && JSON.stringify(existing.value) === JSON.stringify(rawValue);
     if (unchanged && existing?.status === "participant_confirmed") continue; // don't unconfirm on a no-op re-project
 
-    const provenance: WorksheetFieldProvenance = binding?.assistantMustNotSupply ? "participant_confirmed_summary" : "participant_verbatim";
+    // FIXED (Patient Authorship Invariant, .claude/TASK_SCOPE.json
+    // note2026_09_05): this used to key off assistantMustNotSupply, which
+    // asserted "confirmed" for the overwhelming majority of fields at the
+    // moment of first projection -- before confirmWorksheetField below has
+    // ever run -- while a field the assistant WAS allowed to author (S03's
+    // 18 pre-fix bindings) got labeled "verbatim". A freshly projected
+    // value is whatever extractRuntimeState stored, which is the
+    // participant's own wording verbatim for every participant-owned field
+    // (runtime-context.ts:1136-1153); "confirmed" is a claim about an event
+    // that has not happened yet at projection time -- only
+    // confirmWorksheetField below is allowed to make that claim. The one
+    // case where the value never came from the participant's own words at
+    // all is a system-owned field (participantOwned: false, e.g. a
+    // calculated total).
+    const provenance: WorksheetFieldProvenance = binding && !binding.participantOwned ? "system_calculated" : "participant_verbatim";
     const status: WorksheetFieldStatus = unchanged ? (existing?.status ?? "draft_extracted") : "draft_extracted";
 
     if (definition.valueType === "text_list" && Array.isArray(rawValue)) {
@@ -371,8 +385,12 @@ export async function confirmWorksheetField(runtimeSessionId: string, sessionDef
   if (!definition) throw new Error(`Unknown worksheet field ${worksheetFieldKey} for ${sessionDefinitionId}`);
   const existing = (await listWorksheetFieldValues(instance.id)).find((value) => value.fieldDefinitionId === definition.id);
   const now = new Date().toISOString();
+  // This is the one place "confirmed" provenance is actually earned -- see
+  // the projection-time comment above for why it must not be asserted any
+  // earlier.
+  const provenance: WorksheetFieldProvenance = existing?.provenance === "system_calculated" ? "system_calculated" : "participant_confirmed_summary";
   const fieldValue = await upsertWorksheetFieldValue(instance.id, definition.id, {
-    status: "participant_confirmed", provenance: existing?.provenance ?? "participant_verbatim", confirmedAt: now, value: existing?.value, displayValue: existing?.displayValue,
+    status: "participant_confirmed", provenance, confirmedAt: now, value: existing?.value, displayValue: existing?.displayValue,
   });
   await appendWorksheetFieldRevision({ fieldValueId: fieldValue.id, status: "participant_confirmed", provenance: fieldValue.provenance, snapshot: fieldValue.value });
   await appendWorksheetEvent(instance.id, "field_confirmed", { worksheetFieldKey });

@@ -1,4 +1,5 @@
 import type { DialogueAgentResult, DialogueContract, DialogueDecision } from "@/lib/dialogue-agent/dialogue-agent-contract";
+import { contractMayRequireAssembly } from "@/lib/dialogue-agent/message-composition";
 
 // Deterministic stand-in for the real Anthropic dialogue agent
 // (anthropic-dialogue-agent.ts) -- tests need a REALISTIC classifier (not
@@ -12,9 +13,21 @@ import type { DialogueAgentResult, DialogueContract, DialogueDecision } from "@/
 export function fakeDialogueDecision(contract: DialogueContract): DialogueDecision {
   const message = (contract.lastParticipantMessage ?? "").trim();
   const lower = message.toLowerCase();
+  // Patient Authorship Invariant (.claude/TASK_SCOPE.json note2026_09_05):
+  // once a session is in message-composition.ts's rollout set,
+  // dialogue-output-validator.ts ignores patientFacingMessage entirely for
+  // every responseType in PATIENT_CONTENT_RESPONSE_TYPES and requires
+  // messageParts instead. This fake exists to verify WIRING (see this
+  // file's header comment), so it must submit valid messageParts wherever a
+  // real, rule-following Claude would have to -- otherwise every such turn
+  // would (correctly) fall back, which would test the fallback path
+  // instead of the wiring this fake is for. patientFacingMessage is left in
+  // place unconditionally too: harmless when messageParts also governs (it
+  // is never read), and still exactly what ships on any non-gated session.
+  const gated = contractMayRequireAssembly(contract);
 
   if (!message) {
-    return { responseType: "reflect_and_ask", patientFacingMessage: contract.currentTaskText, keepCurrentNode: true, participantResponseState: "valid_answer" };
+    return { responseType: "reflect_and_ask", patientFacingMessage: contract.currentTaskText, keepCurrentNode: true, participantResponseState: "valid_answer", messageParts: gated ? [{ kind: "approved_task" }] : undefined };
   }
   if (/\b(what does .* mean|what do you mean|i don'?t understand|무슨 뜻|이해가 안)\b/i.test(lower)) {
     return {
@@ -23,6 +36,11 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
       keepCurrentNode: true,
       participantResponseState: "question_not_understood",
       clarificationReason: "participant_asked_for_definition",
+      // Loses the term-definition specificity when gated (expectedConstruct
+      // is not an approved MessagePart source -- see message-composition.ts)
+      // -- a real Claude turn here should prefer responseType explain_term
+      // instead, which is exempt and can define the construct freely.
+      messageParts: gated ? [{ kind: "connector", id: "acknowledge_neutral" }, { kind: "approved_task" }] : undefined,
     };
   }
   if (/\b(where'?s the list|i don'?t see the (?:list|options)|missing|목록이 안|안 보여)\b/i.test(lower)) {
@@ -48,6 +66,7 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
           patientFacingMessage: `This helps us ${contract.therapeuticObjective.toLowerCase()} ${contract.currentTaskText}`,
           keepCurrentNode: true,
           participantResponseState: "participant_question",
+          messageParts: gated ? [{ kind: "connector", id: "acknowledge_neutral" }, { kind: "approved_task" }] : undefined,
         };
   }
   if (/\bpercent|score|number|scale\?/i.test(lower) && contract.scaleExplanation) {
@@ -69,6 +88,7 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
         : "I hear you. I don't have a way to change that earlier answer automatically in this conversation yet, but let's continue and you can tell me the correction.",
       keepCurrentNode: true,
       participantResponseState: "revision_request",
+      messageParts: gated ? [{ kind: "connector", id: contract.worksheetEditAvailable ? "worksheet_edit_available" : "worksheet_edit_unavailable" }] : undefined,
     };
   }
   return {
@@ -77,6 +97,7 @@ export function fakeDialogueDecision(contract: DialogueContract): DialogueDecisi
     keepCurrentNode: true,
     participantResponseState: "valid_answer",
     candidateFieldMention: contract.targetField ? { field: contract.targetField, value: message } : undefined,
+    messageParts: gated ? [{ kind: "approved_task" }] : undefined,
   };
 }
 

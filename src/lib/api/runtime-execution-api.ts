@@ -64,11 +64,11 @@ function mergePromptItemIds(...collections: Array<string[] | undefined>) {
   return [...new Set(collections.flatMap((collection) => collection ?? []))];
 }
 
-function getPromptCompletionEffectType(promptItem: PromptItem) {
+export function getPromptCompletionEffectType(promptItem: PromptItem) {
   return typeof promptItem.completionEffect?.type === "string" ? promptItem.completionEffect.type : "advance_prompt";
 }
 
-function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem, locale = "en-US"): RuntimeSession["runtimeContext"] {
+export function applyPromptCompletionEffect(runtimeContext: RuntimeSession["runtimeContext"], promptItem: PromptItem, locale = "en-US"): RuntimeSession["runtimeContext"] {
   const validationKind = String((promptItem.validation as { kind?: unknown } | null)?.kind ?? "");
   const ratingValues = (value: unknown): number[] => {
     if (Array.isArray(value)) return value.flatMap(ratingValues);

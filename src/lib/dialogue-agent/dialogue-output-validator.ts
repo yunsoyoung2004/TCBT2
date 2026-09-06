@@ -1,8 +1,15 @@
 import type { DialogueContract, DialogueDecision } from "@/lib/dialogue-agent/dialogue-agent-contract";
 import { hasUnresolvedTemplateVariable } from "@/lib/dialogue-agent/unresolved-template-detector";
 import { isPatientFacingLocaleConsistent } from "@/lib/runtime/runtime-output-validator";
+import { assembleMessage, requiresAssembledMessage } from "@/lib/dialogue-agent/message-composition";
 
-export type DialogueValidationResult = { accepted: true } | { accepted: false; reason: string };
+export type DialogueValidationResult =
+  // finalText is present only when assembleMessage produced the shipped
+  // text (see requiresAssembledMessage below) -- callers must ship finalText
+  // instead of decision.patientFacingMessage whenever it is set, since
+  // patientFacingMessage was never trusted or even inspected in that case.
+  | { accepted: true; finalText?: string }
+  | { accepted: false; reason: string };
 
 const DIAGNOSIS_PATTERN = /\b(?:you have|this (?:is|sounds like|indicates)) (?:a |an )?(?:diagnos|disorder|clinical depression|generalized anxiety disorder|bipolar|PTSD|OCD)\b/i;
 const TREATMENT_ADVICE_PATTERN = /\b(?:you should (?:take|try)|i recommend (?:medication|therapy|seeing a)|consider (?:medication|antidepressants))\b/i;
@@ -23,6 +30,30 @@ function normalizeForRepeatCheck(text: string): string {
  * verbatim, or it's the known-safe fallback.
  */
 export function validateDialogueDecision(decision: DialogueDecision, contract: DialogueContract): DialogueValidationResult {
+  // Patient Authorship Invariant (.claude/TASK_SCOPE.json note2026_09_05,
+  // plan file goofy-orbiting-noodle.md Phase 2): for a turn that talks
+  // ABOUT a participant-owned field's content, decision.patientFacingMessage
+  // is never even inspected below -- a free string cannot be verified
+  // against anything, which is exactly how 32 real turns (stored real-Claude
+  // transcripts, artifacts/session-fidelity/live-claude-s07-s08/,
+  // live-claude/) smoothed, invented, concluded, or supplied content on the
+  // participant's behalf without tripping the checks further down (those
+  // checks are real content-hygiene rules, not an authorship check). Claude
+  // must instead submit messageParts, which the server assembles and
+  // independently verifies against real transcript/confirmed-state data --
+  // see message-composition.ts's header comment for why this closes the gap
+  // a denylist of bad phrases structurally cannot. This branch deliberately
+  // skips the free-text hygiene checks below (they would only be checking
+  // Claude's now-irrelevant patientFacingMessage guess, never the shipped
+  // text) and rejoins the shared candidateFieldMention/keepCurrentNode
+  // checks with the server-assembled text instead.
+  if (requiresAssembledMessage(contract, decision)) {
+    if (!decision.messageParts?.length) return { accepted: false, reason: "missing_message_parts" };
+    const assembled = assembleMessage(decision.messageParts, contract);
+    if (!assembled.ok) return { accepted: false, reason: assembled.reason };
+    return finishValidation(decision, contract, assembled.text);
+  }
+
   const text = decision.patientFacingMessage;
 
   if (hasUnresolvedTemplateVariable(text)) return { accepted: false, reason: "unresolved_template_variable" };
@@ -70,6 +101,14 @@ export function validateDialogueDecision(decision: DialogueDecision, contract: D
     }
   }
 
+  return finishValidation(decision, contract);
+}
+
+/** Shared tail for both the assembled-message path and the free-text path
+ * above -- these two checks apply regardless of how patientFacingMessage
+ * was produced. finalText is passed through only for the assembled path
+ * (see DialogueValidationResult's doc comment). */
+function finishValidation(decision: DialogueDecision, contract: DialogueContract, finalText?: string): DialogueValidationResult {
   // "assistantMustNotSupply" fields: Claude may report what the participant
   // themselves said (candidateFieldMention is documented as non-authoritative
   // logging only -- it never reaches extractRuntimeState, which remains the
@@ -92,5 +131,5 @@ export function validateDialogueDecision(decision: DialogueDecision, contract: D
   // case a future schema change loosens that.
   if (decision.keepCurrentNode !== true) return { accepted: false, reason: "attempted_node_advance" };
 
-  return { accepted: true };
+  return finalText !== undefined ? { accepted: true, finalText } : { accepted: true };
 }

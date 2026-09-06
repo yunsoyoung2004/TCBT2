@@ -1,6 +1,7 @@
 import { dialogueContractSchema, dialogueDecisionSchema, type DialogueAgentResult, type DialogueContract } from "@/lib/dialogue-agent/dialogue-agent-contract";
 import { redactDirectIdentifiers } from "@/lib/assessment/privacy-redaction";
 import { recordModelUsage } from "@/lib/assessment/model-observability";
+import { CONNECTOR_IDS, REPAIR_TEMPLATE_IDS, contractMayRequireAssembly, PATIENT_CONTENT_RESPONSE_TYPES } from "@/lib/dialogue-agent/message-composition";
 
 // The rich per-step system prompt below (stepSpecificGuidance, the full
 // responseType/participantResponseState taxonomy, etc.) is what the
@@ -62,6 +63,23 @@ const RESPONSE_SCHEMA = {
     clarificationReason: { type: "string" },
     explanationDepth: { type: "string", enum: ["minimal", "standard", "expanded"] },
     candidateFieldMention: { type: "object", additionalProperties: false, required: ["field", "value"], properties: { field: { type: "string" }, value: {} } },
+    // Patient Authorship Invariant: for the response types/fields
+    // requiresAssembledMessage governs, this is what actually ships --
+    // patientFacingMessage above is ignored entirely in that case (see
+    // dialogue-output-validator.ts). See message-composition.ts for what
+    // each part kind means.
+    messageParts: {
+      type: "array",
+      items: {
+        oneOf: [
+          { type: "object", additionalProperties: false, required: ["kind"], properties: { kind: { const: "approved_task" } } },
+          { type: "object", additionalProperties: false, required: ["kind", "text"], properties: { kind: { const: "quote" }, text: { type: "string", minLength: 1 } } },
+          { type: "object", additionalProperties: false, required: ["kind", "id"], properties: { kind: { const: "connector" }, id: { type: "string", enum: CONNECTOR_IDS } } },
+          { type: "object", additionalProperties: false, required: ["kind", "id"], properties: { kind: { const: "repair" }, id: { type: "string", enum: REPAIR_TEMPLATE_IDS } } },
+          { type: "object", additionalProperties: false, required: ["kind", "text"], properties: { kind: { const: "example" }, text: { type: "string", minLength: 1 } } },
+        ],
+      },
+    },
   },
 } as const;
 
@@ -183,6 +201,35 @@ function systemPrompt(contract: DialogueContract) {
     contract.scaleExplanation ? `Scale meaning if asked: ${contract.scaleExplanation}` : "",
     contract.participantOwned ? "This field's value must come from the participant, in their own words." : "",
     contract.assistantMustNotSupply ? "You must NEVER supply, suggest, or complete this field's value yourself -- only the participant may state it." : "",
+    // Patient Authorship Invariant (.claude/TASK_SCOPE.json note2026_09_05):
+    // the instruction above alone has already failed live -- 32 real turns
+    // (stored real-Claude transcripts) smoothed the participant's wording,
+    // invented a belief/assumption, drew their conclusion for them, or
+    // supplied evidence on their behalf, all via ordinary prose in
+    // patientFacingMessage, none of it caught by that instruction. For a
+    // turn like this one, patientFacingMessage is not read at all -- submit
+    // messageParts instead, built only from these pieces:
+    // approved_task (use the current task exactly as given), quote (a
+    // SPAN OF THE PARTICIPANT'S OWN WORDS FROM THIS CONVERSATION, verified
+    // against the actual transcript -- never your own prior turn, never the
+    // protocol text, never something you inferred they meant), connector
+    // (pick one id from CONNECTOR_IDS -- a short, content-free turn-opener;
+    // do not write your own), repair (pick one id from REPAIR_TEMPLATE_IDS
+    // for a wrong-construct/partial-answer correction, then follow it with
+    // an approved_task part re-asking the actual task -- never describe the
+    // construct yourself), example (an illustrative example ONLY, to help a
+    // stalled participant get started -- it will be rendered inside a fixed
+    // "for example..." wrapper so it never reads as something they said; you
+    // must never, in ANY later turn, refer back to an example you offered as
+    // something the participant confirmed, stated, or that the trial/session
+    // established -- an example is illustration, never their answer, until
+    // and unless they actually say it themselves).
+    contract.nodeRequiresProtectedField
+      ? "This step's own field above may just be a delivery/acknowledgment flag, but this step is ALSO responsible for another field only the participant may state (e.g. a belief, charge, or piece of evidence established earlier). Do not restate, reword, add to, or otherwise alter that other content while phrasing this turn -- if you reference it at all, it must be the participant's own words exactly as they gave them, never your own summary or rephrasing of it."
+      : "",
+    contractMayRequireAssembly(contract)
+      ? `This turn is protected: for responseType ${Array.from(PATIENT_CONTENT_RESPONSE_TYPES).join("/")}, you must submit messageParts (see above), not patientFacingMessage. For explain_rationale/explain_term/explain_scale/show_required_visual/acknowledge_pause -- which explain the PROTOCOL, never the participant's content -- patientFacingMessage is fine as usual.`
+      : "",
     // Step-specific conduct rules from the protocol source. These are
     // clinical requirements for THIS step, not style preferences: where they
     // conflict with any general phrasing guidance below (e.g. the default

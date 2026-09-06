@@ -50,6 +50,35 @@ function ownershipFor(targetField: string | undefined): { participantOwned: bool
   return { participantOwned: true, assistantMustNotSupply: true };
 }
 
+// A binding may opt out of assistantMustNotSupply only for a field it also
+// declares system-owned (participantOwned: false, e.g. a calculated
+// total). "the participant owns it, but the assistant may supply it" is
+// not a coherent state -- tbct-s03.ts's pilot bindings declared exactly
+// that for 18 fields, silently defeating ownershipFor()'s conservative
+// default for the entire Intra-TR session (see the Patient Authorship
+// Invariant plan, .claude/TASK_SCOPE.json note2026_09_05). This clause
+// makes that class of binding error structurally impossible to reintroduce.
+function ownershipFromBinding(binding: WorksheetBinding | undefined, field: string | undefined): { participantOwned: boolean; assistantMustNotSupply: boolean } {
+  return binding
+    ? { participantOwned: binding.participantOwned, assistantMustNotSupply: binding.participantOwned ? true : binding.assistantMustNotSupply }
+    : ownershipFor(field);
+}
+
+/** Is `field` itself a genuinely protected (participant-authored) field,
+ * regardless of which prompt/turn is currently active? Used to check a
+ * NODE's other requiredFields, not just the current turn's own targetField
+ * -- see the Patient Authorship Invariant plan's "잔여 격차" note
+ * (.claude/TASK_SCOPE.json note2026_09_07) for why a turn whose OWN field is
+ * a pure administrative flag can still need protecting: S08's
+ * roles-orientation turn answers only courtroomOrientationAcknowledged, but
+ * its free-form delivery restated the participant's own hedged charge as a
+ * flat, invented declarative -- charge is a real transcript-confirmed
+ * violation this narrower per-turn-field check alone would miss. */
+function isFieldProtected(sessionDefinitionId: string, field: string): boolean {
+  const binding = getWorksheetBindings(sessionDefinitionId).find((item) => item.canonicalFieldKey === field);
+  return ownershipFromBinding(binding, field).assistantMustNotSupply;
+}
+
 function expectedInputTypeFromValueType(valueType: WorksheetValueType): ExpectedInputType {
   if (valueType === "percentage") return "percentage_0_100";
   if (valueType === "rating_0_5") return "integer_0_5";
@@ -269,7 +298,13 @@ export function compileDialogueContract(input: {
   const targetField = sourcePromptItem.outputFields[0];
   const binding = getWorksheetBindings(session.sessionDefinitionId).find((item) => item.canonicalFieldKey === targetField);
   const expectedInputType = resolveExpectedInputType(binding, sourcePromptItem.validation);
-  const ownership = binding ? { participantOwned: binding.participantOwned, assistantMustNotSupply: binding.assistantMustNotSupply } : ownershipFor(targetField);
+  const ownership = ownershipFromBinding(binding, targetField);
+  // See isFieldProtected's doc comment: this turn's OWN field can be a pure
+  // administrative flag while the node it belongs to is still responsible
+  // for a genuinely protected field elsewhere (checked via the node's own
+  // requiredFields -- the exact signal confirmedStateFor below already
+  // reads for the same "what is this node responsible for" purpose).
+  const nodeRequiresProtectedField = node.requiredFields.some((field) => field !== targetField && isFieldProtected(session.sessionDefinitionId, field));
   const terminology = terminologyFor(targetField, expectedInputType);
 
   const contract: DialogueContract = {
@@ -305,6 +340,7 @@ export function compileDialogueContract(input: {
     choiceOptions: expectedInputType === "single_choice" ? choiceOptionsFor(sourcePromptItem) : undefined,
     participantOwned: ownership.participantOwned,
     assistantMustNotSupply: ownership.assistantMustNotSupply,
+    nodeRequiresProtectedField,
     worksheetEditAvailable: hasWorksheetBindings(session.sessionDefinitionId),
     confirmedState: confirmedStateFor(session, node, targetField),
     // Named to exactly match dialogueResponseTypeSchema's responseType enum

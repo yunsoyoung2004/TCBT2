@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { messagePartSchema } from "@/lib/dialogue-agent/message-composition";
 
 // The node-scoped contract sent TO the dialogue agent every turn. Compact by
 // design (see compileDialogueContract) -- never the whole protocol, never
@@ -47,6 +48,19 @@ export const dialogueContractSchema = z.object({
   choiceOptions: z.array(z.string()).optional(),
   participantOwned: z.boolean(),
   assistantMustNotSupply: z.boolean(),
+  // True when THIS turn's own targetField is not itself participant-owned
+  // (e.g. a delivery-tracking flag like courtroomOrientationAcknowledged)
+  // but the node it belongs to also requires a genuinely protected field
+  // (e.g. that same node's charge) -- see dialogue-contract-compiler.ts's
+  // isFieldProtected. Patient Authorship Invariant gap fix
+  // (.claude/TASK_SCOPE.json note2026_09_07): an instruction/orientation
+  // turn's free-form delivery can still restate or invent content for a
+  // DIFFERENT field the node is responsible for, even when this turn's own
+  // field carries no content risk by itself. Deliberately kept separate
+  // from assistantMustNotSupply (which describes ONLY targetField, and
+  // whose wording in systemPrompt() names "this field" specifically) rather
+  // than widening that field's meaning.
+  nodeRequiresProtectedField: z.boolean().default(false),
   // True only when this session has a worksheet-edit affordance (any
   // session with a reviewed binding registry entry -- see
   // worksheet-binding-registry.ts) -- lets Claude answer "can I change an
@@ -175,6 +189,13 @@ export const dialogueDecisionSchema = z.object({
   clarificationReason: z.string().optional(),
   explanationDepth: explanationDepthSchema.optional(),
   candidateFieldMention: z.object({ field: z.string(), value: z.unknown() }).optional(),
+  // Patient Authorship Invariant (.claude/TASK_SCOPE.json note2026_09_05):
+  // for a turn dialogue-output-validator.ts's requiresAssembledMessage
+  // flags, patientFacingMessage above is NOT trusted at all -- Claude must
+  // submit this instead, and the server assembles + independently verifies
+  // the final text from it (see message-composition.ts). Optional here
+  // because it is irrelevant, and never checked, for every other turn.
+  messageParts: z.array(messagePartSchema).optional(),
 });
 export type DialogueDecision = z.infer<typeof dialogueDecisionSchema>;
 

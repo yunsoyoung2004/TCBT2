@@ -17,6 +17,6 @@ export default defineConfig({
     environmentOptions: { jsdom: { url: "http://localhost:3000" } },
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "langgraph/**/*.test.ts"],
   },
 });

@@ -103,5 +103,9 @@ export async function resolveDialogueAgentMessage(input: {
   if (!validation.accepted) {
     return { patientMessage: input.deterministicFallbackText, decision: result.decision, usedFallback: true, fallbackReason: validation.reason, provider: result.provider, model: result.model, latencyMs: result.latencyMs };
   }
-  return { patientMessage: result.decision.patientFacingMessage, decision: result.decision, usedFallback: false, provider: result.provider, model: result.model, latencyMs: result.latencyMs };
+  // finalText is set only when validateDialogueDecision assembled the text
+  // itself (Patient Authorship Invariant) -- decision.patientFacingMessage
+  // was never trusted or even inspected in that case, so it must not be
+  // shipped here.
+  return { patientMessage: validation.finalText ?? result.decision.patientFacingMessage, decision: result.decision, usedFallback: false, provider: result.provider, model: result.model, latencyMs: result.latencyMs };
 }
